@@ -42,7 +42,8 @@ Registre de capacités → Politique déterministe → Worker isolé
 ```
 
 Ce schéma est une cible. Le catalogue étendu, la boucle agentique, la reprise
-durable et le worker isolé restent à construire. Le choix d’un agent existant,
+du plan de mission complet et le worker isolé restent à construire. Le choix
+d’un agent existant,
 dont Hermes, ou d’un moteur propre passe par une évaluation. Aucune brique
 adoptée ne peut contourner les permissions du runtime Argos.
 
@@ -104,8 +105,11 @@ canoniques sans dupliquer leur logique.
 locaux. Le registre distingue une capacité active et un cache terminal borné ;
 l'état, le plan, l'audit canonique et les preuves sont persistés. Les transitions
 terminales et leurs preuves sont atomiques dans une même base SQLite ; les
-lectures survivent à l'éviction et au redémarrage. La réconciliation et la
-reprise d'exécution après panne restent à construire. Voir le
+lectures survivent à l'éviction et au redémarrage. Un verrou POSIX assure un
+propriétaire d'exécution par base locale. Les jobs restés en cours sont marqués
+interrompus ; seuls les jobs en attente sont repris par appel explicite avec
+revalidation du mandat. L'isolation système et l'arrêt des outils orphelins
+restent à construire. Voir le
 [suivi P1](../product/EXECUTION_P1.md).
 `.argos/` et `outputs/` contiennent des données runtime ignorées par Git.
 

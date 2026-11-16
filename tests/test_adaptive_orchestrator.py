@@ -153,6 +153,14 @@ def test_initial_failure_has_no_followup():
     assert len(result.phases) == 1
 
 
+def test_interrupted_execution_has_no_followup():
+    manager = FakeManager((22,), stop_at=JobState.INTERRUPTED)
+    result = AdaptiveReconOrchestrator(manager).run(uuid4(), "127.0.0.1")
+    assert result.state is JobState.INTERRUPTED
+    assert len(manager.calls) == 1
+    assert result.recommendations == ()
+
+
 def test_explicit_cancellation_prevents_all_scans():
     cancelled = threading.Event()
     cancelled.set()

@@ -43,7 +43,7 @@ sur l'ensemble du Python. Ces nombres décrivent la clôture de P1.1.
 
 ## P1.2 — Demandes et résultats persistants
 
-Implémenté et validé localement :
+Implémenté et validé localement dans le commit `ecaf368` :
 
 - `JobStore` ajoute la table `pentest_jobs` et un index par mission, sans
   supprimer les tables existantes. La demande contient les identifiants,
@@ -72,13 +72,9 @@ base canonique. Son échec bloque aussi le gestionnaire ; une demande ou un
 résultat déjà validé dans la base canonique peut alors y subsister. Le mode
 `:memory:` est refusé pour le gestionnaire d'exécution.
 
-Après une panne, `pending` et `running` signifient **dernier état persisté**,
-pas preuve qu'un processus existe encore. Ouvrir un gestionnaire ne les relance
-pas et ne reprend pas leur propriété ; `cancel()` ne pilote que ses jobs locaux.
-Une écriture terminale refusée peut laisser `running` sur disque et une erreur
-de persistance dans le gestionnaire courant. P1.3 doit réconcilier cet écart.
-Les limites de capacité restent locales à un gestionnaire ; aucune garantie
-d'exclusion entre plusieurs gestionnaires n'est livrée dans P1.2.
+P1.2 ne fournissait ni réconciliation ni exclusion entre gestionnaires : les
+états non terminaux restaient ceux de la dernière écriture, même après une
+panne. P1.3 ci-dessous décrit la propriété et la réconciliation actuelles.
 
 Les anciens événements et preuves restent lisibles par leurs magasins
 historiques. Aucun plan manquant n'est inventé pour créer une demande ancienne.
@@ -92,20 +88,92 @@ les quatre états terminaux, l'éviction, les transitions refusées, les preuves
 manquantes ou incohérentes, les erreurs SQLite à l'admission, au démarrage et
 à la finalisation, le rollback des preuves et de l'audit, l'échec du pool et
 les chemins de stockage séparés. Aucun scan réseau réel ; frontend inchangé
-et CI distante non exécutée pour ce lot.
+et CI distante non exécutée pour ce lot. Ces résultats décrivent P1.2.
+
+## P1.3 — Propriété, réconciliation et reprise explicite
+
+Implémenté et validé localement. Le runtime prend un verrou POSIX `flock`
+exclusif et non bloquant sur le fichier SQLite canonique, avant toute
+réconciliation ou création de workers. Un second gestionnaire d'exécution
+sur la même base est refusé ; les lectures directes par `JobStore` restent
+possibles. Le verrou porte sur l'inode : un alias par lien dur ne permet pas
+de contourner l'exclusion. Il est libéré après l'arrêt des workers, à la mort
+du processus ou si l'initialisation échoue.
+
+Chaque runtime possède un UUID. Les nouvelles demandes portent cet identifiant
+dans `pentest_job_owners` ; les transitions vérifient le propriétaire attendu.
+Un transfert de propriété d'un job en attente vérifie son ancien propriétaire
+dans une transaction SQLite. Les tables existantes sont conservées ; une
+ancienne demande sans propriétaire peut être reprise après contrôle du mandat.
+
+Au démarrage, sous le verrou exclusif :
+
+| Dernier état | Traitement |
+| --- | --- |
+| `pending` | Conservé en attente, aucun lancement automatique |
+| `running` | Passage atomique à `interrupted`, avec audit, reçu de réconciliation et motif « résultat du processus inconnu » |
+| État terminal | Conservé, aucune réexécution |
+
+Le reçu `interrupted` ne prétend pas décrire une sortie d'outil : code de
+sortie, XML et observations sont absents, les arguments inconnus sont vides.
+Sa date de fin est celle de la réconciliation, pas une preuve de l'heure
+d'arrêt du processus. La réconciliation est idempotente et chaque transition
+est atomique avec les preuves, l'audit et le journal de récupération.
+
+`ExecutionManager.resume(job_id, reason=...)` peut reprendre uniquement une
+demande `pending`. L'appel conserve son identifiant et son plan, vérifie la
+capacité, exige un motif de 1–1000 caractères et revérifie le mandat complet
+(signature, validité, cible et action). Le worker revérifie encore le mandat
+avant lancement. Une reprise refusée pour révocation, expiration ou cible hors
+périmètre ne transfère pas la propriété. Des appels concurrents ne peuvent
+programmer qu'une seule fois le même job. Un job `interrupted` ne peut pas être
+rejoué par cette API.
+
+« Explicite » désigne un appel du moteur de mission avec un motif enregistré ;
+cela n'impose pas une nouvelle validation humaine pour chaque étape déjà
+autorisée. `pentest_job_recovery` et `JobStore.recovery_events()` conservent la
+décision, le motif, la date et les identifiants des anciens et nouveaux
+propriétaires. Un `audit_path` séparé reste un miroir non atomique ; son échec
+ne supprime pas la décision déjà validée dans la base canonique.
+
+Limites :
+
+- La qualification porte sur Linux/WSL et une base locale. Le gestionnaire
+  refuse une plateforme sans POSIX `flock`. Windows natif, systèmes de fichiers
+  réseau et déploiements multi-hôtes ne sont pas qualifiés.
+- L'exclusion vaut pour les runtimes coopérants utilisant le même fichier de
+  base. Des bases distinctes ou les runners synchrones historiques ne partagent
+  pas cette limite. Aucun accès direct en écriture à la base ne doit être
+  exposé à l'agent.
+- Un sous-processus peut survivre à la mort du superviseur. La réconciliation
+  ne déduit pas sa mort d'un PID et ne lui envoie aucun signal. P1.4 doit ajouter
+  l'isolation et le nettoyage du groupe de processus par le système.
+- Les jobs historiques `pending` restent non programmés jusqu'à `resume()` ;
+  ils n'occupent pas la file active en mémoire. Les quotas système et la
+  rétention sur disque ne sont pas fournis par ce verrou.
+- L'orchestrateur de mission n'est pas lui-même repris automatiquement : P1.3
+  fournit la reprise de demandes non démarrées et la classification prudente
+  des exécutions incertaines, sans garantir l'exécution exactement une fois
+  de tous les effets externes d'une mission.
+
+Validation : **248 tests passent sous Python 3.12 et Python 3.14**, Ruff,
+formatage global et Pyright propres. Les tests incluent les sorties brutales
+d'un runtime avant mise en exécution, juste avant lancement et après lancement
+d'un outil synthétique ; l'exclusion entre processus et après lien dur ; la
+libération du verrou à la mort de son propriétaire ; les courses de reprise et
+de transfert de propriété ; les refus de mandat et de transitions ; le rollback
+du journal de réconciliation. Aucun scan réseau réel. CI distante non exécutée.
 
 ## Livraisons suivantes
 
 | Lot | Travail | Critères de sortie |
 | --- | --- | --- |
-| P1.3 — Réconciliation | Identifier les jobs interrompus ; gérer la propriété d'un job et empêcher les doubles lancements ; revérifier le mandat avant toute reprise | Crash avant/après lancement testé ; aucun ancien PID réutilisé aveuglément ; aucune action relancée sans décision explicite de reprise |
 | P1.4 — Isolation | Exécuter dans un worker séparé ; appliquer les quotas CPU, mémoire, processus et disque et les restrictions réseau | Dépassements arrêtés par le système ; sorties hors périmètre bloquées ; nettoyage des descendants vérifié |
 | P1.5 — Qualification | Scénarios de saturation, crash, reprise, révocation et quotas ; Nmap réel dans un labo autorisé | Résultats reproductibles, preuves et limites publiées dans le dépôt ; aucune affirmation de production sans mesure |
 
-P1.3 commence par la propriété et la réconciliation des jobs historiques.
-Un redémarrage doit distinguer un job en attente d'un job dont l'exécution
-est incertaine. La reprise d'une mission ne signifie pas rejouer
-automatiquement toutes ses actions.
+P1.4 commence par un worker isolé dont les ressources, les sorties réseau et
+les descendants sont contrôlés par le système. Le test de crash de P1.3 montre
+pourquoi la perte du superviseur ne suffit pas à prouver l'arrêt de son outil.
 
 Le choix éventuel d'un système de workflows vient après ces contrats et un
 essai mesuré. Ce lot ne présume ni file distribuée ni framework particulier.

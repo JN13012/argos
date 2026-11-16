@@ -81,13 +81,15 @@ Safety is enforced by code, not by prompts:
 - **Audit trail** of every policy decision and job event.
 - **Persistent requests and results:** plans and job states survive restart;
   terminal state, canonical audit and evidence commit together. Interrupted
-  executions are not automatically resumed; see [P1 progress](docs/product/EXECUTION_P1.md).
+  executions become interrupted; pending requests can resume explicitly after
+  revalidation. One runtime owns each local database through POSIX locking;
+  see [P1 progress](docs/product/EXECUTION_P1.md).
 
 This first increment does no exploitation, credential attacks or intrusive scripts. The engine is a backend library for now: it is not yet exposed through the API or the web interface. Its [known limitations](docs/product/PENTEST_P135_HARDENING.md#security-limitations-not-production-ready) are documented, and it is not production-ready.
 
 ### Engineering
 
-- **227 Python tests** (pytest), validated on Python 3.12 and 3.14 with synthetic
+- **248 Python tests** (pytest), validated on Python 3.12 and 3.14 with synthetic
   processes and fixtures, no real network scans; repository-wide Ruff and pinned
   Pyright; GitHub Actions configuration covering backend and frontend.
 - **Web foundation:** a FastAPI API (health endpoint) and a React / TypeScript /
@@ -135,7 +137,7 @@ and acceptance criteria. The slide above is an earlier presentation snapshot.
 | --- | --- | --- |
 | Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
 | P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
-| P1 — Durable execution | Next | Job capacity, crash recovery, OS resource limits and authorized lab qualification |
+| P1 — Durable execution | P1.1–P1.3 validated locally | Bounded capacity, persistence, ownership and cautious recovery; OS isolation and authorized lab qualification remain |
 | P2 — Product workflow | Planned | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
 | Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
 | Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |

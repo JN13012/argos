@@ -1,6 +1,7 @@
 """Durable requests and transactional failure tests; no process is launched."""
 
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -13,7 +14,7 @@ from argos.backend.attack.pentest.evidence_store import (
 )
 from argos.backend.attack.pentest.execution_manager import JobSnapshot, JobState
 from argos.backend.attack.pentest.job_audit import JobAudit
-from argos.backend.attack.pentest.job_store import JobStore
+from argos.backend.attack.pentest.job_store import JobOwnershipError, JobStore
 from argos.backend.attack.pentest.models import ScanObservation
 from argos.backend.attack.pentest.planner import ScanPlanner
 
@@ -268,3 +269,121 @@ def test_failed_running_transition_leaves_last_persisted_state(tmp_path, state):
         stored = store.get(pending.id)
         assert stored is not None
         assert stored.snapshot.state == state
+
+
+def test_owner_fencing_and_idempotent_interruption(tmp_path):
+    pending = request()
+    previous_owner, new_owner = uuid4(), uuid4()
+    with JobStore(tmp_path / "jobs.db") as store:
+        store.create(pending, ScanPlanner().initial(), owner_id=previous_owner)
+        with pytest.raises(JobOwnershipError):
+            store.advance(running(pending), owner_id=new_owner)
+        store.advance(running(pending), owner_id=previous_owner)
+        assert store.reconcile(new_owner) == (pending.id,)
+        assert store.reconcile(new_owner) == ()
+        stored = store.get(pending.id)
+        assert stored is not None
+        assert stored.snapshot.state is JobState.INTERRUPTED
+        assert store.result(pending.id) is None
+        events = store.recovery_events(pending.id)
+        assert len(events) == 1
+        assert events[0].owner_id == new_owner
+        assert events[0].previous_owner == previous_owner
+        assert events[0].decision == "interrupted"
+        with pytest.raises(JobOwnershipError):
+            store.claim_pending(
+                pending.id,
+                previous_owner=previous_owner,
+                owner_id=new_owner,
+                reason="retry uncertain execution",
+            )
+
+
+def test_pending_claim_fences_previous_owner_and_is_audited(tmp_path):
+    pending = request()
+    previous_owner, new_owner = uuid4(), uuid4()
+    with JobStore(tmp_path / "jobs.db") as store:
+        store.create(pending, ScanPlanner().initial(), owner_id=previous_owner)
+        assert store.reconcile(new_owner) == ()
+        store.claim_pending(
+            pending.id,
+            previous_owner=previous_owner,
+            owner_id=new_owner,
+            reason="resume an unstarted request",
+        )
+        with pytest.raises(JobOwnershipError):
+            store.advance(running(pending), owner_id=previous_owner)
+        store.advance(running(pending), owner_id=new_owner)
+        events = store.recovery_events(pending.id)
+        assert len(events) == 1
+        assert events[0].decision == "resume_pending"
+        assert events[0].previous_owner == previous_owner
+        assert events[0].reason == "resume an unstarted request"
+
+
+def test_recovery_journal_failure_rolls_back_interruption_and_releases_transaction(
+    tmp_path,
+):
+    db = tmp_path / "jobs.db"
+    pending = request()
+    with JobStore(db) as store:
+        store.create(pending, ScanPlanner().initial())
+        store.advance(running(pending))
+    with sqlite3.connect(db) as connection:
+        connection.execute(
+            "CREATE TRIGGER reject_recovery BEFORE INSERT ON pentest_job_recovery "
+            "BEGIN SELECT RAISE(ABORT, 'recovery unavailable'); END"
+        )
+    with JobStore(db) as store:
+        with pytest.raises(sqlite3.IntegrityError, match="recovery unavailable"):
+            store.reconcile(uuid4())
+        stored = store.get(pending.id)
+        assert stored is not None
+        assert stored.snapshot.state is JobState.RUNNING
+        assert store.recovery_events(pending.id) == ()
+    with EvidenceStore(db) as evidence:
+        assert evidence.get_verified(pending.id) is None
+    with JobAudit(db) as audit:
+        assert len(audit.list_for_job(pending.id)) == 2
+
+
+def test_failed_claim_rolls_back_ownership(tmp_path):
+    pending = request()
+    old, new = uuid4(), uuid4()
+    with JobStore(tmp_path / "jobs.db") as store:
+        store.create(pending, ScanPlanner().initial(), owner_id=old)
+        with pytest.raises(ValueError, match="reason"):
+            store.claim_pending(
+                pending.id, previous_owner=old, owner_id=new, reason=" "
+            )
+        assert store.owner(pending.id) == old
+        assert store.recovery_events(pending.id) == ()
+
+
+def test_competing_pending_claims_only_accept_one_owner(tmp_path):
+    db = tmp_path / "jobs.db"
+    pending = request()
+    old = uuid4()
+    with JobStore(db) as store:
+        store.create(pending, ScanPlanner().initial(), owner_id=old)
+
+    def claim(_):
+        owner = uuid4()
+        with JobStore(db) as store:
+            try:
+                store.claim_pending(
+                    pending.id,
+                    previous_owner=old,
+                    owner_id=owner,
+                    reason="resume request",
+                )
+                return owner
+            except JobOwnershipError:
+                return None
+
+    with ThreadPoolExecutor(max_workers=6) as callers:
+        winners = [owner for owner in callers.map(claim, range(6)) if owner is not None]
+    assert len(winners) == 1
+    with JobStore(db) as store:
+        assert store.owner(pending.id) == winners[0]
+        assert len(store.recovery_events(pending.id)) == 1

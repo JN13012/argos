@@ -4,6 +4,7 @@ import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from uuid import uuid4
@@ -13,11 +14,18 @@ from argos.backend.attack.pentest.authorized_execution import AuthorizedNmapRunn
 from argos.backend.attack.pentest.evidence_store import EvidenceStore
 from argos.backend.attack.pentest.execution_manager import (
     ExecutionManager,
+    JobSnapshot,
     JobState,
 )
 from argos.backend.attack.pentest.job_audit import JobAudit
-from argos.backend.attack.pentest.job_store import JobPersistenceError, JobStore
+from argos.backend.attack.pentest.job_store import (
+    JobOwnershipError,
+    JobPersistenceError,
+    JobStore,
+)
+from argos.backend.attack.pentest.nmap_runner import ScanExecutionError
 from argos.backend.attack.pentest.planner import ScanPlanner
+from argos.backend.attack.pentest.runtime_lock import RuntimeOwnershipError
 from argos.backend.core.approvals import ApprovalVerifier, issue_offline_approval
 from argos.backend.core.mission_store import MissionRecord, MissionStore
 from argos.backend.core.missions import Mission
@@ -447,7 +455,11 @@ def test_reopening_pending_and_running_requests_does_not_launch_them(tmp_path):
     ) as forbidden:
         with ExecutionManager(runner) as reopened:
             assert reopened.get(pending.id) == pending
-            assert reopened.get(active.id) == active
+            interrupted = reopened.get(active.id)
+            assert interrupted is not None
+            assert interrupted.state is JobState.INTERRUPTED
+            assert interrupted.started_at == active.started_at
+            assert interrupted.error == "Execution interrupted; process outcome unknown"
             assert reopened.result(active.id) is None
             assert not reopened.cancel(active.id)
         forbidden.assert_not_called()
@@ -522,3 +534,147 @@ def test_external_audit_failure_keeps_canonical_request_without_launching(tmp_pa
                 with JobAudit(runner.database_path) as audit:
                     assert len(audit.list_for_job(requests[0])) == 1
         forbidden.assert_not_called()
+
+
+def persisted_pending(runner, mission_id, target="127.0.0.1"):
+    pending = JobSnapshot(
+        uuid4(),
+        mission_id,
+        target,
+        JobState.PENDING,
+        datetime.now(UTC),
+        None,
+        None,
+        None,
+    )
+    owner = uuid4()
+    with JobStore(runner.database_path) as store:
+        store.create(pending, ScanPlanner().initial(), owner_id=owner)
+    return pending, owner
+
+
+def test_single_runtime_owner_and_released_lock_after_close(tmp_path):
+    runner, _ = approved(tmp_path)
+    with ExecutionManager(runner):
+        with pytest.raises(RuntimeOwnershipError):
+            ExecutionManager(runner)
+    with ExecutionManager(runner):
+        pass
+
+
+def test_pending_resume_is_explicit_and_concurrent_calls_launch_once(tmp_path):
+    runner, mission_id = approved(tmp_path)
+    pending, previous_owner = persisted_pending(runner, mission_id)
+    with patch(
+        "argos.backend.attack.pentest.execution_manager.subprocess.Popen",
+        side_effect=OSError("synthetic failure"),
+    ) as popen:
+        with ExecutionManager(runner) as manager:
+            assert manager.get(pending.id) == pending
+            popen.assert_not_called()
+
+            def resume(_):
+                try:
+                    return manager.resume(
+                        pending.id, reason="continue authorized mission"
+                    )
+                except JobOwnershipError:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=12) as callers:
+                accepted = list(callers.map(resume, range(12)))
+            assert accepted.count(pending.id) == 1
+            wait_state(manager, pending.id, JobState.FAILED)
+            assert popen.call_count == 1
+            with JobStore(runner.database_path) as store:
+                events = store.recovery_events(pending.id)
+                assert len(events) == 1
+                assert events[0].previous_owner == previous_owner
+                assert events[0].decision == "resume_pending"
+
+
+@pytest.mark.parametrize("denial", ["revoked", "expired", "outside_scope"])
+def test_resume_revalidates_authorization_without_claiming_denied_job(tmp_path, denial):
+    runner, mission_id = approved(tmp_path)
+    pending, old_owner = persisted_pending(
+        runner, mission_id, "127.0.0.2" if denial == "outside_scope" else "127.0.0.1"
+    )
+    if denial == "revoked":
+        with MissionStore(runner.database_path) as store:
+            store.revoke(mission_id)
+    with ExecutionManager(runner) as manager:
+        with patch(
+            "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
+        ) as forbidden:
+            with patch(
+                "argos.backend.core.approvals.datetime", wraps=datetime
+            ) as clock:
+                clock.now.return_value = datetime.now(UTC) + timedelta(
+                    hours=3 if denial == "expired" else 0
+                )
+                with pytest.raises(ScanExecutionError):
+                    manager.resume(pending.id, reason="continue mission")
+            forbidden.assert_not_called()
+        with JobStore(runner.database_path) as store:
+            assert store.owner(pending.id) == old_owner
+            assert store.recovery_events(pending.id) == ()
+            stored = store.get(pending.id)
+            assert stored is not None
+            assert stored.snapshot == pending
+
+
+def test_constructor_failure_releases_ownership_lock(tmp_path):
+    runner, mission_id = approved(tmp_path)
+    pending, owner = persisted_pending(runner, mission_id)
+    with JobStore(runner.database_path) as store:
+        store.advance(
+            replace(pending, state=JobState.RUNNING, started_at=datetime.now(UTC)),
+            owner_id=owner,
+        )
+    with patch.object(
+        JobStore, "reconcile", side_effect=OSError("storage unavailable")
+    ):
+        with pytest.raises(OSError, match="storage unavailable"):
+            ExecutionManager(runner)
+    with ExecutionManager(runner) as manager:
+        snapshot = manager.get(pending.id)
+        assert snapshot is not None
+        assert snapshot.state is JobState.INTERRUPTED
+
+
+def test_resume_checks_revocation_again_when_worker_starts(tmp_path):
+    runner, mission_id = approved(tmp_path)
+    pending, _ = persisted_pending(runner, mission_id)
+    release = threading.Event()
+    with ExecutionManager(runner) as manager:
+        original_run = manager._run
+
+        def blocked_run(job, plan):
+            assert release.wait(3)
+            original_run(job, plan)
+
+        with patch(
+            "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
+        ) as forbidden:
+            try:
+                with patch.object(manager, "_run", blocked_run):
+                    manager.resume(pending.id, reason="continue mission")
+                with MissionStore(runner.database_path) as store:
+                    store.revoke(mission_id)
+            finally:
+                release.set()
+            snapshot = wait_state(manager, pending.id, JobState.FAILED)
+            assert snapshot.error == "Mission approval is invalid"
+            forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("reason", ["", " ", "x" * 1001])
+def test_resume_requires_bounded_reason(tmp_path, reason):
+    runner, mission_id = approved(tmp_path)
+    pending, owner = persisted_pending(runner, mission_id)
+    with ExecutionManager(runner) as manager:
+        with pytest.raises(ValueError, match="reason"):
+            manager.resume(pending.id, reason=reason)
+        with JobStore(runner.database_path) as store:
+            assert store.owner(pending.id) == owner
+            assert store.recovery_events(pending.id) == ()
