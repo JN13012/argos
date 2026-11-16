@@ -1,8 +1,8 @@
 # W1.3 — Première tranche HTTP et CLI
 
-Statut : **W2.3 livré et validé localement**, CLI/découverte W3.1 à construire.
+Statut : **W3.1 livré et validé localement**, premier test W3.2 à construire.
 Voir les [contrats W2.1](WEB_HTTP_POLICY.md) et le [transport W2.2](WEB_HTTP_TRANSPORT.md).
-Le [runtime HTTP persistant](WEB_HTTP_RUNTIME.md) est livré ; CLI web et boucle agent restent à construire. Suite du [plan web](WEB_PENTEST_PLAN.md).
+Le [runtime HTTP persistant](WEB_HTTP_RUNTIME.md) et le [CLI/découverte](WEB_CLI_DISCOVERY.md) sont livrés ; boucle agent et tests vérifiés restent à construire. Suite du [plan web](WEB_PENTEST_PLAN.md).
 
 ## Résultat attendu de W2/W3
 
@@ -314,11 +314,11 @@ Commit du lot : `feat(web): add HTTP contracts and policy`. Les tests de W2.1
 ne doivent ouvrir aucune socket ; l'absence de transport n'est pas compensée
 par un appel HTTPX direct dans le CLI ou dans les tests d'intégration produit.
 
-Commandes cibles, toujours inexistantes à ce stade : `argos web init`, `plan`,
-`run`, `status`, `stop`, `resume`, `report`, `retest`. Un import Python n'autorise
+Commandes `argos web init`, `plan`, `activate`, `run`, `status`, `stop`, `resume`
+et `report` livrées en W3.1 ; `retest` reste à construire. Un import Python n'autorise
 pas un transport hôte alternatif. Réutiliser les services derrière le CLI pour
-la future API. Les contrats d'erreurs, sorties et codes de terminaison du CLI
-seront fixés avec W3.1, sans ambiguïté entre résultat partiel et mission complète.
+la future API. Les contrats d’erreurs, sorties et codes du CLI sont documentés dans
+[W3.1](WEB_CLI_DISCOVERY.md), sans confondre découverte et pentest complet.
 
 ## Sources primaires et limites de cette spécification
 
@@ -357,4 +357,5 @@ images et scores du corpus W1.2 restent à qualifier avec l'exécution.
 
 **W2.2 livré** : voir le [bilan du transport](WEB_HTTP_TRANSPORT.md).
 **W2.3 livré** : voir le [bilan du runtime](WEB_HTTP_RUNTIME.md).
-Suite : W3.1, CLI et découverte HTTP déterministe, puis premier test W3.2.
+**W3.1 livré** : voir le [bilan CLI/découverte](WEB_CLI_DISCOVERY.md).
+Suite : W3.2, première preuve de redirection ouverte et recontrôle.

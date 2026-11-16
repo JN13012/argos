@@ -12,6 +12,7 @@ import sqlite3
 import stat
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import asdict, replace
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -23,6 +24,8 @@ from argos.backend.core.approvals import ApprovalVerifier
 from argos.backend.core.isolated_worker import IsolationError
 
 from .contracts import WebBudgetUsage, WebErrorCode, WebRequest
+from .discovery import inspect_response
+from .frontier import Frontier
 from .policy import PreparedWebRequest, WebPolicy, WebPolicyError
 from .receipts import (
     ERRORS,
@@ -72,6 +75,7 @@ class WebRuntime:
         worker: HTTPWorker | None = None,
         resolver: WebResolver | None = None,
         max_pending: int = 128,
+        stop: threading.Event | None = None,
     ):
         if type(max_pending) is not int or not 1 <= max_pending <= 1000:
             raise ValueError("Invalid pending HTTP capacity")
@@ -96,6 +100,7 @@ class WebRuntime:
             self.resolver = resolver or WebResolver()
             self.owner = uuid4()
             self.max_pending = max_pending
+            self.stop = stop or threading.Event()
             self._condition = threading.Condition(threading.RLock())
             self._running: dict[UUID, threading.Event] = {}
             self._chains = 0
@@ -107,6 +112,7 @@ class WebRuntime:
             with WebStore(path) as store:
                 store.initialize()
                 self.recovered = store.reconcile()
+                Frontier(store.db).reconcile()
         except BaseException:
             self._ownership.close()
             raise
@@ -122,6 +128,19 @@ class WebRuntime:
         if self._closed or self._closing:
             raise RuntimeError("HTTP runtime is closing")
 
+    @contextmanager
+    def operation(self):
+        """Keep database ownership through a complete discovery operation."""
+        with self._condition:
+            self._admit()
+            self._chains += 1
+        try:
+            yield
+        finally:
+            with self._condition:
+                self._chains -= 1
+                self._condition.notify_all()
+
     def _failed_storage(self, error: BaseException) -> WebPersistenceError:
         with self._condition:
             self._broken = True
@@ -129,7 +148,7 @@ class WebRuntime:
                 event.set()
         return WebPersistenceError("HTTP runtime storage failed")
 
-    def submit(self, request: WebRequest) -> UUID:
+    def submit(self, request: WebRequest, *, _route_id: UUID | None = None) -> UUID:
         with self._condition:
             self._admit()
             try:
@@ -137,7 +156,12 @@ class WebRuntime:
                 with WebStore(self.database) as store:
                     usage = store.usage(request.mission_id, config, self._now())
                     preflight = self.policy.preflight(request, usage=usage)
-                    store.create(preflight, self.owner, max_pending=self.max_pending)
+                    store.create(
+                        preflight,
+                        self.owner,
+                        max_pending=self.max_pending,
+                        route_id=_route_id,
+                    )
                 return request.request_id
             except WebPolicyError as error:
                 self._deny(request, error)
@@ -210,11 +234,15 @@ class WebRuntime:
         if (
             self._broken
             or event.is_set()
+            or self.stop.is_set()
             or deadline is not None
             and self._now() >= deadline
         ):
             return False
         try:
+            with WebStore(self.database) as store:
+                if Frontier(store.db).stop_for(request.request_id):
+                    return False
             config = self.policy.configuration(request.mission_id)
             return digest(json.loads(config.to_json())) == expected
         except WebPolicyError:
@@ -227,7 +255,12 @@ class WebRuntime:
         expected: str,
         event: threading.Event,
     ) -> bool:
-        if self._broken or event.is_set():
+        if (
+            self._broken
+            or event.is_set()
+            or self.stop.is_set()
+            or Frontier(connection).stop_for(request.request_id)
+        ):
             return False
         try:
             config = self.policy.configuration(
@@ -259,7 +292,9 @@ class WebRuntime:
         reserved = False
         try:
             while True:
-                if event.is_set():
+                with WebStore(self.database) as store:
+                    stopped = Frontier(store.db).stop_for(request_id)
+                if event.is_set() or self.stop.is_set() or stopped:
                     return self._finish(
                         request, event, error="cancelled", state="cancelled"
                     )
@@ -469,6 +504,31 @@ class WebRuntime:
                         dispatched=row["state"] == "running",
                     )
                     pause_until, suspended = 0.0, False
+                    capture = None
+                    discovery_config = None
+                    if (
+                        state == "completed"
+                        and exchange is not None
+                        and Frontier(store.db).route_for(request.request_id)
+                    ):
+                        try:
+                            discovery_config = self.policy.configuration(
+                                request.mission_id
+                            )
+                        except WebPolicyError:
+                            payload = receipt(
+                                request,
+                                row["configuration_sha256"],
+                                state="cancelled",
+                                error="cancelled",
+                                profile=profile,
+                                resolution=resolution,
+                                dispatched=row["state"] == "running",
+                            )
+                        else:
+                            capture = inspect_response(request.url, exchange)
+                            payload["discovery"] = capture["public"]
+                            payload["discovery_sha256"] = digest(capture)
                     if exchange and exchange.status in (429, 503) and prepared:
                         pause_until, suspended = retry_after(
                             exchange,
@@ -481,6 +541,8 @@ class WebRuntime:
                         payload,
                         pause_until=pause_until,
                         suspended=suspended,
+                        discovery=capture,
+                        discovery_config=discovery_config,
                         guard=lambda connection: self._commit_active(
                             connection, request, row["configuration_sha256"], event
                         ),
@@ -586,6 +648,7 @@ class WebRuntime:
             if self._closed:
                 return
             self._closing = True
+            self.stop.set()
             for event in self._running.values():
                 event.set()
             while self._running or self._chains:

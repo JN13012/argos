@@ -8,6 +8,8 @@ from uuid import UUID
 
 from dotenv import load_dotenv
 
+from .backend.attack.web.cli import add_parser as add_web_parser
+from .backend.attack.web.cli import execute as execute_web
 from .backend.intel.osint.connectors import SireneConnector
 from .backend.intel.osint.discovery import DiscoveryEngine
 from .backend.intel.osint.models import Coverage, Search, SearchScope, SearchStatus
@@ -21,7 +23,7 @@ from .backend.intel.osint.storage import SQLiteStorage
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="argos", description="Argos OSINT")
+    parser = argparse.ArgumentParser(prog="argos", description="Argos")
     commands = parser.add_subparsers(required=True)
     osint = commands.add_parser("osint", help="OSINT commands")
     osint_commands = osint.add_subparsers(required=True)
@@ -56,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--output-dir", default="outputs", help="Readable reports directory"
     )
     report.add_argument("--name", help="Readable research name for the output folder")
+    add_web_parser(commands)
     return parser
 
 
@@ -106,6 +109,8 @@ def _print_search(storage: SQLiteStorage, search: Search, coverage: Coverage) ->
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.action.startswith("web_"):
+        return execute_web(args)
     try:
         if args.action == "report" and not Path(args.db).is_file():
             raise ValueError("Saved search database does not exist")

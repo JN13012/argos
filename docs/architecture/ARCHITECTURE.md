@@ -18,7 +18,9 @@ sont livrés. Le [transport isolé W2.2](../product/WEB_HTTP_TRANSPORT.md) et le
 résolveur supervisé sont qualifiés sur endpoints locaux. Le
 [runtime W2.3](../product/WEB_HTTP_RUNTIME.md) ajoute tickets et compteurs
 persistants, preuves expurgées, audit et récupération sans renvoi implicite.
-Le CLI web reste à construire.
+Le [CLI W3.1](../product/WEB_CLI_DISCOVERY.md) réalise la découverte HTML
+anonyme avec frontière persistante, capture atomique et arrêt/reprise.
+Le premier test de vulnérabilité reste W3.2.
 Les adaptateurs navigateur, les sessions
 multi-rôles et les services de mission sont une cible à construire. Le contrôle
 IP/port livré ne suffit pas à isoler des origines web partageant une IP.
@@ -27,13 +29,13 @@ IP/port livré ne suffit pas à isoler des origines web partageant une IP.
 
 ```text
 argos/
-├── __main__.py, cli.py       CLI OSINT et rapports
+├── __main__.py, cli.py       CLI OSINT, web et restitutions
 ├── backend/
 │   ├── api/                 FastAPI : santé HTTP et erreurs stables
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
-│   └── attack/web/          Configuration, politique, DNS, transport isolé et runtime HTTP persistant
+│   └── attack/web/          Configuration, runtime HTTP, CLI, parseur et frontière persistante
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
 ```

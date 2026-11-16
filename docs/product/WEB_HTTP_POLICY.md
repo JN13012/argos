@@ -180,4 +180,5 @@ Les résultats finaux sont consignés dans le bilan W2.1 du
 [lot de réalisation](WEB_HTTP_EXECUTION.md). Aucun service n'est activé.
 **W2.2 livré** : [résolveur et transport isolé](WEB_HTTP_TRANSPORT.md), TLS,
 entrée privée et framing borné. **W2.3 livré** : [réservations, preuves et cycle
-du runtime](WEB_HTTP_RUNTIME.md). Suite : W3.1, CLI et découverte déterministe.
+du runtime](WEB_HTTP_RUNTIME.md). [W3.1 livre le CLI et la découverte](WEB_CLI_DISCOVERY.md) ;
+suite W3.2, premier test vérifié.

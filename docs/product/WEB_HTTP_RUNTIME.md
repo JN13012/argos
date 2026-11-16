@@ -2,8 +2,8 @@
 
 Le runtime HTTP interne est implémenté : demandes, tickets, quotas, échanges
 expurgés, couverture et audit persistent dans la base des missions. Il réutilise
-le [transport isolé W2.2](WEB_HTTP_TRANSPORT.md). Le CLI web, la découverte de
-liens et la détection de vulnérabilités restent les prochaines étapes W3.
+le [transport isolé W2.2](WEB_HTTP_TRANSPORT.md). Le [CLI et la découverte W3.1](WEB_CLI_DISCOVERY.md)
+le consomment désormais ; la première détection vérifiée reste W3.2.
 La politique générale n'autorise toujours aucun appel HTTP générique ; seul ce
 chemin interne possède le cycle de tickets et de revalidation décrit ici.
 
@@ -173,7 +173,7 @@ son refus audité ; il ne fabrique pas d'échange ou de vulnérabilité.
 concurrence, pauses par origine, refus avant DNS, DNS mixte, deadlines, scopes,
 redirections, expurgation, profils modifiés, altérations de stockage, rollback,
 révocation, arrêt et récupération après un processus réellement tué.
-**651 tests passent sous Python 3.12 et 3.14**, dont 612 tests réguliers et
+**À la livraison W2.3, 651 tests passent sous Python 3.12 et 3.14**, dont 612 tests réguliers et
 39 tests hôte activés explicitement. Ruff, formatage et Pyright passent aussi ;
 le contrôle hors ligne du corpus W1.2 reste valide.
 
@@ -182,20 +182,11 @@ Quatre essais hôte utilisent le worker HTTP isolé réel avec des serveurs loca
 commit après réception sans répétition. Les dépendances temporaires et commandes
 hôte sont celles du [rapport W2.2](WEB_HTTP_TRANSPORT.md#validation).
 
-Suite : **W3.1 — CLI et découverte HTTP déterministe**.
+**W3.1 livré** : voir le [bilan CLI/découverte](WEB_CLI_DISCOVERY.md). Il ajoute
+capture déterministe bornée, frontière persistante, lecture seule des sorties,
+stop et reprise, avec preuve/capture/nouveaux liens dans la même transaction.
 
-- Exposer configuration/plan, exécution explicite, statut, arrêt et reprise avec
-  le même service, sans client réseau alternatif ni second propriétaire de base.
-- Depuis une URL seule, extraire liens et paramètres avec un parseur borné de
-  confiance ; persister une frontière avec limites d'URLs, profondeur et variantes
-  de query. Les pages ne doivent pas fournir des instructions au runtime.
-- Restituer couverture et raisons d'arrêt en texte et JSON, y compris accès
-  bloqué, login, soft-404, exclusions et travail non exploré ; aucun « pentest
-  complet » déduit d'un échange HTTP réussi.
-- Ajouter les tests traversant CLI sur une application locale inconnue du
-  découvreur, arrêt/reprise et refus de frontière hors périmètre.
-- W3.2 ajoutera la première vérification de redirection ouverte, ses observations
-  explicitement conservables, ses preuves positives/négatives et son recontrôle.
-
-Aucun benchmark du corpus W1.2 ni cible client n'est évalué par ce lot. L'agent
-LLM, le navigateur, les comptes et les autres familles de failles restent au plan.
+Suite : **W3.2**, route et paramètre découverts, comparaison avec deux marqueurs
+synthétiques jamais contactés, preuve de redirection ouverte, témoin corrigé
+et recontrôle. Aucun benchmark W1.2 ou cible client n'est évalué par W2.3/W3.1 ;
+l'agent LLM, le navigateur, les comptes et les autres familles restent au plan.

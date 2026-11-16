@@ -89,8 +89,8 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **651 Python tests** validated on Python 3.12 and 3.14 with host isolation
-  qualification enabled (612 regular tests and 39 host tests requiring opt-in).
+- **685 Python tests** validated on Python 3.12 and 3.14 with host isolation
+  qualification enabled (642 regular tests and 43 host tests requiring opt-in).
   Owned local HTTP/TLS endpoints and synthetic processes, no client scans;
   repository-wide Ruff and pinned Pyright; GitHub Actions configuration covering backend and frontend.
 - **Mission network isolation:** the execution manager defaults to rootless
@@ -144,8 +144,8 @@ pentesting**, starting from a URL or domain without credentials, source code
 or documentation. Optional accounts extend coverage. Verified findings,
 reports and retesting start with the CLI. This is planned work, not a current product
 capability. The [web mission configuration](docs/product/WEB_CONFIG.md) is
-implemented as a Python library with signed persistence; the user-facing HTTP
-execution workflow and web CLI remain to be built. The [web delivery plan](docs/product/WEB_PENTEST_PLAN.md) defines
+implemented with signed persistence. The web CLI now performs bounded anonymous
+HTML discovery from a URL; verified vulnerability tests remain to be built. The [web delivery plan](docs/product/WEB_PENTEST_PLAN.md) defines
 W0–W9, dependencies, evaluation gates and the first pilot criteria. The
 [W1.2 evaluation corpus](benchmarks/web/README.md) now pins 12 candidate cases;
 it has not been executed against an agent. The
@@ -155,15 +155,17 @@ the worker, DNS/TLS controls, evidence and first verified web test.
 with signed v2 configuration. [W2.2 isolated HTTP transport](docs/product/WEB_HTTP_TRANSPORT.md)
 and supervised DNS are implemented and qualified on owned local endpoints.
 [W2.3 persistent HTTP runtime](docs/product/WEB_HTTP_RUNTIME.md) now adds durable
-tickets, quotas, redacted receipts, audit and explicit recovery. Next: W3.1,
-the web CLI and deterministic discovery from a URL.
+tickets, quotas, redacted receipts, audit and explicit recovery.
+[W3.1 web CLI and discovery](docs/product/WEB_CLI_DISCOVERY.md) now add a persistent
+frontier, redacted status/report, stop and explicit resume. Next: W3.2, the first
+verified open-redirect test and its corrected control.
 
 | Stage | Status | Content |
 | --- | --- | --- |
 | Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
 | P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
 | P1 — Durable execution | P1.1–P1.4 validated locally | Isolated mission network integrated; real Nmap lab qualification and focused review remain |
-| W0–W9 — Web pentesting | W2.3 validated locally; W3.1 implementation next | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
+| W0–W9 — Web pentesting | W3.1 validated locally; W3.2 implementation next | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
 | P2 — Product workflow | After the web CLI workflow | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
 | Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
 | Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |

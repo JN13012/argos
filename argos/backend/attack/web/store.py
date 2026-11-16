@@ -17,6 +17,7 @@ from uuid import UUID
 
 from .contracts import WebBudgetUsage, WebErrorCode, WebRequest
 from .execution_config import WebExecutionConfig
+from .frontier import Frontier
 from .policy import WebPolicyError, WebPreflight
 from .receipts import (
     FINAL_STATES,
@@ -48,8 +49,14 @@ def checked_read(function):
 
 
 class WebStore:
-    def __init__(self, path: str | Path):
-        self.db = sqlite3.connect(path, timeout=10)
+    def __init__(self, path: str | Path, *, readonly: bool = False):
+        self.db = (
+            sqlite3.connect(
+                f"{Path(path).resolve().as_uri()}?mode=ro", uri=True, timeout=10
+            )
+            if readonly
+            else sqlite3.connect(path, timeout=10)
+        )
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys=ON")
 
@@ -119,6 +126,7 @@ class WebStore:
         );
         """)
         self.db.commit()
+        Frontier(self.db).initialize()
 
     def _event(self, request_id: UUID, decision: str) -> None:
         row = self._row(request_id)
@@ -310,7 +318,12 @@ class WebStore:
             return self._usage(mission_id, config, now, exclude=exclude)
 
     def create(
-        self, preflight: WebPreflight, owner_id: UUID, *, max_pending: int
+        self,
+        preflight: WebPreflight,
+        owner_id: UUID,
+        *,
+        max_pending: int,
+        route_id: UUID | None = None,
     ) -> None:
         request = preflight.request
         with self.db:
@@ -336,6 +349,8 @@ class WebStore:
                 ),
             )
             self._event(request.request_id, "submitted")
+            if route_id is not None:
+                Frontier(self.db).attach_request(route_id, request.request_id, owner_id)
 
     def deny(self, request: WebRequest, code: str) -> None:
         with self.db:
@@ -528,6 +543,8 @@ class WebStore:
         pause_until: float = 0,
         suspended: bool = False,
         guard: Callable[[sqlite3.Connection], bool] | None = None,
+        discovery: dict | None = None,
+        discovery_config: WebExecutionConfig | None = None,
     ) -> None:
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
@@ -576,11 +593,17 @@ class WebStore:
             ] != digest(resolution):
                 raise WebIntegrityError("HTTP receipt profile differs")
             encoded, sha = canonical(payload), digest(payload)
+            capture = discovery if payload["state"] == "completed" else None
+            if capture is not None and payload.get("discovery_sha256") != digest(
+                capture
+            ):
+                raise WebIntegrityError("Discovery receipt binding differs")
             size = len(encoded.encode()) + (
                 len(ticket["profile_json"] or "") + len(ticket["resolution_json"] or "")
                 if ticket
                 else 0
             )
+            size += len(canonical(capture).encode()) if capture is not None else 0
             if ticket and size > ticket["capacity"]:
                 raise WebIntegrityError("HTTP evidence exceeds reserved capacity")
             if ticket is None:
@@ -602,6 +625,7 @@ class WebStore:
                 )
                 if usage.evidence_bytes_used + size > config.execution.evidence_bytes:
                     raise WebPolicyError(WebErrorCode.BUDGET_EXHAUSTED)
+            Frontier(self.db).finish(request_id, payload, capture, discovery_config)
             self.db.execute(
                 "INSERT INTO web_http_evidence VALUES(?,?,?)",
                 (str(request_id), encoded, sha),
@@ -659,6 +683,12 @@ class WebStore:
             if ticket
             else 0
         )
+        capture = Frontier(self.db).capture(request_id)
+        if payload.get("discovery_sha256") != (
+            digest(capture) if capture is not None else None
+        ):
+            raise WebIntegrityError("Discovery evidence binding differs")
+        size += len(canonical(capture).encode()) if capture is not None else 0
         if (
             digest(payload) != evidence["payload_sha256"]
             or row["evidence_sha256"] != evidence["payload_sha256"]
