@@ -3,6 +3,11 @@
 État des sources au 16 novembre 2026. Monolithe modulaire, package Python unique,
 frontend React/TypeScript/Vite séparé pour son outillage.
 
+Priorité de réalisation : [pentest web autonome depuis le CLI](../product/WEB_PENTEST_PLAN.md).
+Les adaptateurs HTTP et navigateur, le contrôle d'origine web, les sessions
+multi-rôles et les services de mission sont une cible à construire. Le contrôle
+IP/port livré ne suffit pas à isoler des origines web partageant une IP.
+
 ## Architecture actuelle
 
 ```text

@@ -7,6 +7,11 @@ cybersécurité, encadré et évalué par l'équipe pédagogique d'Epitech Marse
 Sa finalité est pédagogique et démonstrative, avec périmètre explicite et
 traçabilité des observations.
 
+Une première offre commerciale de pentest web autonome est désormais visée.
+Cette orientation ne vaut ni disponibilité commerciale actuelle ni qualification
+professionnelle : le [plan web](WEB_PENTEST_PLAN.md) exige une évaluation,
+une revue experte et des pilotes explicitement autorisés avant généralisation.
+
 ## OSINT
 
 - Utiliser des sources publiques ou légalement accessibles ; privilégier les

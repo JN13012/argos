@@ -85,8 +85,11 @@ promet aucune supériorité mesurée des outils OSINT.
 
 ## Ordre proposé des essais
 
-Après P1, commencer par le registre de capacités et le catalogue original.
-Comparer ensuite Hermes au moteur propre sur une petite mission autonome.
+Le [plan web W0–W9](WEB_PENTEST_PLAN.md) fixe désormais l'ordre actif : qualifier
+P1.5, définir mandat et laboratoire, construire les capacités HTTP/navigateur
+et le parcours CLI, puis comparer Hermes au moteur propre sur les mêmes
+missions web. Playwright, ZAP et Nuclei restent des candidats à qualifier,
+avec sources primaires et critères détaillés dans ce plan.
 Qualifier les adaptateurs de découverte et de test séparément. Les données
 ATT&CK/CVE/KEV et la gestion des constats peuvent enrichir progressivement les
 résultats ; elles ne doivent pas remplacer la validation.

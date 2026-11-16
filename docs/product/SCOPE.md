@@ -1,36 +1,46 @@
 # Argos — Scope immédiat
 
-Mise à jour : 16 novembre 2026. La [roadmap](ROADMAP.md) est la référence pour
-les statuts et les dépendances entre lots.
+Mise à jour : 16 novembre 2026. La [roadmap](ROADMAP.md) porte les statuts et le
+[plan de pentest web](WEB_PENTEST_PLAN.md) organise la première offre commerciale.
 
-## Lot courant : P0 — fiabilisation
+## Priorité produit
 
-- Corriger les diagnostics Python et conserver l’analyse de tout le workspace.
-- Réparer l’installation locale et verrouiller les contrôles reproductibles.
-- Contrôler lint, formatage et typage sur tout le Python, les tests backend,
-  le frontend et ses parcours navigateur.
-- Étendre la CI aux PR, à `main` et aux branches `feat/**`.
-- Réconcilier vision, architecture et plans avec l’état réel des sources.
-- Préparer l’évaluation des briques publiques ; aucun import de framework
-  agentique, catalogue tiers ou nouvel outil actif dans P0.
+Un pentest web/API autonome depuis le CLI : authentification, plusieurs rôles,
+cartographie, tests, validation, preuves, rapport et recontrôle. L'agent doit
+pouvoir enchaîner les actions préautorisées sans approbation répétitive. Le
+niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
 
-Le [bilan P0](FIABILISATION_P0.md) consigne les commandes exécutées et les limites
-de validation. La cible produit est une mission autonome, pas uniquement une
-interface de conseil.
+## Prochain lot d'implémentation : W0 / P1.5
 
-## Lot suivant : P1 — fiabiliser l’exécution
+- Qualifier Nmap réel dans un laboratoire local autorisé, y compris ses fichiers
+  de données et la reconnaissance en deux phases.
+- Comparer aux services attendus ; vérifier refus, délais, annulation,
+  révocation, crash, reprise, quotas et nettoyage.
+- Documenter une installation reproductible des dépendances réseau et les
+  environnements effectivement qualifiés.
+- Réaliser la revue ciblée des frontières d'exécution et publier les limites.
 
-Capacité du gestionnaire, persistance des états, reprise après panne, quotas
-système, contrôle du worker et qualification en labo. P0 ne livre ni ces
-contrôles ni une API de scan. Les modifications du moteur correspondantes
-restent un lot distinct.
+P0 et P1.1–P1.4 ont été validés localement. Le worker réseau existe ; sa
+qualification synthétique ne démontre pas encore la compatibilité Nmap réelle.
+Voir le [bilan réseau](MISSION_NETWORK.md) et le [découpage P1](EXECUTION_P1.md).
 
-## Fondations conservées
+## Lot de préparation suivant : W1
 
-La découverte SIRENE persiste les entités avant de les enrichir ou de les
-classer. L’analyse ne doit pas filtrer silencieusement la collecte ; aucune
-exhaustivité territoriale n’est promise. Le scénario de découverte d’entreprises
-reste utilisable et testable sans agent.
+Figer le contrat de mandat web, les comptes/rôles, les budgets et les effets
+permis ; construire le laboratoire réinitialisable et la vérité terrain. Définir
+les scénarios réservés et le protocole d'évaluation avant le développement de
+l'agent. Le détail des dépendances et critères figure dans le plan W0–W9.
 
-Les pages métier, les outils supplémentaires, les agents, le déploiement de
-production et DEFEND/GRC ne sont pas implémentés dans P0.
+Ce lot de planification livre uniquement les documents et l'organisation.
+Aucun nouvel outil, endpoint métier, commande web ou agent n'est ajouté.
+
+## Travaux différés et fondations conservées
+
+API/interface métier après validation du CLI ; délégation multi-agent après
+une mission autonome mesurée. OSINT élargi, AD, cloud, DEFEND/GRC et sécurité
+des LLM ne sont pas le chemin critique de cette première offre.
+
+Le CLI SIRENE et les fondations d'exécution restent utilisables et testables
+sans agent. La collecte conserve provenance et résultats partiels ; aucune
+exhaustivité silencieuse n'est promise. Les capacités historiques ne sont pas
+une preuve d'intégration fonctionnelle au futur parcours web.

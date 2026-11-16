@@ -139,12 +139,19 @@ A reliable agent for long security missions needs more than a prompt. The [agent
 The [canonical roadmap](docs/product/ROADMAP.md) defines statuses, dependencies
 and acceptance criteria. The slide above is an earlier presentation snapshot.
 
+**First commercial target: autonomous web and API pentesting**, including
+authenticated workflows, multiple roles, verified findings, reports and
+retesting, starting with the CLI. This is planned work, not a current product
+capability. The [web delivery plan](docs/product/WEB_PENTEST_PLAN.md) defines
+W0–W9, dependencies, evaluation gates and the first pilot criteria.
+
 | Stage | Status | Content |
 | --- | --- | --- |
 | Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
 | P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
 | P1 — Durable execution | P1.1–P1.4 validated locally | Isolated mission network integrated; real Nmap lab qualification and focused review remain |
-| P2 — Product workflow | Planned | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
+| W0–W9 — Web pentesting | Planned, first commercial priority | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
+| P2 — Product workflow | After the web CLI workflow | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
 | Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
 | Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |
 
