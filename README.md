@@ -79,12 +79,15 @@ Safety is enforced by code, not by prompts:
 - **Adaptive reconnaissance:** TCP discovery of common ports, then service identification on the open ports only, through the same authorization gateway. At most two phases.
 - **Honest reports:** open ports are observations, never presented as confirmed vulnerabilities. Suggested investigations are hints, not executable actions.
 - **Audit trail** of every policy decision and job event.
+- **Persistent requests and results:** plans and job states survive restart;
+  terminal state, canonical audit and evidence commit together. Interrupted
+  executions are not automatically resumed; see [P1 progress](docs/product/EXECUTION_P1.md).
 
 This first increment does no exploitation, credential attacks or intrusive scripts. The engine is a backend library for now: it is not yet exposed through the API or the web interface. Its [known limitations](docs/product/PENTEST_P135_HARDENING.md#security-limitations-not-production-ready) are documented, and it is not production-ready.
 
 ### Engineering
 
-- **188 Python tests** (pytest), validated on Python 3.12 and 3.14 with synthetic
+- **227 Python tests** (pytest), validated on Python 3.12 and 3.14 with synthetic
   processes and fixtures, no real network scans; repository-wide Ruff and pinned
   Pyright; GitHub Actions configuration covering backend and frontend.
 - **Web foundation:** a FastAPI API (health endpoint) and a React / TypeScript /

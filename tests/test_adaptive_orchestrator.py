@@ -1,9 +1,12 @@
 """Adaptive phase tests use an in-memory job manager, never real Nmap."""
 
+import sqlite3
 import threading
 from datetime import UTC, datetime
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
+import pytest
 from argos.backend.attack.pentest.adaptive_orchestrator import (
     AdaptiveReconOrchestrator,
 )
@@ -13,6 +16,7 @@ from argos.backend.attack.pentest.evidence_store import (
     VerifiedEvidence,
 )
 from argos.backend.attack.pentest.execution_manager import JobSnapshot, JobState
+from argos.backend.attack.pentest.job_store import JobPersistenceError
 from argos.backend.attack.pentest.models import PortObservation, ScanObservation
 from argos.backend.attack.pentest.nmap_runner import ExecutedScan
 from argos.backend.attack.pentest.planner import ScanPlan
@@ -168,3 +172,18 @@ def test_missing_evidence_prevents_followup():
     assert len(manager.calls) == 1
     assert result.error is not None
     assert "Evidence" in result.error
+
+
+@pytest.mark.parametrize("method", ["get", "result", "verified_evidence"])
+@pytest.mark.parametrize(
+    "failure", [JobPersistenceError, sqlite3.OperationalError, ValueError]
+)
+def test_storage_read_failure_prevents_followup(method, failure):
+    manager = FakeManager((22,))
+    with patch.object(manager, method, side_effect=failure("storage unavailable")):
+        result = AdaptiveReconOrchestrator(manager).run(uuid4(), "127.0.0.1")
+    assert result.state is JobState.FAILED
+    assert result.error is not None
+    assert "storage unavailable" in result.error
+    assert len(manager.calls) == 1
+    assert result.recommendations == ()

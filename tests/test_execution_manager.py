@@ -1,5 +1,6 @@
 """Lifecycle tests use fake subprocesses; they never scan a real host."""
 
+import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +16,7 @@ from argos.backend.attack.pentest.execution_manager import (
     JobState,
 )
 from argos.backend.attack.pentest.job_audit import JobAudit
+from argos.backend.attack.pentest.job_store import JobPersistenceError, JobStore
 from argos.backend.attack.pentest.planner import ScanPlanner
 from argos.backend.core.approvals import ApprovalVerifier, issue_offline_approval
 from argos.backend.core.mission_store import MissionRecord, MissionStore
@@ -100,11 +102,23 @@ def test_lifecycle_completed_and_result(tmp_path):
                 assert saved.record.arguments[-1] == "127.0.0.1"
             second = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             wait_state(manager, second, JobState.COMPLETED)
-            assert manager.get(job_id) is None
-            assert manager.result(job_id) is None
+            assert job_id not in manager._jobs
+            assert manager.get(job_id) == snap
+            assert manager.result(job_id) == result
             saved = manager.verified_evidence(job_id)
             assert saved is not None
             assert saved.record.stdout_xml == xml
+    with patch(
+        "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
+    ) as forbidden:
+        with ExecutionManager(runner) as reopened:
+            assert reopened.get(job_id) == snap
+            assert reopened.result(job_id) == result
+            request = reopened.request(job_id)
+            assert request is not None
+            assert request.plan == ScanPlanner().initial()
+            assert not reopened.cancel(job_id)
+        forbidden.assert_not_called()
 
 
 def test_cancel_terminates_running_job(tmp_path):
@@ -201,7 +215,9 @@ def test_terminal_cache_is_bounded_and_keeps_persistent_history(tmp_path):
                 )
                 ids.append(job_id)
                 wait_state(manager, job_id, JobState.FAILED)
-            assert all(manager.get(job_id) is None for job_id in ids[:-2])
+            assert len(manager._jobs) == 2
+            assert all(job_id not in manager._jobs for job_id in ids[:-2])
+            assert all(manager.get(job_id) is not None for job_id in ids)
             assert all(manager.result(job_id) is None for job_id in ids[:-2])
             assert all(manager.get(job_id) is not None for job_id in ids[-2:])
             for job_id in ids:
@@ -265,7 +281,8 @@ def test_terminal_eviction_preserves_running_job(tmp_path):
                 assert snapshot is not None
                 assert snapshot.state is JobState.RUNNING
                 if previous is not None:
-                    assert manager.get(previous) is None
+                    assert previous not in manager._jobs
+                    assert manager.get(previous) is not None
                 previous = finished
             assert manager.cancel(running)
             wait_state(manager, running, JobState.CANCELLED)
@@ -343,3 +360,165 @@ def test_timeout_reaps_process_and_records_evidence(tmp_path):
             second = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             assert manager.cancel(second)
             wait_state(manager, second, JobState.CANCELLED)
+
+
+@pytest.mark.parametrize("stage", ["submission", "running", "terminal"])
+def test_storage_failure_is_visible_and_prevents_new_work(tmp_path, stage):
+    runner, mission_id = approved(tmp_path)
+    xml = b'<nmaprun><host><address addr="127.0.0.1" addrtype="ipv4"/></host></nmaprun>'
+
+    class Finished:
+        returncode = 0
+
+        def __init__(self, args, **kwargs):
+            kwargs["stdout"].write(xml)
+
+        def poll(self):
+            return 0
+
+        def wait(self, timeout=None):
+            return 0
+
+    with ExecutionManager(runner) as manager:
+        condition = {
+            "submission": "BEFORE INSERT ON pentest_jobs",
+            "running": "BEFORE INSERT ON pentest_job_events WHEN NEW.state = 'running'",
+            "terminal": (
+                "BEFORE INSERT ON pentest_job_events WHEN NEW.state = 'completed'"
+            ),
+        }[stage]
+        with sqlite3.connect(runner.database_path) as connection:
+            connection.execute(
+                f"CREATE TRIGGER fail_write {condition} "
+                "BEGIN SELECT RAISE(ABORT, 'simulated disk failure'); END"
+            )
+        with patch(
+            "argos.backend.attack.pentest.execution_manager.subprocess.Popen",
+            side_effect=Finished,
+        ) as popen:
+            if stage == "submission":
+                with pytest.raises(JobPersistenceError, match="submission"):
+                    manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
+            else:
+                job_id = manager.submit(
+                    mission_id, "127.0.0.1", ScanPlanner().initial()
+                )
+                with pytest.raises(JobPersistenceError):
+                    wait_state(manager, job_id, JobState.COMPLETED)
+                with pytest.raises(JobPersistenceError):
+                    manager.result(job_id)
+                with JobStore(runner.database_path) as store:
+                    persisted = store.get(job_id)
+                    assert persisted is not None
+                    assert persisted.snapshot.state == (
+                        JobState.PENDING if stage == "running" else JobState.RUNNING
+                    )
+                    assert store.result(job_id) is None
+                assert manager.verified_evidence(job_id) is None
+            with pytest.raises(JobPersistenceError):
+                manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
+            assert popen.call_count == (1 if stage == "terminal" else 0)
+
+
+def test_reopening_pending_and_running_requests_does_not_launch_them(tmp_path):
+    from dataclasses import replace
+
+    from argos.backend.attack.pentest.execution_manager import JobSnapshot
+
+    runner, mission_id = approved(tmp_path)
+    pending = JobSnapshot(
+        uuid4(),
+        mission_id,
+        "127.0.0.1",
+        JobState.PENDING,
+        datetime.now(UTC),
+        None,
+        None,
+        None,
+    )
+    active = replace(pending, id=uuid4())
+    with JobStore(runner.database_path) as store:
+        store.create(pending, ScanPlanner().initial())
+        store.create(active, ScanPlanner().initial())
+        active = replace(active, state=JobState.RUNNING, started_at=datetime.now(UTC))
+        store.advance(active)
+    with patch(
+        "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
+    ) as forbidden:
+        with ExecutionManager(runner) as reopened:
+            assert reopened.get(pending.id) == pending
+            assert reopened.get(active.id) == active
+            assert reopened.result(active.id) is None
+            assert not reopened.cancel(active.id)
+        forbidden.assert_not_called()
+
+
+def test_scheduling_failure_records_terminal_failure(tmp_path):
+    runner, mission_id = approved(tmp_path)
+    with ExecutionManager(runner) as manager:
+        with patch.object(
+            manager._workers, "submit", side_effect=RuntimeError("closed")
+        ):
+            with pytest.raises(RuntimeError, match="closed"):
+                manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
+        assert len(manager._jobs) == 1
+        job_id = next(iter(manager._jobs))
+        snapshot = manager.get(job_id)
+        assert snapshot is not None
+        assert snapshot.state is JobState.FAILED
+        assert snapshot.started_at is None
+        assert manager.verified_evidence(job_id) is not None
+
+
+def test_explicit_evidence_and_audit_paths_remain_supported(tmp_path):
+    runner, mission_id = approved(tmp_path)
+    evidence_path = tmp_path / "evidence" / "jobs.db"
+    audit_path = tmp_path / "audit" / "mirror.db"
+    with patch(
+        "argos.backend.attack.pentest.execution_manager.subprocess.Popen",
+        side_effect=OSError("synthetic failure"),
+    ):
+        with ExecutionManager(
+            runner, evidence_path=evidence_path, audit_path=audit_path
+        ) as manager:
+            job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
+            expected = wait_state(manager, job_id, JobState.FAILED)
+    for path in (evidence_path, audit_path):
+        with JobAudit(path) as audit:
+            assert [event.state for event in audit.list_for_job(job_id)] == [
+                JobState.PENDING,
+                JobState.RUNNING,
+                JobState.FAILED,
+            ]
+    with ExecutionManager(
+        runner, evidence_path=evidence_path, audit_path=audit_path
+    ) as reopened:
+        assert reopened.get(job_id) == expected
+        assert reopened.verified_evidence(job_id) is not None
+
+
+def test_external_audit_failure_keeps_canonical_request_without_launching(tmp_path):
+    runner, mission_id = approved(tmp_path)
+    audit_path = tmp_path / "mirror.db"
+    with JobAudit(audit_path):
+        pass
+    with sqlite3.connect(audit_path) as connection:
+        connection.execute(
+            "CREATE TRIGGER reject_audit BEFORE INSERT ON pentest_job_events "
+            "BEGIN SELECT RAISE(ABORT, 'mirror unavailable'); END"
+        )
+    with patch(
+        "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
+    ) as forbidden:
+        with ExecutionManager(runner, audit_path=audit_path) as manager:
+            with pytest.raises(JobPersistenceError):
+                manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
+            with JobStore(runner.database_path) as store:
+                requests = store.list_for_mission(mission_id)
+                assert len(requests) == 1
+                stored = store.get(requests[0])
+                assert stored is not None
+                assert stored.snapshot.state is JobState.PENDING
+                with JobAudit(runner.database_path) as audit:
+                    assert len(audit.list_for_job(requests[0])) == 1
+        forbidden.assert_not_called()

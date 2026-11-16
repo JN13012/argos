@@ -102,8 +102,10 @@ canoniques sans dupliquer leur logique.
 `pyproject.toml` et `uv.lock` pilotent le Python ; le frontend conserve son
 `package.json` et son lock npm. SQLite sert aux observations et aux registres
 locaux. Le registre distingue une capacité active et un cache terminal borné ;
-l'audit et les preuves restent sur disque après éviction du cache. Les jobs
-en mémoire ne constituent pas encore une file durable. Voir le
+l'état, le plan, l'audit canonique et les preuves sont persistés. Les transitions
+terminales et leurs preuves sont atomiques dans une même base SQLite ; les
+lectures survivent à l'éviction et au redémarrage. La réconciliation et la
+reprise d'exécution après panne restent à construire. Voir le
 [suivi P1](../product/EXECUTION_P1.md).
 `.argos/` et `outputs/` contiennent des données runtime ignorées par Git.
 
