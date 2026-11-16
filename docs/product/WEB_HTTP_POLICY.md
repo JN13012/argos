@@ -151,8 +151,8 @@ cette heuristique.
 
 `PreparedWebRequest.transport_enabled` vaut toujours faux. Le plan n'est ni
 un objet sérialisable depuis l'entrée agent, ni une permission à présenter à
-un client HTTP alternatif. Le verrou, les tickets durables, le confinement,
-l'audit d'exécution et les vérifications avant lancement restent à livrer.
+un client HTTP alternatif. Le [confinement W2.2](WEB_HTTP_TRANSPORT.md) est
+livré ; verrou, tickets durables, audit et raccordement au runtime restent W2.3.
 
 ## Autres contrats livrés
 
@@ -177,6 +177,6 @@ d'upgrade sans nouvelle signature, DNS mixte/périmé, IP littérales, headers,
 
 Les résultats finaux sont consignés dans le bilan W2.1 du
 [lot de réalisation](WEB_HTTP_EXECUTION.md). Aucun service n'est activé.
-**Suite : W2.2**, résolveur supervisé, connexion à l'IP épinglée, script et CA
-montés en lecture seule, IPC privé et tests TLS/egress. W2.3 ajoutera ensuite
-réservations durables et preuves avant l'ouverture du CLI W3.
+**W2.2 livré** : [résolveur et transport isolé](WEB_HTTP_TRANSPORT.md), TLS,
+entrée privée et framing borné. Suite : W2.3, réservations durables, preuves
+et cycle du runtime avant l’ouverture du CLI W3.

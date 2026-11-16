@@ -10,6 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from http_sandbox import http_command
 from network_policy import GUEST_CIDR, NetworkPolicy
 from worker_guardian import sandbox_command, verify_controls
 
@@ -102,17 +103,24 @@ def main() -> int:
             raise RuntimeError("Network isolation helper terminated before launch")
         command = sandbox_command(limits, sys.argv[2:])
         command.insert(command.index("--unshare-all") + 1, "--share-net")
-        child = subprocess.Popen(
-            [
-                "/usr/bin/nsenter",
-                f"--user=/proc/{anchor.pid}/ns/user",
-                f"--net=/proc/{anchor.pid}/ns/net",
-                "--preserve-credentials",
-                *command,
-            ],
-            stdin=subprocess.DEVNULL,
-            close_fds=True,
-        )
+        input_fd = None
+        if "http" in network:
+            command, input_fd = http_command(command, network["http"])
+        try:
+            child = subprocess.Popen(
+                [
+                    "/usr/bin/nsenter",
+                    f"--user=/proc/{anchor.pid}/ns/user",
+                    f"--net=/proc/{anchor.pid}/ns/net",
+                    "--preserve-credentials",
+                    *command,
+                ],
+                stdin=input_fd if input_fd is not None else subprocess.DEVNULL,
+                close_fds=True,
+            )
+        finally:
+            if input_fd is not None:
+                os.close(input_fd)
         processes.append(child)
         while child.poll() is None:
             readable, _, _ = select.select([0], [], [], 0.02)

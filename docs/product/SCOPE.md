@@ -18,12 +18,13 @@ niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
 - [W1.2 préparé](../../benchmarks/web/README.md) : sélection versionnée et
   contrôlée hors ligne ; cibles, oracles et images pas encore exécutés/qualifiés.
 - [W1.3 spécifié](WEB_HTTP_EXECUTION.md) : transport, preuves, limites et premier
-  test vérifié. La préparation W1 est terminée ; aucune exécution web livrée.
+  test vérifié. La préparation W1 est terminée ; le parcours utilisateur reste fermé.
 - [W2.1 livré](WEB_HTTP_POLICY.md) : contrats HTTP et configuration v2 signée,
   budgets et capacités, politique hors ligne et régressions v1. Aucun trafic.
-- **Prochain lot : W2.2**, résolution supervisée, worker HTTP épinglé à une IP,
-  TLS vérifié, IPC privé et refus d’egress.
-- Puis W2.3 : tickets et preuves durables ; W3.1/W3.2 : CLI, découverte et
+- [W2.2 livré](WEB_HTTP_TRANSPORT.md) : résolution supervisée, worker HTTP
+  épinglé à une IP, TLS vérifié et IPC privé ; essais sur endpoints locaux.
+- **Prochain lot : W2.3**, runtime, tickets, compteurs et preuves durables ;
+  W3.1/W3.2 : CLI, découverte et
   redirection ouverte avec recontrôle.
 - Ajouter ensuite navigation anonyme et SPA, tests approfondis et boucle agent ;
   enrichir avec des comptes selon les accès disponibles.

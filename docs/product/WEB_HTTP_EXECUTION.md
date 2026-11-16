@@ -1,8 +1,8 @@
 # W1.3 — Première tranche HTTP et CLI
 
-Statut : **W2.1 livré et validé localement**, transport W2.2 restant à
-implémenter. Voir le [contrat effectivement accepté](WEB_HTTP_POLICY.md).
-Aucune exécution HTTP, commande CLI web ou boucle agent n’est activée. Suite du [plan web](WEB_PENTEST_PLAN.md).
+Statut : **W2.2 livré et validé localement**, runtime persistant W2.3 à construire.
+Voir les [contrats W2.1](WEB_HTTP_POLICY.md) et le [transport W2.2](WEB_HTTP_TRANSPORT.md).
+Aucun parcours utilisateur HTTP, commande CLI web ou boucle agent n’est activé. Suite du [plan web](WEB_PENTEST_PLAN.md).
 
 ## Résultat attendu de W2/W3
 
@@ -20,7 +20,7 @@ ni XSS, ni impact métier élevé. La couverture plus large reste W4–W7.
 ## Décisions techniques
 
 - Premier transport : client HTTP/1.1 dédié, de confiance, en Python système
-  avec bibliothèque standard `socket`, `http.client` et `ssl`. Pas de dépendance
+  avec bibliothèque standard `socket` et `ssl`, et lecteur HTTP borné dédié. Pas de dépendance
   ajoutée pour cette tranche ; pas de client générique accessible au modèle.
 - Le runtime valide la mission et résout le nom ; le worker reçoit une seule
   IP vérifiée et un port, l'origine logique et la requête canonique. Il ne fait
@@ -157,7 +157,7 @@ Ces budgets n'existent pas dans W1.1 : ils doivent être ajoutés, validés et l
 à la signature avant exécution, sans retoucher silencieusement une configuration
 déjà approuvée. Un format v2 sera introduit pour les missions exécutables ;
 les brouillons v1 restent lisibles, sans autorisation HTTP implicite ni upgrade
-d'une mission active. Le chargement v2 et les limites du worker restent à coder.
+d'une mission active. Le chargement v2 et les limites du worker sont livrés en W2.1/W2.2.
 Les plafonds globaux W1.1 (temps, requêtes, débit, concurrence, réponse) restent
 applicables ; la limite la plus restrictive prévaut. La concurrence est globale
 à la mission et bornée aussi par origine ; elle ne multiplie pas le débit.
@@ -330,9 +330,9 @@ Consultées le 16 novembre 2026 ; aucune dépendance nouvelle ni cible exécuté
 - [HTTPX — transports](https://www.python-httpx.org/advanced/transports/) : possibilité de transports personnalisés ; aucune nouvelle dépendance ou adoption n'est déduite de cette lecture.
 - [RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110) : sémantique HTTP, redirections et Retry-After ; les budgets et politiques ci-dessus sont les choix Argos.
 
-Le document est vérifié contre les contraintes actuelles du code. Les montages,
-framing, compteurs, contrôles DNS/TLS et oracles décrits sont des exigences à
-implémenter et mesurer. La préparation W1 est terminée ; les cibles corrigées,
+Le document est vérifié contre les contraintes actuelles du code. W2.2 livre
+montages, framing et contrôles DNS/TLS ; compteurs, preuves persistées et oracles
+restent à implémenter et mesurer. La préparation W1 est terminée ; les cibles corrigées,
 images et scores du corpus W1.2 restent à qualifier avec l'exécution.
 
 ## Bilan W2.1
@@ -355,6 +355,5 @@ images et scores du corpus W1.2 restent à qualifier avec l'exécution.
 - Aucun scan client, nouvelle dépendance ou service ajouté. L'expurgation réelle
   et la vérification des reçus de preuve ne sont pas livrées par les DTO.
 
-**Suite : W2.2**, résolveur supervisé et worker HTTP réellement confiné, avec
-TLS, entrée privée, framing borné et essais de refus d'egress. W2.3 ajoutera
-ensuite stockage et tickets durables avant le CLI W3.
+**W2.2 livré** : voir le [bilan du transport](WEB_HTTP_TRANSPORT.md).
+Suite : W2.3, stockage, tickets, compteurs et cycle du runtime avant le CLI W3.

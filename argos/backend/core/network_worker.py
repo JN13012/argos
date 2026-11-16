@@ -80,6 +80,7 @@ class NetworkWorker(OfflineWorker):
                         "network_policy.py",
                         "network_anchor.py",
                         "network_worker.py",
+                        "http_sandbox.py",
                     )
                 )
             ).hexdigest(),
