@@ -1,8 +1,9 @@
 # P1.4 — Isolation des workers
 
-État du 16 novembre 2026 : **P1.4.1 livré localement ; P1.4 reste ouverte**.
-Le worker sans réseau est qualifié. L'accès réseau limité aux cibles autorisées
-et son intégration au moteur Nmap restent à construire.
+État du 16 novembre 2026 : **P1.4.1 et P1.4.2 qualifiés localement**.
+Cette page décrit le worker sans réseau livré dans `64f5407`. Le
+[rapport réseau de mission](MISSION_NETWORK.md) porte l'intégration ATTACK
+actuelle, les nouveaux tests et les limites restant à qualifier en P1.5.
 
 ## Livrable P1.4.1
 
@@ -68,7 +69,7 @@ ARGOS_TEST_ISOLATION=1 .venv/bin/python -m pytest -q -o faulthandler_timeout=10
 ARGOS_TEST_ISOLATION=1 .venv/bin/python -m pytest -q tests/test_isolated_worker.py
 ```
 
-Résultats : **272 tests passent sous Python 3.12 et 272 sous Python 3.14**,
+Résultats à la clôture de P1.4.1 : **272 tests passent sous Python 3.12 et 272 sous Python 3.14**,
 dont 24 tests du nouveau composant. Dix de ces tests exigent l'hôte réel et
 sont explicitement ignorés sans `ARGOS_TEST_ISOLATION=1` : la suite par défaut
 donne **262 réussites et 10 ignorés**. Ruff, formatage global et Pyright passent.
@@ -85,7 +86,7 @@ zéro, l'annulation, le timeout et la disparition d'un descendant
 détaché après la mort du runtime. Un test rejette un profil dont les contrôles
 n'ont pas été appliqués avant tout lancement de l'outil.
 
-## Pourquoi le réseau actif reste ouvert
+## Constat réseau à la clôture de P1.4.1
 
 Le test d'environnement a utilisé deux sockets TCP contrôlées, sur
 `127.0.0.1` et `127.0.0.2`, avec une unité utilisateur demandant
@@ -98,31 +99,12 @@ options. Docker n'est pas disponible localement ; aucun démon n'a été démarr
 
 ## P1.4.2 — Réseau de mission et intégration ATTACK
 
-Le livrable suivant doit être un adaptateur de réseau restreint, puis son
-branchement dans `ExecutionManager`. Le moteur actif existant n'utilise pas
-encore `OfflineWorker` : ses limites historiques sur les processus et les
-sorties restent celles documentées dans le [durcissement](PENTEST_P135_HARDENING.md).
-
-Le contrat à implémenter doit porter : identifiant du job et de mission,
-cible IP littérale, ports et protocole, limites, échéance et version du profil.
-Le réseau est configuré avant le lancement de l'outil, avec refus par défaut.
-Le composant privilégié éventuel ne reçoit ni shell, ni propriétés systemd
-arbitraires, ni chemins de montage fournis par le modèle. Deux options restent
-à qualifier : réseau rootless avec interface dédiée et pare-feu dans son
-namespace, ou service système restreint avec filtrage noyau vérifié.
-
-Critères de sortie :
-
-1. La cible et les ports autorisés sont joignables ; des témoins hors périmètre
-   sont bloqués, en IPv4 et IPv6, y compris loopback, DNS et sorties indirectes.
-2. L'absence ou l'échec de la barrière réseau empêche le lancement ; aucun
-   mode réseau hôte ni repli silencieux n'est permis.
-3. Le mandat est revérifié par le moteur avant lancement ; annulation,
-   révocation et expiration arrêtent le worker et ses descendants.
-4. L'identité et la version du profil d'isolation sont liées à la demande
-   persistée et aux preuves ; les erreurs ne produisent pas de faux succès.
-5. La qualification couvre saturation, dépassements et crash après lancement
-   du véritable adaptateur. P1.5 conserve la qualification Nmap en labo autorisé.
+L'adaptateur rootless à pare-feu nftables est maintenant le backend par défaut
+de `ExecutionManager`. Il conserve les quotas et montages de ce worker et lie
+son profil au job et aux preuves. Les essais atteignent les ports autorisés
+et refusent les témoins hors périmètre sans se fier au filtrage IP systemd
+utilisateur. Voir le [rapport P1.4.2](MISSION_NETWORK.md) pour les contrôles,
+les dépendances et les validations. Nmap réel et la revue ciblée restent P1.5.
 
 ## Limites de ce lot
 
@@ -131,7 +113,8 @@ pas une VM ni une preuve de résistance à toute vulnérabilité du noyau. Il ne
 lit aucun fichier de mission et ne persiste pas lui-même les résultats dans
 `JobStore`. Les dépendances système et le gardien doivent être présents et
 de confiance ; une machine ou un compte administrateur compromis restent
-hors de ses garanties. L'isolation des scans actifs n'est pas annoncée livrée.
+hors de ses garanties. La qualification de Nmap réel n'est pas revendiquée par
+ce rapport du worker sans réseau.
 
 Les primitives sont décrites dans le
 [manuel bubblewrap](https://github.com/containers/bubblewrap/blob/main/bwrap.xml),

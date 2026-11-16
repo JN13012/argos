@@ -136,7 +136,7 @@ décision, le motif, la date et les identifiants des anciens et nouveaux
 propriétaires. Un `audit_path` séparé reste un miroir non atomique ; son échec
 ne supprime pas la décision déjà validée dans la base canonique.
 
-Limites :
+Limites constatées à la clôture de P1.3 :
 
 - La qualification porte sur Linux/WSL et une base locale. Le gestionnaire
   refuse une plateforme sans POSIX `flock`. Windows natif, systèmes de fichiers
@@ -146,8 +146,9 @@ Limites :
   pas cette limite. Aucun accès direct en écriture à la base ne doit être
   exposé à l'agent.
 - Un sous-processus peut survivre à la mort du superviseur. La réconciliation
-  ne déduit pas sa mort d'un PID et ne lui envoie aucun signal. P1.4 doit ajouter
-  l'isolation et le nettoyage du groupe de processus par le système.
+  ne déduit pas sa mort d'un PID et ne lui envoie aucun signal. Cette limite
+  concerne désormais le chemin local historique ; P1.4 ci-dessous qualifie le
+  nettoyage du nouveau backend par défaut.
 - Les jobs historiques `pending` restent non programmés jusqu'à `resume()` ;
   ils n'occupent pas la file active en mémoire. Les quotas système et la
   rétention sur disque ne sont pas fournis par ce verrou.
@@ -164,7 +165,7 @@ libération du verrou à la mort de son propriétaire ; les courses de reprise e
 de transfert de propriété ; les refus de mandat et de transitions ; le rollback
 du journal de réconciliation. Aucun scan réseau réel. CI distante non exécutée.
 
-## P1.4 — Isolation : livraison partielle
+## P1.4 — Isolation et réseau de mission
 
 **P1.4.1 est livrée localement** : `OfflineWorker`, namespaces Linux privés,
 absence de réseau externe, fichiers de l'hôte cachés, quotas mémoire, CPU,
@@ -177,26 +178,41 @@ avec `ARGOS_TEST_ISOLATION=1`. Sans cet opt-in, la suite donne 262 réussites et
 10 tests d'hôte ignorés. Ruff et Pyright sont propres. Aucun scan réel ; aucune
 configuration système permanente modifiée.
 
-**P1.4 n'est pas terminée** : le filtrage IP par unité utilisateur testé ici
-laisse passer une cible témoin interdite. Le worker livré n'a donc aucun accès
-réseau et ne remplace pas encore le chemin Nmap dans `ExecutionManager`.
-P1.4.2 doit fournir le réseau restreint de mission et intégrer cet adaptateur
-aux demandes, autorisations et preuves. Les limites du moteur actif restent
-ouvertes tant que ce branchement n'est pas qualifié.
+Ces résultats décrivent la clôture de P1.4.1. Le filtrage IP par unité utilisateur
+testé alors laissait passer une cible témoin interdite ; il n'est pas utilisé
+comme barrière de sécurité.
 
-Voir le [rapport d'isolation](WORKER_ISOLATION.md) pour le profil, les tests,
-les résultats d'environnement et les critères précis de P1.4.2.
+**P1.4.2 est livrée et qualifiée localement** : un namespace réseau rootless
+avec nftables à refus par défaut et slirp4netns constitue désormais le backend
+par défaut de `ExecutionManager`. Seuls l'IP et les ports TCP du plan sont
+autorisés. Les dépendances manquantes refusent la soumission, sans repli réseau
+hôte. Les quotas et le nettoyage des descendants restent actifs.
+
+Le profil versionné, ses empreintes et la traduction éventuelle de boucle
+locale sont liés à la demande et au reçu final dans la transaction SQLite.
+Une reprise refuse de changer le profil ou de repasser en mode local. Le
+superviseur historique subsiste uniquement sur option administrateur explicite
+`local_processes=True`, utilisée par les tests de compatibilité.
+
+Validation complète : **311 tests passent sous Python 3.12 et 3.14**, dont les
+essais réels du worker et de ses sockets locales contrôlées. Sans opt-in hôte :
+288 réussites et 23 ignorés. Ruff, formatage et Pyright passent. Aucune
+installation système ni modification permanente des routes ou du pare-feu.
+La qualification du véritable Nmap et la revue ciblée restent le lot P1.5.
+
+Voir le [rapport d'isolation](WORKER_ISOLATION.md) et le
+[rapport réseau de mission](MISSION_NETWORK.md) pour les dépendances exactes,
+le profil, les essais et les limites.
 
 ## Livraisons suivantes
 
 | Lot | Travail | Critères de sortie |
 | --- | --- | --- |
-| P1.4.2 — Réseau et intégration | Ajouter le réseau limité à la mission et brancher le worker dans ATTACK | Cible autorisée joignable ; témoins hors périmètre bloqués ; refus avant lancement si contrôle absent ; profil lié aux preuves et arrêts vérifiés |
 | P1.5 — Qualification | Scénarios de saturation, crash, reprise, révocation et quotas ; Nmap réel dans un labo autorisé | Résultats reproductibles, preuves et limites publiées dans le dépôt ; aucune affirmation de production sans mesure |
 
-Le test de crash du moteur actif de P1.3 montre pourquoi la perte du superviseur
-ne suffit pas à prouver l'arrêt de son outil. Le worker sans réseau de P1.4.1
-couvre ce nettoyage ; P1.4.2 doit étendre cette garantie au chemin actif.
+Les tests de crash du chemin historique expliquent pourquoi son option locale
+ne doit pas être exposée à l'agent. Les tests du nouveau worker réseau vérifient
+le nettoyage de ses helpers et descendants après la mort du runtime.
 
 Le choix éventuel d'un système de workflows vient après ces contrats et un
 essai mesuré. Ce lot ne présume ni file distribuée ni framework particulier.

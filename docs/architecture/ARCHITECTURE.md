@@ -42,8 +42,8 @@ Registre de capacités → Politique déterministe → Worker isolé
 ```
 
 Ce schéma est une cible. Le catalogue étendu, la boucle agentique, la reprise
-du plan de mission complet et le worker isolé pour les actions réseau restent
-à construire. Le choix
+du plan de mission complet restent à construire. Le worker réseau est intégré
+en bibliothèque et qualifié localement ; Nmap réel reste à qualifier. Le choix
 d’un agent existant,
 dont Hermes, ou d’un moteur propre passe par une évaluation. Aucune brique
 adoptée ne peut contourner les permissions du runtime Argos.
@@ -109,8 +109,10 @@ terminales et leurs preuves sont atomiques dans une même base SQLite ; les
 lectures survivent à l'éviction et au redémarrage. Un verrou POSIX assure un
 propriétaire d'exécution par base locale. Les jobs restés en cours sont marqués
 interrompus ; seuls les jobs en attente sont repris par appel explicite avec
-revalidation du mandat. L'isolation système et l'arrêt des outils orphelins
-restent à construire. Voir le
+revalidation du mandat. Le backend par défaut utilise désormais les workers
+Linux isolés avec réseau limité à la mission, quotas et nettoyage des helpers
+et descendants. Le mode local historique demande une option administrateur
+explicite. Voir le
 [suivi P1](../product/EXECUTION_P1.md).
 `.argos/` et `outputs/` contiennent des données runtime ignorées par Git.
 
@@ -126,7 +128,11 @@ seule, tmpfs bornés, environnement reconstruit et aucun accès réseau externe.
 Un pipe de vie et le namespace PID permettent le nettoyage après la mort du
 client, y compris pour un descendant détaché.
 
-Cette primitive n'est pas exposée à l'agent et n'est pas encore branchée dans
-`ExecutionManager`. Elle ne remplace pas le contrôle des missions ni le magasin
-de preuves. L'adaptateur réseau limité à la mission est le prochain travail ;
-voir la [qualification P1.4](../product/WORKER_ISOLATION.md).
+Cette primitive sans réseau n'est pas exposée à l'agent. Son dérivé
+`NetworkWorker` est branché par défaut dans `ExecutionManager` : un namespace
+ancêtre installe le pare-feu nftables avant le proxy slirp4netns ; l'outil
+s'exécute sans les droits permettant de modifier ces règles. Profil, programme,
+dépendances et règles sont associés à la demande et au reçu terminal. Les
+contrôles de mission restent dans le runtime Argos. Voir les qualifications
+[sans réseau](../product/WORKER_ISOLATION.md) et
+[réseau de mission](../product/MISSION_NETWORK.md).

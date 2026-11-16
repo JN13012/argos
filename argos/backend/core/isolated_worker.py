@@ -13,6 +13,7 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from uuid import uuid4
@@ -67,6 +68,16 @@ class OfflineWorker:
     def run(
         self, arguments: tuple[str, ...], *, cancel: threading.Event | None = None
     ) -> WorkerResult:
+        return self._run(arguments, cancel=cancel)
+
+    def _run(
+        self,
+        arguments: tuple[str, ...],
+        *,
+        cancel: threading.Event | None = None,
+        active: Callable[[], bool] | None = None,
+        network: dict[str, object] | None = None,
+    ) -> WorkerResult:
         if sys.platform != "linux":
             raise IsolationError("Offline workers require Linux")
         if not arguments or any("\0" in item for item in arguments):
@@ -100,6 +111,11 @@ class OfflineWorker:
             "OOMPolicy=kill",
             "UMask=0077",
         )
+        configuration: dict[str, object] = asdict(self.limits)
+        guardian = "worker_guardian.py"
+        if network is not None:
+            configuration["network"] = network
+            guardian = "network_guardian.py"
         command = [
             "/usr/bin/systemd-run",
             "--user",
@@ -110,8 +126,8 @@ class OfflineWorker:
             f"--unit={unit}",
             *(f"--property={item}" for item in properties),
             "/usr/bin/python3",
-            str(Path(__file__).with_name("worker_guardian.py")),
-            json.dumps(asdict(self.limits)),
+            str(Path(__file__).with_name(guardian)),
+            json.dumps(configuration),
             *arguments,
         ]
         read_fd, write_fd = os.pipe()
@@ -131,11 +147,17 @@ class OfflineWorker:
                     shell=False,
                 )
                 deadline = time.monotonic() + self.limits.wall_seconds
+                next_check = time.monotonic()
                 try:
                     while process.poll() is None:
                         if cancel is not None and cancel.is_set():
                             state = "cancelled"
                             break
+                        if active is not None and time.monotonic() >= next_check:
+                            if not active():
+                                state = "cancelled"
+                                break
+                            next_check = time.monotonic() + 0.25
                         if time.monotonic() >= deadline:
                             state = "timed_out"
                             break

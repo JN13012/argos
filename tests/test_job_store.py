@@ -387,3 +387,97 @@ def test_competing_pending_claims_only_accept_one_owner(tmp_path):
     with JobStore(db) as store:
         assert store.owner(pending.id) == winners[0]
         assert len(store.recovery_events(pending.id)) == 1
+
+
+def isolation_profile(pending):
+    return {
+        "job_id": str(pending.id),
+        "mission_id": str(pending.mission_id),
+        "target_ip": pending.target_ip,
+        "version": "test-profile-v1",
+        "ports": [80],
+    }
+
+
+@pytest.mark.parametrize(
+    "tamper", ["missing", "changed", "binding", "receipt", "unsealed", "request"]
+)
+def test_isolation_profile_is_bound_to_request_and_terminal_receipt(tmp_path, tamper):
+    db = tmp_path / "jobs.db"
+    pending = request()
+    active = running(pending)
+    done, proof = terminal(active)
+    profile = isolation_profile(pending)
+    with JobStore(db) as store:
+        store.create(pending, ScanPlanner().initial(), isolation_profile=profile)
+        store.advance(active)
+        store.advance(done, evidence=proof)
+        assert store.isolation_profile(pending.id) == profile
+        assert store.result(pending.id) is not None
+    statements = {
+        "missing": "DELETE FROM pentest_job_isolation",
+        "changed": "UPDATE pentest_job_isolation SET profile_json = '{}'",
+        "binding": "UPDATE pentest_job_isolation SET binding_sha256 = 'wrong'",
+        "receipt": "UPDATE pentest_job_isolation SET receipt_sha256 = 'wrong'",
+        "unsealed": "UPDATE pentest_job_isolation SET receipt_sha256 = NULL",
+        "request": (
+            "UPDATE pentest_jobs SET plan_json = "
+            "json_remove(plan_json, '$.isolation_sha256')"
+        ),
+    }
+    with sqlite3.connect(db) as connection:
+        connection.execute(statements[tamper])
+    with JobStore(db) as store:
+        with pytest.raises(EvidenceIntegrityError):
+            store.get(pending.id)
+        with pytest.raises(EvidenceIntegrityError):
+            store.result(pending.id)
+
+
+def test_isolation_profile_failure_rolls_back_submission(tmp_path):
+    db = tmp_path / "jobs.db"
+    pending = request()
+    with JobStore(db):
+        pass
+    with sqlite3.connect(db) as connection:
+        connection.execute(
+            "CREATE TRIGGER reject_profile BEFORE INSERT ON pentest_job_isolation "
+            "BEGIN SELECT RAISE(ABORT, 'profile unavailable'); END"
+        )
+    with JobStore(db) as store:
+        with pytest.raises(sqlite3.IntegrityError, match="profile unavailable"):
+            store.create(
+                pending,
+                ScanPlanner().initial(),
+                isolation_profile=isolation_profile(pending),
+            )
+        assert store.get(pending.id) is None
+    with JobAudit(db) as audit:
+        assert audit.list_for_job(pending.id) == ()
+
+
+def test_profile_receipt_failure_rolls_back_terminal_state_and_evidence(tmp_path):
+    db = tmp_path / "jobs.db"
+    pending = request()
+    active = running(pending)
+    done, proof = terminal(active)
+    profile = isolation_profile(pending)
+    with JobStore(db) as store:
+        store.create(pending, ScanPlanner().initial(), isolation_profile=profile)
+        store.advance(active)
+    with sqlite3.connect(db) as connection:
+        connection.execute(
+            "CREATE TRIGGER reject_binding BEFORE UPDATE ON pentest_job_isolation "
+            "BEGIN SELECT RAISE(ABORT, 'binding unavailable'); END"
+        )
+    with JobStore(db) as store:
+        with pytest.raises(sqlite3.IntegrityError, match="binding unavailable"):
+            store.advance(done, evidence=proof)
+        assert store.isolation_profile(pending.id) == profile
+        saved = store.get(pending.id)
+        assert saved is not None
+        assert saved.snapshot == active
+    with EvidenceStore(db) as evidence:
+        assert evidence.get_verified(pending.id) is None
+    with JobAudit(db) as audit:
+        assert len(audit.list_for_job(pending.id)) == 2

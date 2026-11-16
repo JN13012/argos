@@ -94,7 +94,11 @@ def test_lifecycle_completed_and_result(tmp_path):
         Finished,
     ):
         with ExecutionManager(
-            runner, concurrency=1, max_jobs=1, max_completed_jobs=1
+            runner,
+            local_processes=True,
+            concurrency=1,
+            max_jobs=1,
+            max_completed_jobs=1,
         ) as manager:
             job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             snap = wait_state(manager, job_id, JobState.COMPLETED)
@@ -119,7 +123,7 @@ def test_lifecycle_completed_and_result(tmp_path):
     with patch(
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
     ) as forbidden:
-        with ExecutionManager(runner) as reopened:
+        with ExecutionManager(runner, local_processes=True) as reopened:
             assert reopened.get(job_id) == snap
             assert reopened.result(job_id) == result
             request = reopened.request(job_id)
@@ -153,7 +157,7 @@ def test_cancel_terminates_running_job(tmp_path):
         Hanging,
     ):
         with ExecutionManager(
-            runner, concurrency=1, max_jobs=1, poll_seconds=0.01
+            runner, local_processes=True, concurrency=1, max_jobs=1, poll_seconds=0.01
         ) as manager:
             job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             assert started.wait(2)
@@ -172,7 +176,9 @@ def test_concurrent_submissions_respect_capacity_and_reuse_it(tmp_path):
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
     ) as popen:
         popen.side_effect = OSError("stub")
-        with ExecutionManager(runner, concurrency=1, max_jobs=3) as manager:
+        with ExecutionManager(
+            runner, local_processes=True, concurrency=1, max_jobs=3
+        ) as manager:
             original_run = manager._run
 
             def blocked_run(job, plan):
@@ -214,7 +220,11 @@ def test_terminal_cache_is_bounded_and_keeps_persistent_history(tmp_path):
         side_effect=OSError("stub"),
     ):
         with ExecutionManager(
-            runner, concurrency=1, max_jobs=1, max_completed_jobs=2
+            runner,
+            local_processes=True,
+            concurrency=1,
+            max_jobs=1,
+            max_completed_jobs=2,
         ) as manager:
             ids = []
             for _ in range(40):
@@ -242,7 +252,7 @@ def test_terminal_cache_is_bounded_and_keeps_persistent_history(tmp_path):
 def test_invalid_terminal_cache_limit(tmp_path, limit):
     runner, _ = approved(tmp_path)
     with pytest.raises(ValueError, match="completed job count"):
-        ExecutionManager(runner, max_completed_jobs=limit)
+        ExecutionManager(runner, local_processes=True, max_completed_jobs=limit)
 
 
 def test_terminal_eviction_preserves_running_job(tmp_path):
@@ -274,7 +284,11 @@ def test_terminal_eviction_preserves_running_job(tmp_path):
         side_effect=launch,
     ):
         with ExecutionManager(
-            runner, concurrency=2, max_jobs=2, max_completed_jobs=1
+            runner,
+            local_processes=True,
+            concurrency=2,
+            max_jobs=2,
+            max_completed_jobs=1,
         ) as manager:
             running = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             assert started.wait(2)
@@ -319,7 +333,9 @@ def test_revocation_stops_running_scan(tmp_path):
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen",
         Hanging,
     ):
-        with ExecutionManager(runner, concurrency=1, poll_seconds=0.01) as manager:
+        with ExecutionManager(
+            runner, local_processes=True, concurrency=1, poll_seconds=0.01
+        ) as manager:
             job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             assert started.wait(2)
             with MissionStore(runner.database_path) as store:
@@ -356,7 +372,12 @@ def test_timeout_reaps_process_and_records_evidence(tmp_path):
         Hanging,
     ):
         with ExecutionManager(
-            runner, concurrency=1, max_jobs=1, timeout_seconds=1, poll_seconds=0.01
+            runner,
+            local_processes=True,
+            concurrency=1,
+            max_jobs=1,
+            timeout_seconds=1,
+            poll_seconds=0.01,
         ) as manager:
             job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             snapshot = wait_state(manager, job_id, JobState.TIMED_OUT)
@@ -387,7 +408,7 @@ def test_storage_failure_is_visible_and_prevents_new_work(tmp_path, stage):
         def wait(self, timeout=None):
             return 0
 
-    with ExecutionManager(runner) as manager:
+    with ExecutionManager(runner, local_processes=True) as manager:
         condition = {
             "submission": "BEFORE INSERT ON pentest_jobs",
             "running": "BEFORE INSERT ON pentest_job_events WHEN NEW.state = 'running'",
@@ -453,7 +474,7 @@ def test_reopening_pending_and_running_requests_does_not_launch_them(tmp_path):
     with patch(
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
     ) as forbidden:
-        with ExecutionManager(runner) as reopened:
+        with ExecutionManager(runner, local_processes=True) as reopened:
             assert reopened.get(pending.id) == pending
             interrupted = reopened.get(active.id)
             assert interrupted is not None
@@ -467,7 +488,7 @@ def test_reopening_pending_and_running_requests_does_not_launch_them(tmp_path):
 
 def test_scheduling_failure_records_terminal_failure(tmp_path):
     runner, mission_id = approved(tmp_path)
-    with ExecutionManager(runner) as manager:
+    with ExecutionManager(runner, local_processes=True) as manager:
         with patch.object(
             manager._workers, "submit", side_effect=RuntimeError("closed")
         ):
@@ -491,7 +512,10 @@ def test_explicit_evidence_and_audit_paths_remain_supported(tmp_path):
         side_effect=OSError("synthetic failure"),
     ):
         with ExecutionManager(
-            runner, evidence_path=evidence_path, audit_path=audit_path
+            runner,
+            local_processes=True,
+            evidence_path=evidence_path,
+            audit_path=audit_path,
         ) as manager:
             job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             expected = wait_state(manager, job_id, JobState.FAILED)
@@ -503,7 +527,7 @@ def test_explicit_evidence_and_audit_paths_remain_supported(tmp_path):
                 JobState.FAILED,
             ]
     with ExecutionManager(
-        runner, evidence_path=evidence_path, audit_path=audit_path
+        runner, local_processes=True, evidence_path=evidence_path, audit_path=audit_path
     ) as reopened:
         assert reopened.get(job_id) == expected
         assert reopened.verified_evidence(job_id) is not None
@@ -522,7 +546,9 @@ def test_external_audit_failure_keeps_canonical_request_without_launching(tmp_pa
     with patch(
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
     ) as forbidden:
-        with ExecutionManager(runner, audit_path=audit_path) as manager:
+        with ExecutionManager(
+            runner, local_processes=True, audit_path=audit_path
+        ) as manager:
             with pytest.raises(JobPersistenceError):
                 manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             with JobStore(runner.database_path) as store:
@@ -555,10 +581,10 @@ def persisted_pending(runner, mission_id, target="127.0.0.1"):
 
 def test_single_runtime_owner_and_released_lock_after_close(tmp_path):
     runner, _ = approved(tmp_path)
-    with ExecutionManager(runner):
+    with ExecutionManager(runner, local_processes=True):
         with pytest.raises(RuntimeOwnershipError):
-            ExecutionManager(runner)
-    with ExecutionManager(runner):
+            ExecutionManager(runner, local_processes=True)
+    with ExecutionManager(runner, local_processes=True):
         pass
 
 
@@ -569,7 +595,7 @@ def test_pending_resume_is_explicit_and_concurrent_calls_launch_once(tmp_path):
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen",
         side_effect=OSError("synthetic failure"),
     ) as popen:
-        with ExecutionManager(runner) as manager:
+        with ExecutionManager(runner, local_processes=True) as manager:
             assert manager.get(pending.id) == pending
             popen.assert_not_called()
 
@@ -602,7 +628,7 @@ def test_resume_revalidates_authorization_without_claiming_denied_job(tmp_path, 
     if denial == "revoked":
         with MissionStore(runner.database_path) as store:
             store.revoke(mission_id)
-    with ExecutionManager(runner) as manager:
+    with ExecutionManager(runner, local_processes=True) as manager:
         with patch(
             "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
         ) as forbidden:
@@ -635,8 +661,8 @@ def test_constructor_failure_releases_ownership_lock(tmp_path):
         JobStore, "reconcile", side_effect=OSError("storage unavailable")
     ):
         with pytest.raises(OSError, match="storage unavailable"):
-            ExecutionManager(runner)
-    with ExecutionManager(runner) as manager:
+            ExecutionManager(runner, local_processes=True)
+    with ExecutionManager(runner, local_processes=True) as manager:
         snapshot = manager.get(pending.id)
         assert snapshot is not None
         assert snapshot.state is JobState.INTERRUPTED
@@ -646,7 +672,7 @@ def test_resume_checks_revocation_again_when_worker_starts(tmp_path):
     runner, mission_id = approved(tmp_path)
     pending, _ = persisted_pending(runner, mission_id)
     release = threading.Event()
-    with ExecutionManager(runner) as manager:
+    with ExecutionManager(runner, local_processes=True) as manager:
         original_run = manager._run
 
         def blocked_run(job, plan):
@@ -672,7 +698,7 @@ def test_resume_checks_revocation_again_when_worker_starts(tmp_path):
 def test_resume_requires_bounded_reason(tmp_path, reason):
     runner, mission_id = approved(tmp_path)
     pending, owner = persisted_pending(runner, mission_id)
-    with ExecutionManager(runner) as manager:
+    with ExecutionManager(runner, local_processes=True) as manager:
         with pytest.raises(ValueError, match="reason"):
             manager.resume(pending.id, reason=reason)
         with JobStore(runner.database_path) as store:
