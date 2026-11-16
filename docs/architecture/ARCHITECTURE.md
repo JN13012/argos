@@ -10,7 +10,11 @@ La configuration web immuable est livrée : JSON, normalisation, périmètre
 hors ligne et liaison signée aux missions. Une mission web n'a pas de réseau
 IP implicite ; sa configuration est stockée dans une table additive. L'action
 HTTP reste refusée par la politique jusqu'au transport W2. Voir le
-[contrat W1.1](../product/WEB_CONFIG.md).
+[contrat W1.1](../product/WEB_CONFIG.md). Le
+[transport W1.3](../product/WEB_HTTP_EXECUTION.md) précise le prochain chemin :
+résolution supervisée dans le runtime, IP épinglée, worker HTTP fixe, TLS vérifié
+et preuves expurgées. Ce transport et la configuration exécutable v2 restent
+à implémenter ; les contrôles W1.1 seuls n’autorisent aucune connexion.
 Les adaptateurs HTTP et navigateur, le contrôle d'origine web, les sessions
 multi-rôles et les services de mission sont une cible à construire. Le contrôle
 IP/port livré ne suffit pas à isoler des origines web partageant une IP.

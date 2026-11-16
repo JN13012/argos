@@ -150,14 +150,17 @@ implemented as an offline Python library with signed persistence; HTTP execution
 and the web CLI remain to be built. The [web delivery plan](docs/product/WEB_PENTEST_PLAN.md) defines
 W0–W9, dependencies, evaluation gates and the first pilot criteria. The
 [W1.2 evaluation corpus](benchmarks/web/README.md) now pins 12 candidate cases;
-it has not been executed against an agent.
+it has not been executed against an agent. The
+[W1.3 HTTP execution specification](docs/product/WEB_HTTP_EXECUTION.md) now defines
+the worker, DNS/TLS controls, evidence and first verified web test. Next: W2.1
+contracts and offline policy, followed by the transport and CLI.
 
 | Stage | Status | Content |
 | --- | --- | --- |
 | Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
 | P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
 | P1 — Durable execution | P1.1–P1.4 validated locally | Isolated mission network integrated; real Nmap lab qualification and focused review remain |
-| W0–W9 — Web pentesting | W1.1 validated locally; remaining work planned | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
+| W0–W9 — Web pentesting | W1 preparation complete; W2.1 implementation next | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
 | P2 — Product workflow | After the web CLI workflow | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
 | Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
 | Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |

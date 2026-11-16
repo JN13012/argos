@@ -129,5 +129,6 @@ ils restent bloqués, sans pouvoir élargir eux-mêmes la configuration.
 
 W1.2 livre la préparation et ses contrôles hors ligne. Images, oracles, témoins
 et exécution restent non qualifiés ; W1 n'est pas déclaré entièrement clos.
-La prochaine tranche est W1.3 : spécifier le transport HTTP et la première
-chaîne CLI. Les critères réels seront mesurés avec W2–W7, puis W8.
+La [spécification W1.3](../../docs/product/WEB_HTTP_EXECUTION.md) est désormais
+livrée ; prochaine implémentation W2.1, contrats HTTP et configuration v2,
+avant transport et CLI. Les critères réels seront mesurés avec W2–W7, puis W8.

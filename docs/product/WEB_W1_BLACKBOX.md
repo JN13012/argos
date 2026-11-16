@@ -1,7 +1,8 @@
 # W1 — Préparer le pentest web en boîte noire externe
 
-Statut : **W1.1 validé localement et W1.2 préparé hors ligne** ; W1.3 reste
-à réaliser. Les cibles et mécanismes de notation ne sont pas encore qualifiés.
+Statut : **préparation W1 terminée** : W1.1 validé localement, W1.2 préparé
+hors ligne et [W1.3 spécifié](WEB_HTTP_EXECUTION.md). Le transport, les cibles
+et les mécanismes de notation restent à construire/qualifier.
 Le [contrat effectivement accepté](WEB_CONFIG.md) utilise JSON UTF-8.
 Décision du 16 novembre 2026 ; dépend du [plan web](WEB_PENTEST_PLAN.md).
 
@@ -160,16 +161,17 @@ Critère de préparation : manifeste vérifié hors ligne et export sans indices
 
 ### W1.3 — Passage à W2/W3
 
-- [ ] Fixer les interfaces requête, réponse, preuve, erreur et couverture.
-- [ ] Définir le contrôle DNS/origine/egress et ses essais de contournement.
-- [ ] Définir les budgets globaux, les réponses trop grandes, la concurrence,
+- [x] Fixer les interfaces requête, réponse, preuve, erreur et couverture.
+- [x] Définir le contrôle DNS/origine/egress et ses essais de contournement.
+- [x] Définir les budgets globaux, les réponses trop grandes, la concurrence,
   les backoffs, les erreurs TLS, la révocation et le stockage expurgé.
-- [ ] Choisir le premier test web reproductible avec témoin corrigé pour
+- [x] Choisir le premier test web reproductible avec témoin corrigé pour
   traverser CLI, exécution, validation, rapport et recontrôle.
 
 Commit indicatif : `docs(web): specify HTTP execution slice`.
-W1 peut être clos lorsque ses tâches sont réalisées et leurs résultats publiés.
-Les interfaces ne valent pas implémentation de l'egress ou du CLI.
+Spécification livrée dans [WEB_HTTP_EXECUTION.md](WEB_HTTP_EXECUTION.md).
+La préparation W1 est close ; cela ne vaut pas qualification des images,
+des témoins corrigés, du réseau, des oracles ou du CLI.
 
 ## Acceptation du premier incrément exécutable W2/W3
 
@@ -220,4 +222,20 @@ consigne la préparation W1.2 désormais livrée.
   du runtime. Ruff, formatage et Pyright passent.
 - Aucun conteneur construit, service démarré, scan client ou score de benchmark.
 
-Prochain lot : **W1.3**, interfaces et contrôles du transport HTTP avant W2/W3.
+À la clôture de la préparation W1.2, W1.3 était le prochain lot ; sa livraison
+est consignée ci-dessous.
+
+## Bilan W1.3
+
+- Contrats requête/réponse/erreur/preuve/couverture, chaîne DNS → IP épinglée
+  → HTTP/TLS et entrée privée du worker spécifiés.
+- Budgets, redirections, Retry-After, révocation, preuves expurgées et reprise
+  définis ; les limites réelles de montage et de sortie du worker sont prises
+  en compte, sans prétendre qu'elles isolent déjà un navigateur.
+- Premier test choisi : redirection ouverte, avec deux marqueurs synthétiques
+  sans connexion externe et un témoin corrigé à réaliser en W2/W3.
+- W2.1–W3.2 découpés avec critères vérifiables. Prochaine implémentation :
+  **W2.1 — contrats HTTP, configuration v2 et politique hors ligne**.
+- Changement documentaire uniquement : liens locaux, fences Markdown et diff
+  vérifiés ; aucun test d'exécution, scan, score ni nouvelle requête réseau
+  du produit. La suite Python n'est pas rejouée pour cette spécification.

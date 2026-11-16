@@ -17,8 +17,12 @@ niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
   et comptes facultatifs, liée aux missions signées, sans connexion réseau.
 - [W1.2 préparé](../../benchmarks/web/README.md) : sélection versionnée et
   contrôlée hors ligne ; cibles, oracles et images pas encore exécutés/qualifiés.
-- Suite [W1.3](WEB_W1_BLACKBOX.md) : spécifier le transport HTTP avant W2/W3.
-- Construire W2/W3 : exécution HTTP contrôlée, cartographie, preuves et rapport.
+- [W1.3 spécifié](WEB_HTTP_EXECUTION.md) : transport, preuves, limites et premier
+  test vérifié. La préparation W1 est terminée ; aucune exécution web livrée.
+- **Prochain lot : W2.1**, contrats HTTP et configuration v2 signée avec budgets
+  additionnels et capacités explicites, politique hors ligne et régressions v1.
+- Puis W2.2/W2.3 : transport réellement confiné, TLS/DNS, tickets et preuves
+  durables ; W3.1/W3.2 : CLI, découverte et redirection ouverte avec recontrôle.
 - Ajouter ensuite navigation anonyme et SPA, tests approfondis et boucle agent ;
   enrichir avec des comptes selon les accès disponibles.
 - Évaluer les capacités démontrées sur les applications client, avec comparaison
