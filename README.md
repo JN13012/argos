@@ -139,9 +139,10 @@ A reliable agent for long security missions needs more than a prompt. The [agent
 The [canonical roadmap](docs/product/ROADMAP.md) defines statuses, dependencies
 and acceptance criteria. The slide above is an earlier presentation snapshot.
 
-**First commercial target: autonomous web and API pentesting**, including
-authenticated workflows, multiple roles, verified findings, reports and
-retesting, starting with the CLI. This is planned work, not a current product
+**First commercial target: autonomous external black-box web and API
+pentesting**, starting from a URL or domain without credentials, source code
+or documentation. Optional accounts extend coverage. Verified findings,
+reports and retesting start with the CLI. This is planned work, not a current product
 capability. The [web delivery plan](docs/product/WEB_PENTEST_PLAN.md) defines
 W0–W9, dependencies, evaluation gates and the first pilot criteria.
 

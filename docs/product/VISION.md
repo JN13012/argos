@@ -4,8 +4,8 @@ Argos vise une plateforme de cybersécurité IA capable de conduire des missions
 en autonomie complète dans un cadre préalablement autorisé, tout en offrant un
 mode assisté aux experts. Elle réunit INTEL/OSINT, ATTACK/pentest, puis DEFEND/GRC.
 
-La première valeur commerciale ciblée est le **pentest web et API autonome**,
-authentifié et multi-rôles, avec rapport étayé et recontrôle, accessible d'abord
+La première valeur commerciale ciblée est le **pentest web et API autonome en boîte noire externe**,
+avec comptes facultatifs, rapport étayé et recontrôle, accessible d'abord
 depuis le CLI. Le [plan web](WEB_PENTEST_PLAN.md) organise cette priorité.
 La qualité attendue d'un pentester senior sera évaluée sur les résultats et
 les limites observées avant toute revendication commerciale.

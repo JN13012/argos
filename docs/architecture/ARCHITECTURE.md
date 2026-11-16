@@ -4,6 +4,8 @@
 frontend React/TypeScript/Vite séparé pour son outillage.
 
 Priorité de réalisation : [pentest web autonome depuis le CLI](../product/WEB_PENTEST_PLAN.md).
+Le parcours cible commence par une URL/domaine sans compte ni documentation.
+La découverte anonyme est obligatoire ; les comptes enrichissent la couverture.
 Les adaptateurs HTTP et navigateur, le contrôle d'origine web, les sessions
 multi-rôles et les services de mission sont une cible à construire. Le contrôle
 IP/port livré ne suffit pas à isoler des origines web partageant une IP.

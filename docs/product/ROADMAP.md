@@ -11,8 +11,8 @@ planifier, choisir et exécuter les capacités autorisées, interpréter les
 observations, adapter son parcours, vérifier ses constats et produire le rapport.
 Un mode assisté reste utile pour les experts, sans limiter la cible à un copilote.
 
-**Première valeur commerciale : le pentest web et API autonome**, authentifié
-et multi-rôles, depuis le CLI, avec preuves, rapport et recontrôle. Le
+**Première valeur commerciale : le pentest web et API autonome en boîte noire externe**,
+depuis le CLI, sans compte ni documentation au démarrage, avec preuves, rapport et recontrôle. Le
 [plan web W0–W9](WEB_PENTEST_PLAN.md) organise les livraisons et la qualification.
 Le niveau senior est une cible à mesurer, pas une capacité actuelle annoncée.
 OSINT élargi, AD, cloud, DEFEND/GRC et sécurité des LLM passent après ce parcours.

@@ -5,18 +5,21 @@ Mise à jour : 16 novembre 2026. La [roadmap](ROADMAP.md) porte les statuts et l
 
 ## Priorité produit
 
-Un pentest web/API autonome depuis le CLI : authentification, plusieurs rôles,
-cartographie, tests, validation, preuves, rapport et recontrôle. L'agent doit
+Un pentest web/API autonome en boîte noire externe depuis le CLI : URL ou
+domaine, découverte sans compte ni documentation, tests, validation, preuves,
+rapport et recontrôle. Comptes et rôles supplémentaires sont facultatifs. L'agent doit
 pouvoir enchaîner les actions préautorisées sans approbation répétitive. Le
 niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
 
 ## Prochain travail : première chaîne web depuis le CLI
 
-- Définir la configuration de mission : URLs, comptes, débit, durée et actions.
+- Implémenter [W1 — boîte noire](WEB_W1_BLACKBOX.md) : URL/domaine, périmètre,
+  limites et comptes facultatifs ; aucune connaissance des failles requise.
 - Sélectionner des benchmarks existants pour mesurer les résultats ; éviter de
   reconstruire une collection de cibles déjà disponible.
 - Construire W2/W3 : exécution HTTP contrôlée, cartographie, preuves et rapport.
-- Ajouter ensuite navigateur, comptes multiples, tests et boucle agent.
+- Ajouter ensuite navigation anonyme et SPA, tests approfondis et boucle agent ;
+  enrichir avec des comptes selon les accès disponibles.
 - Évaluer les capacités démontrées sur les applications client, avec comparaison
   humaine et résultats reproduits. Les failles n'ont pas à être connues avant
   la mission ; leur nombre total inconnu interdit un score de rappel absolu.
