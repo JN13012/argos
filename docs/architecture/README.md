@@ -1,8 +1,11 @@
-# ARGOS architecture foundation — proposal
+# ARGOS architecture foundation — historical bootstrap proposal
 
-**Status:** implementation proposal for the initial application foundation;
-pending review against the project's governing documents. This page does not
-change the status or scope of those documents.
+**Historical document, superseded on 16 November 2026.** The descriptions of
+absent capabilities and governance conflicts below refer to the initial
+bootstrap, before ATTACK P1 and the current product direction. They are retained
+for provenance. For implemented behavior use [Architecture](ARCHITECTURE.md);
+for active priorities and the autonomous mission target use the
+[canonical roadmap](../product/ROADMAP.md).
 
 ## Repository map
 

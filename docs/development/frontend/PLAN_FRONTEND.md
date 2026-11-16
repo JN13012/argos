@@ -1,5 +1,12 @@
 # Argos — plan de reprise du frontend
 
+> **Document historique.** Au 16 novembre 2026, l’application montée affiche
+> un accueil minimal et vérifie `/api/v1/health`. Les étapes, captures et nombres
+> de tests ci-dessous décrivent les versions historiques ; la scène et le dossier
+> ne sont pas actuellement montés. La suite courante comporte 22 tests unitaires
+> et deux parcours navigateur. Les prochains travaux métier suivent la
+> [roadmap de référence](../../product/ROADMAP.md).
+
 ## Périmètre validé
 
 Le prototype porte uniquement sur l’accueil. La navigation de gauche reste

@@ -1,6 +1,18 @@
 # Agentic architecture
 
-**This is a design document.** No agent runs in Argos today: the code is the OSINT foundation described in the README. The closest existing brick is the storage of observations with their source and date, which the memory and evidence layers will build on.
+**This is a design document.** No agent runs in Argos today. The implemented
+bricks are the OSINT foundation and the ATTACK P1 library: signed missions,
+bounded Nmap execution, audit and evidence. The HTTP API exposes health only.
+
+The product target is complete mission autonomy within a previously authorized
+scope: planning, action selection, execution, verification, replanning and
+reporting without repeated approval of preauthorized steps. A copilot interface
+is an optional mode, not the limit of the product. Runtime policy, budgets,
+revocation and stop conditions apply independently of the model.
+
+An existing agent such as Hermes and an original harness remain alternatives
+to evaluate. See the [reference dossier](../product/REFERENCES.md) and the
+[canonical roadmap](../product/ROADMAP.md); no third-party harness is integrated.
 
 A reliable agent is more than a prompt. For long cybersecurity missions, it needs these subsystems to be designed, integrated and tested.
 

@@ -1,41 +1,36 @@
 # Argos — Scope immédiat
 
-```text
-Argos OSINT
-↓
-OSINT Foundation
-↓
-Business Discovery
-```
+Mise à jour : 16 novembre 2026. La [roadmap](ROADMAP.md) est la référence pour
+les statuts et les dépendances entre lots.
 
-Premier scénario réel à construire et valider : **trouver les garages de Marseille**.
-La fondation devra représenter les entités, leurs identifiants, leurs observations,
-les recherches et leur couverture, avec une persistance initiale envisagée en SQLite.
+## Lot courant : P0 — fiabilisation
 
-## Collect first, qualify later
+- Corriger les diagnostics Python et conserver l’analyse de tout le workspace.
+- Réparer l’installation locale et verrouiller les contrôles reproductibles.
+- Contrôler lint, formatage et typage sur tout le Python, les tests backend,
+  le frontend et ses parcours navigateur.
+- Étendre la CI aux PR, à `main` et aux branches `feat/**`.
+- Réconcilier vision, architecture et plans avec l’état réel des sources.
+- Préparer l’évaluation des briques publiques ; aucun import de framework
+  agentique, catalogue tiers ou nouvel outil actif dans P0.
 
-```text
-Scope → Discovery → Entity Resolution → Persistence
-→ Enrichment → Analysis → Ranking
-```
+Le [bilan P0](FIABILISATION_P0.md) consigne les commandes exécutées et les limites
+de validation. La cible produit est une mission autonome, pas uniquement une
+interface de conseil.
 
-« Trouve les garages susceptibles d'avoir besoin d'un meilleur site Web »
-définit un scope de découverte et un objectif d'analyse distincts. Le moteur
-devra découvrir et persister les garages du scope avant d'évaluer une
-opportunité. L'intérêt commercial supposé ne filtrera pas la collecte.
+## Lot suivant : P1 — fiabiliser l’exécution
 
-Le classement produira une vue des résultats sans supprimer les entités
-collectées. La couverture dépendra des sources interrogées et des limites de
-la recherche ; aucune exhaustivité territoriale ne sera promise.
+Capacité du gestionnaire, persistance des états, reprise après panne, quotas
+système, contrôle du worker et qualification en labo. P0 ne livre ni ces
+contrôles ni une API de scan. Les modifications du moteur correspondantes
+restent un lot distinct.
 
-## Tranches suivantes
+## Fondations conservées
 
-1. Business Discovery : rechercher, résoudre les identités et persister.
-2. Website Resolution : justifier l'association d'une entité à un site.
-3. Website Enrichment : ajouter progressivement des observations sur le site.
-4. Website Opportunity Analysis : interpréter et classer avec des raisons explicables.
+La découverte SIRENE persiste les entités avant de les enrichir ou de les
+classer. L’analyse ne doit pas filtrer silencieusement la collecte ; aucune
+exhaustivité territoriale n’est promise. Le scénario de découverte d’entreprises
+reste utilisable et testable sans agent.
 
-Red, Defense, agents/harness de production, frontend, SaaS/cloud et
-automatisation commerciale sortante sont hors scope immédiat.
-Les [principes OSINT](OSINT.md) décrivent le moteur futur ; aucune de ces
-capacités n'est implémentée dans cette passe documentaire.
+Les pages métier, les outils supplémentaires, les agents, le déploiement de
+production et DEFEND/GRC ne sont pas implémentés dans P0.

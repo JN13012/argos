@@ -1,47 +1,66 @@
-# Argos — Architecture minimale
+# Argos — Architecture
+
+État des sources au 16 novembre 2026. Monolithe modulaire, package Python unique,
+frontend React/TypeScript/Vite séparé pour son outillage.
 
 ## Architecture actuelle
 
-Le dépôt contient un package Python `argos`, un CLI OSINT avec découverte SIRENE,
-persistance SQLite et rapports, ainsi qu'une API FastAPI minimale et son frontend.
-Le Pentest Engine, les plans d'autorisation et d'exécution ne sont pas
-implémentés.
-
-La fondation est construite sous :
-
 ```text
 argos/
-├── __main__.py, cli.py
+├── __main__.py, cli.py       CLI OSINT et rapports
 ├── backend/
-│   ├── api/                  FastAPI et routes HTTP
-│   ├── core/                 Configuration et réponses d'erreur communes
-│   ├── intel/osint/           Modèles, services et adaptateurs OSINT
-│   └── attack/pentest/       Frontière réservée, sans implémentation active
-└── frontend/                 React + TypeScript + Vite
+│   ├── api/                 FastAPI : santé HTTP et erreurs stables
+│   ├── core/                Missions, scope, signatures, politiques et audit
+│   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
+│   └── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
+├── osint/                   Réexportations de compatibilité des modèles
+└── frontend/                Accueil minimal connecté à la santé de l’API
 ```
 
-Le CLI reste exposé via `argos.cli` et `python -m argos`. Les imports historiques
-`argos.osint` redirigent vers le package canonique
-`argos.backend.intel.osint`, sans dupliquer la logique métier.
+ATTACK P1 est une bibliothèque locale avec vérification des missions signées,
+reconnaissance en deux phases et preuves vérifiées. Aucun endpoint métier ni
+agent n’appelle encore ce moteur. Les runners synchrones historiques ne sont
+pas le point d’entrée à exposer au futur harness. Les
+[limites d’exécution](../product/PENTEST_P135_HARDENING.md) restent ouvertes.
 
-Le `pyproject.toml` et `uv.lock` racine pilotent le package Python unique.
-Le frontend conserve un `package.json` et un lock npm dans `argos/frontend/`.
-Les documents de gouvernance restent classés sous `docs/product/` et ne sont
-pas modifiés par cette organisation.
+La page montée est `frontend/src/app/App.tsx`. Les anciens composants de dossier,
+chat local et scène 3D sont conservés comme travaux historiques, sans être
+montés par cette page. Une réponse positive de santé ne valide aucune mission.
 
-## Capacités et orchestration
+## Cible autonome
 
 ```text
-Capability = ce qu'Argos sait faire
-Workflow   = assemblage de capacités
-Harness    = pilotage/orchestration par un agent
+Mandat + limites de mission
+          ↓
+État persistant ↔ Planificateur / agent ↔ Connaissance versionnée
+          ↓ propositions typées
+Registre de capacités → Politique déterministe → Worker isolé
+          ↑                                      ↓
+          └──── Vérification ← Observations + preuves
+                              ↓
+                      Rapport et recontrôle
 ```
 
-Les capacités métier devront rester utilisables sans agent. Un workflow les
-assemblera ; un futur harness pourra piloter leur exécution et appliquer ses
-permissions. L'interface présentera les recherches et leurs résultats.
+Ce schéma est une cible. Le catalogue étendu, la boucle agentique, la reprise
+durable et le worker isolé restent à construire. Le choix d’un agent existant,
+dont Hermes, ou d’un moteur propre passe par une évaluation. Aucune brique
+adoptée ne peut contourner les permissions du runtime Argos.
 
-Les [principes OSINT](../product/OSINT.md) portent la conception du moteur.
-`.argos/`, ignoré par Git, et `outputs/`, également ignoré, restent à la racine
-pour les données runtime locales et les rapports. Aucun contenu local n'est
-déplacé par la migration.
+Une mission peut autoriser à l’avance plusieurs étapes : l’autonomie ne dépend
+pas d’une validation humaine de chaque appel. Les décisions hors mandat et les
+conditions d’arrêt restent gérées indépendamment du modèle.
+
+## Contrats et stockage
+
+Les capacités métier restent appelables sans agent. L’orchestrateur adaptatif
+dépend du protocole typé `ReconExecutionManager`, pas d’une implémentation de
+test. Les imports `argos.osint.models` réexportent explicitement les classes
+canoniques sans dupliquer leur logique.
+
+`pyproject.toml` et `uv.lock` pilotent le Python ; le frontend conserve son
+`package.json` et son lock npm. SQLite sert aux observations et aux registres
+locaux. Les jobs en mémoire ne constituent pas encore une file durable.
+`.argos/` et `outputs/` contiennent des données runtime ignorées par Git.
+
+La [roadmap de référence](../product/ROADMAP.md) porte les lots et leurs gates ;
+le [noyau agentique](AGENTIC_CORE.md) détaille les sous-systèmes conçus.

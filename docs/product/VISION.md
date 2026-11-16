@@ -1,34 +1,32 @@
 # Argos — Vision
 
-Argos vise une plateforme modulaire pour collecter, structurer et analyser des
-informations utiles à l'OSINT et à la cybersécurité. **Current priority = OSINT.**
+Argos vise une plateforme de cybersécurité IA capable de conduire des missions
+en autonomie complète dans un cadre préalablement autorisé, tout en offrant un
+mode assisté aux experts. Elle réunit INTEL/OSINT, ATTACK/pentest, puis DEFEND/GRC.
 
-```text
-Argos
-├── OSINT
-├── Red
-├── Defense
-├── Agents / Harness (future direction)
-└── Interface
-```
-
-OSINT constitue le domaine prioritaire dans les décisions actuelles. Les
-extensions ATTACK/PENTEST, INTEL, DEFEND et l'interface unifiée sont des
-évolutions proposées par l'architecture du monorepo ; cette organisation ne
-modifie pas à elle seule les décisions de gouvernance.
+La mission autonome couvre la planification, le choix des outils, l’exécution,
+l’analyse des observations, la vérification, la reprise et la restitution.
+L’opérateur définit le mandat, les limites et les conditions d’arrêt ; il n’a
+pas à confirmer chaque étape comprise dans cette autorisation.
 
 ## Principes
 
-- **Modularité** : introduire chaque capacité pour un besoin concret.
-- **AI-assisted, not AI-dependent** : l'IA pourra aider à interpréter et
-  analyser ; les capacités essentielles devront fonctionner sans modèle.
-- **Provenance** : conserver la source, la date et les limites des observations.
-- **Local-first lorsque pertinent** : privilégier l'exécution et les données
-  locales sans imposer d'infrastructure distante.
-- **Séparation** : distinguer capacités métier, orchestration et interface.
-- **Extensibilité** : faire évoluer sources et analyses indépendamment, par
-  étapes validées.
+- **Autonomie contrôlée par le runtime** : le modèle ne peut ni élargir le
+  périmètre ni modifier les permissions de sa propre mission.
+- **Capacités utilisables sans modèle** : l’OSINT, les politiques d’exécution et
+  les preuves restent indépendants des fournisseurs de LLM.
+- **Constats étayés** : distinguer observation, hypothèse, vulnérabilité
+  vérifiée et limite de couverture ; conserver source, date et preuve.
+- **Reprise et évaluation** : checkpoint, budget, arrêt et relecture des
+  résultats sont des fonctions de base de l’autonomie.
+- **Modularité** : adopter une brique publique ou construire une capacité
+  propre selon des critères mesurés, avec sa provenance et sa licence.
+- **Local lorsque pertinent** : ne pas imposer une infrastructure distribuée
+  ou distante avant qu’un usage ne la justifie.
 
-Le dépôt contient une première application et une fondation OSINT.
-Le [scope](SCOPE.md) fixe le prochain travail ; le [cadre](CADRE.md) définit
-l'usage prévu et l'[architecture](../architecture/ARCHITECTURE.md) la direction.
+## Situation actuelle
+
+Le dépôt contient un CLI OSINT SIRENE, une bibliothèque de reconnaissance Nmap
+contrôlée et une application web minimale. Aucun agent ou modèle n’est encore
+connecté. La [roadmap](ROADMAP.md) distingue cette réalité de la cible produit ;
+le [scope](SCOPE.md) fixe le travail immédiat et le [cadre](CADRE.md) l’usage.

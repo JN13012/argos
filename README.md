@@ -5,8 +5,8 @@
 <h1 align="center">ARGOS</h1>
 
 <p align="center">
-  <b>A virtual CISO for SMEs and a copilot for security experts.</b><br>
-  OSINT, offensive and defensive security in one platform, run by AI agents under strict human control.
+  <b>Autonomous cybersecurity missions, with verifiable evidence.</b><br>
+  OSINT, offensive and defensive security in one platform, within an explicitly authorized mission.
 </p>
 
 <p align="center">
@@ -46,7 +46,11 @@ On the offensive side, ARGOS aims to cover the main fields of a pentest engageme
 | **Active Directory** | Enumeration, attack paths, Kerberos and delegation weaknesses |
 | **AI security** | LLM applications and AI agents: prompt injection, jailbreaks, tool abuse, data leakage |
 
-The rule at every stage: **the AI assists, deterministic code decides what is allowed, and a human approves.** Core capabilities keep working without an LLM.
+The product target is **complete mission autonomy**: plan, execute authorized
+tools, verify observations, adapt and report without repeated approval of
+preauthorized steps. The operator defines the mandate, scope, budgets and stop
+conditions; deterministic code enforces them independently of the model.
+Core capabilities keep working without an LLM. No agent is connected today.
 
 <p align="center">
   <img src="docs/presentation/slides/03.jpg" alt="Slide: the need, key figures on SME cyber readiness" width="49%">
@@ -80,8 +84,11 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **180+ Python tests** (pytest) with synthetic processes and fixtures, no real network scans; Ruff linting; GitHub Actions CI on Ubuntu.
-- **Web foundation:** a FastAPI API (health endpoint) and a React / TypeScript / Vite application, tested with Vitest and Playwright.
+- **188 Python tests** (pytest), validated on Python 3.12 and 3.14 with synthetic
+  processes and fixtures, no real network scans; repository-wide Ruff and pinned
+  Pyright; GitHub Actions configuration covering backend and frontend.
+- **Web foundation:** a FastAPI API (health endpoint) and a React / TypeScript /
+  Vite application, with 22 Vitest tests and two Playwright browser scenarios.
 - Modular monolith ([ADR 0001](docs/architecture/adr/0001-modular-monolith.md)), dependencies locked with `uv`.
 
 ## Architecture
@@ -105,7 +112,7 @@ flowchart TB
 
 ### The agentic core (designed)
 
-A reliable agent for long security missions needs more than a prompt. The [agentic architecture](docs/architecture/AGENTIC_CORE.md) defines ten subsystems — agent loop, planning, context engine, state management, memory, tool runtime, multi-agent orchestration, multi-surface execution, learning engine, safety and evaluation. Agent V0 is being specified on the `feat/agent-foundation` branch.
+A reliable agent for long security missions needs more than a prompt. The [agentic architecture](docs/architecture/AGENTIC_CORE.md) defines ten subsystems — agent loop, planning, context engine, state management, memory, tool runtime, multi-agent orchestration, multi-surface execution, learning engine, safety and evaluation. Agent V0 has a proposal on `origin/feat/agent-foundation`; that branch contains a plan, not an implemented agent. [Candidate components](docs/product/REFERENCES.md), including Hermes, remain under evaluation.
 
 <p align="center">
   <img src="docs/presentation/slides/06.jpg" alt="Slide: the ten subsystems of the agentic design" width="49%">
@@ -115,15 +122,20 @@ A reliable agent for long security missions needs more than a prompt. The [agent
 ## Roadmap
 
 <p align="center">
-  <img src="docs/presentation/slides/08.jpg" alt="Slide: roadmap, foundations and ATTACK P1 done, Agent V0 in progress, full product next" width="80%">
+  <img src="docs/presentation/slides/08.jpg" alt="Earlier roadmap presentation snapshot; see the current roadmap below" width="80%">
 </p>
+
+The [canonical roadmap](docs/product/ROADMAP.md) defines statuses, dependencies
+and acceptance criteria. The slide above is an earlier presentation snapshot.
 
 | Stage | Status | Content |
 | --- | --- | --- |
-| Foundations | Done | Market research, architecture, traceable SIRENE OSINT, reports |
-| ATTACK P1 | Done | Signed missions, bounded Nmap execution, evidence, adaptive recon, CI |
-| Agent V0 | In progress | Agent loop, more tools under the same policy, API and interface connected to the backend, lab tests |
-| Full product | Next | Web, infrastructure and Active Directory pentest; AI security for LLM applications and agents; defensive and GRC; advanced OSINT and threat intelligence; multi-agent and evaluated learning; cloud or local deployment |
+| Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
+| P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
+| P1 — Durable execution | Next | Job capacity, crash recovery, OS resource limits and authorized lab qualification |
+| P2 — Product workflow | Planned | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
+| Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
+| Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |
 
 ## The presentation
 
@@ -153,17 +165,27 @@ The interface on slide 11 is a design mock-up (in French); the web application i
 | Backend | Python 3.12, FastAPI, Pydantic, httpx, SQLite, `cryptography` (Ed25519) |
 | Security tooling | Nmap (allowlisted options, XML parsing) |
 | Frontend | React, TypeScript, Vite, Vitest, Playwright |
-| Quality | pytest, Ruff, ESLint, GitHub Actions, `uv` lockfile |
+| Quality | pytest, Ruff, Pyright, ESLint, GitHub Actions, locked dependencies |
 
 ## Getting started
 
-Requirements: Python 3.12 and [uv](https://docs.astral.sh/uv/). Node.js 24 for the frontend.
+Requirements: Python 3.12 or later and [uv](https://docs.astral.sh/uv/).
+The local interpreter is pinned in `.python-version`; CI tests 3.12 and 3.14.
+Node.js 24.18.0 is used in CI and is required locally for the frontend checks
+and the Python type checker.
 
 ```bash
 uv sync --locked --group dev
-uv run pytest -q
-uv run ruff check argos/backend/core argos/backend/attack tests/
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked pyright
+uv run --locked pytest -q
 ```
+
+After moving or renaming an existing checkout, rebuild its local environment
+with `uv sync --locked --group dev --reinstall` to refresh editable paths and
+script launchers. Do not commit the environment. The [P0 validation record](docs/product/FIABILISATION_P0.md)
+lists executed checks and their limits.
 
 ### OSINT discovery
 
@@ -193,7 +215,9 @@ bash scripts/dev-api.sh
 bash argos/frontend/start-local.sh
 ```
 
-Frontend checks run from `argos/frontend` with `npm run check`, and end-to-end tests with `npm run test:e2e`. See the [frontend instructions](argos/frontend/README.md).
+From `argos/frontend`, install with `npm ci`, run `npm run check`, then install
+the matching browser with `npx playwright install chromium` before
+`npm run test:e2e`. See the [frontend instructions](argos/frontend/README.md).
 
 ## Repository layout
 

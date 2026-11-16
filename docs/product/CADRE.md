@@ -23,11 +23,21 @@ traçabilité des observations.
 Les conditions de collecte et de stockage devront être vérifiées avant
 l'intégration de chaque source, conformément aux [principes OSINT](OSINT.md).
 
-## Red — direction future
+## Missions actives et autonomie
 
-Les actions offensives actives nécessiteront un périmètre explicitement autorisé :
+Les actions offensives actives nécessitent un périmètre explicitement autorisé :
 laboratoires de l'équipe, plateformes d'entraînement selon leurs règles ou cible
 avec autorisation écrite. La découverte d'un actif n'autorise pas son test.
 
+Le moteur ATTACK P1 existe en bibliothèque ; il n'est pas exposé comme service
+de scan. Sa présence ne vaut pas qualification de production.
+
+La cible est une conduite autonome des missions : l'autorisation initiale peut
+préapprouver les familles d'actions nécessaires, dans des limites explicites.
+Une nouvelle cible, une permission supplémentaire ou une action non couverte
+ne peut pas être autorisée par le modèle lui-même. La révocation et les
+conditions d'arrêt restent applicables pendant l'exécution.
+
 Ce cadre définit l'usage prévu du projet ; il ne vaut pas autorisation de tester
-une cible réelle. Aucun module Red n'est développé dans cette étape.
+une cible réelle. Les statuts d'implémentation sont suivis dans la
+[roadmap](ROADMAP.md).
