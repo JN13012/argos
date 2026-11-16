@@ -235,7 +235,8 @@ est consignée ci-dessous.
 - Premier test choisi : redirection ouverte, avec deux marqueurs synthétiques
   sans connexion externe et un témoin corrigé à réaliser en W2/W3.
 - W2.1–W3.2 découpés avec critères vérifiables. Prochaine implémentation :
-  **W2.1 — contrats HTTP, configuration v2 et politique hors ligne**.
+  **W2.1 — contrats HTTP, configuration v2 et politique hors ligne**, désormais
+  [livré](WEB_HTTP_POLICY.md). La prochaine implémentation est W2.2.
 - Changement documentaire uniquement : liens locaux, fences Markdown et diff
   vérifiés ; aucun test d'exécution, scan, score ni nouvelle requête réseau
   du produit. La suite Python n'est pas rejouée pour cette spécification.

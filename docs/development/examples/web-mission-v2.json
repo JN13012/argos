@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "name": "Client web",
+  "seeds": ["https://app.example.com/"],
+  "capabilities": ["http.discover", "http.check_redirect"],
+  "destination": {"kind": "external", "networks": []},
+  "scope": {
+    "origins": ["https://app.example.com"],
+    "excluded_paths": ["/logout"]
+  },
+  "execution": {
+    "dns_timeout_seconds": 5,
+    "max_dns_addresses": 16,
+    "max_redirects": 5,
+    "max_urls": 1000,
+    "max_depth": 5,
+    "query_variants": 10,
+    "evidence_bytes": 67108864,
+    "url_bytes": 8192
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 2,
+  "name": "Web evaluation",
+  "seeds": ["http://target:9090/"],
+  "capabilities": ["http.discover"],
+  "destination": {
+    "kind": "evaluation_private",
+    "networks": ["10.42.0.0/24"]
+  }
+}

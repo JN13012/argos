@@ -13,8 +13,9 @@ HTTP reste refusée par la politique jusqu'au transport W2. Voir le
 [contrat W1.1](../product/WEB_CONFIG.md). Le
 [transport W1.3](../product/WEB_HTTP_EXECUTION.md) précise le prochain chemin :
 résolution supervisée dans le runtime, IP épinglée, worker HTTP fixe, TLS vérifié
-et preuves expurgées. Ce transport et la configuration exécutable v2 restent
-à implémenter ; les contrôles W1.1 seuls n’autorisent aucune connexion.
+et preuves expurgées. Les [contrats v2 et la politique hors ligne W2.1](../product/WEB_HTTP_POLICY.md)
+sont livrés ; le transport et les réservations durables restent à implémenter.
+Aucune version de configuration ne permet encore d’exécuter une requête HTTP.
 Les adaptateurs HTTP et navigateur, le contrôle d'origine web, les sessions
 multi-rôles et les services de mission sont une cible à construire. Le contrôle
 IP/port livré ne suffit pas à isoler des origines web partageant une IP.
@@ -29,7 +30,7 @@ argos/
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
-│   └── attack/web/          Configuration boîte noire hors ligne, sans exécuteur
+│   └── attack/web/          Configuration v1/v2 et politique HTTP hors ligne, sans exécuteur
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
 ```

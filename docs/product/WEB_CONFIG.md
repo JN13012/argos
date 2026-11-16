@@ -1,7 +1,9 @@
 # W1.1 — Configuration web en boîte noire
 
-Livrée en bibliothèque Python. Aucun CLI web, appel DNS, requête HTTP ou agent
-n'est ajouté. Le [lot W1](WEB_W1_BLACKBOX.md) suit la suite du développement.
+La configuration v1 décrite ici est livrée en bibliothèque Python. Le chargeur
+accepte désormais aussi la [v2 W2.1](WEB_HTTP_POLICY.md), explicitement signée,
+sans migration implicite de v1. Aucun CLI web, appel DNS, requête HTTP ou agent
+n’est ajouté. Le [lot W1](WEB_W1_BLACKBOX.md) suit la suite du développement.
 
 ## Charger une mission
 
@@ -89,8 +91,9 @@ jusqu'à la qualification du transport et ne démontre pas un filtrage serveur
 universel. Le contrôle de sous-domaines n'utilise pas une base de suffixes
 publics ; la racine incluse doit être examinée lors de la configuration.
 
-Le profil ne permet pas une IP privée pour les benchmarks : le profil privé
-séparé est encore à construire. Cela ne change pas les scopes IP existants de
+La v1 ne permet pas une IP privée pour les benchmarks. La
+[v2](WEB_HTTP_POLICY.md) ajoute le profil privé explicite et ses contrôles
+hors ligne ; le transport vers ces cibles reste à construire. Cela ne change pas les scopes IP existants de
 Nmap. Les exceptions réseau ne sont jamais déduites du nom d'une cible de test.
 
 ## Liaison aux missions existantes

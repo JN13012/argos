@@ -11,7 +11,7 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ def _text(value: object) -> str:
     return value
 
 
-def _host(value: str) -> str:
+def _host(value: str, *, private_profile: bool = False) -> str:
     value = _text(value)
     if "%" in value or value.endswith("."):
         raise ValueError("Scoped addresses and trailing dots are not supported")
@@ -48,27 +48,30 @@ def _host(value: str) -> str:
         labels = host.split(".")
         if (
             len(host) > 253
-            or len(labels) < 2
+            or (len(labels) < 2 and not private_profile)
             or not all(_LABEL.fullmatch(label) for label in labels)
             or re.fullmatch(r"[0-9]+|0x[0-9a-f]+", labels[-1])
-            or labels[-1]
-            in {
-                "localhost",
-                "local",
-                "internal",
-                "home",
-                "onion",
-                "invalid",
-                "test",
-                "example",
-            }
+            or (
+                not private_profile
+                and labels[-1]
+                in {
+                    "localhost",
+                    "local",
+                    "internal",
+                    "home",
+                    "onion",
+                    "invalid",
+                    "test",
+                    "example",
+                }
+            )
         ):
             raise ValueError("Expected an unambiguous external hostname") from None
         return host
     if (
-        not address.is_global
+        (not address.is_global and not private_profile)
         or address.is_multicast
-        or address.is_reserved
+        or (address.is_reserved and not (private_profile and address.is_loopback))
         or (
             isinstance(address, ipaddress.IPv6Address)
             and address.ipv4_mapped is not None
@@ -96,7 +99,9 @@ def _path(value: str) -> str:
     return quote(decoded, safe="/!$&'()*+,:=@-._~")
 
 
-def normalize_url(value: str, *, domain_seed: bool = False) -> str:
+def _normalize_url(
+    value: str, *, domain_seed: bool = False, private_profile: bool = False
+) -> str:
     """Canonical HTTP(S) URL, without DNS lookup or credential-bearing errors."""
     value = _text(value)
     if domain_seed and "://" not in value:
@@ -115,7 +120,7 @@ def normalize_url(value: str, *, domain_seed: bool = False) -> str:
             or "#" in value
         ):
             raise ValueError("Unsupported URL")
-        host = _host(parts.hostname or "")
+        host = _host(parts.hostname or "", private_profile=private_profile)
         authority_pattern = (
             r"\[[^\]]+\](?::[0-9]+)?" if ":" in host else r"[^:\[\]]+(?::[0-9]+)?"
         )
@@ -135,6 +140,11 @@ def normalize_url(value: str, *, domain_seed: bool = False) -> str:
         )
     except (ValueError, UnicodeError):
         raise ValueError("Invalid external HTTP(S) URL") from None
+
+
+def normalize_url(value: str, *, domain_seed: bool = False) -> str:
+    """Canonical external URL; private evaluation uses a distinct signed profile."""
+    return _normalize_url(value, domain_seed=domain_seed)
 
 
 def _origin(url: str) -> str:
@@ -170,12 +180,12 @@ class WebScope:
     def __post_init__(self) -> None:
         origins = []
         for value in _strings(self.origins, nonempty=True):
-            url = normalize_url(value)
+            url = self.normalize_url(value)
             parts = urlsplit(url)
             if parts.path != "/" or parts.query:
                 raise ValueError("An origin cannot include a path or query")
             origins.append(_origin(url))
-        roots = tuple(_host(v) for v in _strings(self.subdomain_roots))
+        roots = tuple(self.normalize_host(v) for v in _strings(self.subdomain_roots))
         for root in roots:
             try:
                 ipaddress.ip_address(root)
@@ -190,10 +200,18 @@ class WebScope:
         object.__setattr__(self, "subdomain_roots", tuple(sorted(set(roots))))
         object.__setattr__(self, "excluded_paths", tuple(sorted(set(excluded))))
 
+    @staticmethod
+    def normalize_url(value: str, *, domain_seed: bool = False) -> str:
+        return normalize_url(value, domain_seed=domain_seed)
+
+    @staticmethod
+    def normalize_host(value: str) -> str:
+        return _host(value)
+
     def permits_url(self, value: str) -> bool:
         """Offline scope check only; does not authorize an HTTP request."""
         try:
-            url = normalize_url(value)
+            url = self.normalize_url(value)
         except ValueError:
             return False
         parts = urlsplit(url)
@@ -260,6 +278,7 @@ class WebEffects:
 
 @dataclass(frozen=True)
 class WebMissionConfig:
+    VERSION: ClassVar[int] = 1
     name: str
     seeds: tuple[str, ...]
     scope: WebScope
@@ -280,7 +299,7 @@ class WebMissionConfig:
             raise ValueError(
                 "Expected a readable mission name of at most 128 characters"
             )
-        if type(self.schema_version) is not int or self.schema_version != 1:
+        if type(self.schema_version) is not int or self.schema_version != self.VERSION:
             raise ValueError("Unsupported configuration version")
         if self.mode != "external_blackbox":
             raise ValueError("Unsupported mission mode")
@@ -291,8 +310,10 @@ class WebMissionConfig:
             and isinstance(self.limits, WebLimits)
         ):
             raise ValueError("Expected typed web configuration sections")
+        if self.VERSION == 1 and type(self.scope) is not WebScope:
+            raise ValueError("Version 1 requires external web scope")
         seeds = tuple(
-            normalize_url(v, domain_seed=True)
+            self.scope.normalize_url(v, domain_seed=True)
             for v in _strings(self.seeds, nonempty=True)
         )
         if any(not self.scope.permits_url(v) for v in seeds):
@@ -303,6 +324,10 @@ class WebMissionConfig:
 
     @classmethod
     def from_dict(cls, value: object) -> WebMissionConfig:
+        if isinstance(value, dict) and value.get("schema_version") == 2:
+            from .execution_config import WebExecutionConfig
+
+            return WebExecutionConfig.from_dict(value)
         data = _keys(
             value,
             {

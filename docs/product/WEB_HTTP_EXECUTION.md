@@ -1,8 +1,8 @@
 # W1.3 — Première tranche HTTP et CLI
 
-Statut : **spécification prête à implémenter**, pas un transport livré.
-La configuration W1.1 et le corpus W1.2 existent ; aucun HTTP/CLI web ni agent
-ne sont ajoutés par ce lot. Suite du [plan web](WEB_PENTEST_PLAN.md).
+Statut : **W2.1 livré et validé localement**, transport W2.2 restant à
+implémenter. Voir le [contrat effectivement accepté](WEB_HTTP_POLICY.md).
+Aucune exécution HTTP, commande CLI web ou boucle agent n’est activée. Suite du [plan web](WEB_PENTEST_PLAN.md).
 
 ## Résultat attendu de W2/W3
 
@@ -45,7 +45,9 @@ les chemins HTTP sous TLS. Ne pas déclarer cette partie implémentée par W2.
 
 ## Interfaces à coder
 
-Les noms désignent des contrats proposés, pas des classes existantes.
+Les contrats W2.1 sont maintenant implémentés ; leurs limites effectives
+sont documentées dans [WEB_HTTP_POLICY.md](WEB_HTTP_POLICY.md). Les éléments
+de transport, preuve durable et runtime ci-dessous restent des exigences.
 Les structures sont immuables, typées, versionnées et refusent les champs
 inconnus. Les identifiants sont attribués par le runtime ; aucun appelant ne
 fournit un booléen d'autorisation, une IP résolue ou un profil de confinement.
@@ -293,22 +295,22 @@ sont qualifiés en W2.3 avant ouverture du CLI. W2.2 teste le transport sur des
 cibles contrôlées ; ce n'est pas un chemin utilisateur contournant la mission.
 Chaque tranche laisse les fonctionnalités actives non qualifiées inaccessibles.
 
-Prochaine implémentation W2.1, dans `backend/attack/web/` :
+W2.1 livré dans `backend/attack/web/` :
 
-- [ ] Ajouter les contrats de requête, résultat, erreur et couverture, sans I/O.
-- [ ] Ajouter la configuration exécutable v2, budgets et liste de capacités,
+- [x] Ajouter les contrats de requête, résultat, erreur et couverture, sans I/O.
+- [x] Ajouter la configuration exécutable v2, budgets et liste de capacités,
   avec sérialisation canonique et lecture v1 conservée sans activation implicite.
-- [ ] Définir les profils de destination externe et privé d'évaluation comme
+- [x] Définir les profils de destination externe et privé d'évaluation comme
   permissions signées distinctes, avec refus des réseaux non inclus.
-- [ ] Ajouter la politique HTTP et la préparation hors ligne : mission active,
+- [x] Ajouter la politique HTTP et la préparation hors ligne : mission active,
   signature exacte, capacité, URL, effets et adresses fournies par le résolveur
   de confiance ; aucun résolveur ni drapeau de vérification dans l'entrée agent.
-- [ ] Tester URL hors scope avant DNS, origines sur IP commune, exclusions,
+- [x] Tester URL hors scope avant DNS, origines sur IP commune, exclusions,
   Host/IP fournis par l'appelant, résolution mixte, limites invalides et v2 altérée.
-- [ ] Conserver les refus de l'exécuteur HTTP tant que W2.2/W2.3 sont absents ;
+- [x] Conserver les refus de l'exécuteur HTTP tant que W2.2/W2.3 sont absents ;
   vérifier les régressions Nmap et les exports du corpus W1.2.
 
-Commit prévu : `feat(web): add HTTP contracts and policy`. Les tests de W2.1
+Commit du lot : `feat(web): add HTTP contracts and policy`. Les tests de W2.1
 ne doivent ouvrir aucune socket ; l'absence de transport n'est pas compensée
 par un appel HTTPX direct dans le CLI ou dans les tests d'intégration produit.
 
@@ -332,3 +334,27 @@ Le document est vérifié contre les contraintes actuelles du code. Les montages
 framing, compteurs, contrôles DNS/TLS et oracles décrits sont des exigences à
 implémenter et mesurer. La préparation W1 est terminée ; les cibles corrigées,
 images et scores du corpus W1.2 restent à qualifier avec l'exécution.
+
+## Bilan W2.1
+
+- Config v2 canonique : capacités et budgets HTTP, profils externe/privé
+  explicitement signés ; lecture et signatures v1 conservées sans upgrade.
+- DTO immuables de requête, résolution interne, résultat, erreur, reçu et
+  couverture ; entrée agent limitée à URL/méthode/capacité.
+- Préflight et planification hors ligne adossés aux missions persistées,
+  revalidation après DNS, refus du DNS mixte/hors profil/périmé et des effets
+  identifiés. Demande de budget calculée, mais aucune réservation acquise.
+- `PreparedWebRequest` est un plan interne partiel : IP/Host/TLS et limites,
+  pas un ticket, une deadline d'exécution persistée ou un profil réseau signé
+  entièrement construit. `transport_enabled` reste faux ; politique d'exécution
+  HTTP toujours fermée. Le résolveur réel, les backoffs et l'audit de chaque
+  tentative seront réalisés avec W2.2/W2.3.
+- **548 tests passent sous Python 3.12 et 3.14**, dont 115 nouveaux tests W2.1
+  sans socket/DNS et les 23 tests hôte activés explicitement pour les régressions.
+  Ruff, formatage et Pyright propres ; exemples v1/v2 chargés et liens vérifiés.
+- Aucun scan client, nouvelle dépendance ou service ajouté. L'expurgation réelle
+  et la vérification des reçus de preuve ne sont pas livrées par les DTO.
+
+**Suite : W2.2**, résolveur supervisé et worker HTTP réellement confiné, avec
+TLS, entrée privée, framing borné et essais de refus d'egress. W2.3 ajoutera
+ensuite stockage et tickets durables avant le CLI W3.
