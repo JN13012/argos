@@ -42,7 +42,8 @@ Registre de capacités → Politique déterministe → Worker isolé
 ```
 
 Ce schéma est une cible. Le catalogue étendu, la boucle agentique, la reprise
-du plan de mission complet et le worker isolé restent à construire. Le choix
+du plan de mission complet et le worker isolé pour les actions réseau restent
+à construire. Le choix
 d’un agent existant,
 dont Hermes, ou d’un moteur propre passe par une évaluation. Aucune brique
 adoptée ne peut contourner les permissions du runtime Argos.
@@ -115,3 +116,17 @@ restent à construire. Voir le
 
 La [roadmap de référence](../product/ROADMAP.md) porte les lots et leurs gates ;
 le [noyau agentique](AGENTIC_CORE.md) détaille les sous-systèmes conçus.
+
+## Worker sans réseau
+
+`core/isolated_worker.py` fournit une primitive Linux séparée. Une unité
+systemd utilisateur applique les quotas ; `worker_guardian.py` vérifie les
+contrôles et lance bubblewrap avec namespaces privés, montages en lecture
+seule, tmpfs bornés, environnement reconstruit et aucun accès réseau externe.
+Un pipe de vie et le namespace PID permettent le nettoyage après la mort du
+client, y compris pour un descendant détaché.
+
+Cette primitive n'est pas exposée à l'agent et n'est pas encore branchée dans
+`ExecutionManager`. Elle ne remplace pas le contrôle des missions ni le magasin
+de preuves. L'adaptateur réseau limité à la mission est le prochain travail ;
+voir la [qualification P1.4](../product/WORKER_ISOLATION.md).

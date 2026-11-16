@@ -92,7 +92,7 @@ et CI distante non exécutée pour ce lot. Ces résultats décrivent P1.2.
 
 ## P1.3 — Propriété, réconciliation et reprise explicite
 
-Implémenté et validé localement. Le runtime prend un verrou POSIX `flock`
+Implémenté et validé localement dans le commit `a8961b6`. Le runtime prend un verrou POSIX `flock`
 exclusif et non bloquant sur le fichier SQLite canonique, avant toute
 réconciliation ou création de workers. Un second gestionnaire d'exécution
 sur la même base est refusé ; les lectures directes par `JobStore` restent
@@ -164,16 +164,39 @@ libération du verrou à la mort de son propriétaire ; les courses de reprise e
 de transfert de propriété ; les refus de mandat et de transitions ; le rollback
 du journal de réconciliation. Aucun scan réseau réel. CI distante non exécutée.
 
+## P1.4 — Isolation : livraison partielle
+
+**P1.4.1 est livrée localement** : `OfflineWorker`, namespaces Linux privés,
+absence de réseau externe, fichiers de l'hôte cachés, quotas mémoire, CPU,
+tâches, fichiers et tmpfs, pipe de vie et nettoyage des descendants. Le gardien
+vérifie les contrôles effectifs avant lancement et refuse l'exécution si
+l'isolation n'est pas disponible. Aucun repli vers le mode hôte.
+
+La qualification réelle donne **272 tests réussis sous Python 3.12 et 3.14**,
+avec `ARGOS_TEST_ISOLATION=1`. Sans cet opt-in, la suite donne 262 réussites et
+10 tests d'hôte ignorés. Ruff et Pyright sont propres. Aucun scan réel ; aucune
+configuration système permanente modifiée.
+
+**P1.4 n'est pas terminée** : le filtrage IP par unité utilisateur testé ici
+laisse passer une cible témoin interdite. Le worker livré n'a donc aucun accès
+réseau et ne remplace pas encore le chemin Nmap dans `ExecutionManager`.
+P1.4.2 doit fournir le réseau restreint de mission et intégrer cet adaptateur
+aux demandes, autorisations et preuves. Les limites du moteur actif restent
+ouvertes tant que ce branchement n'est pas qualifié.
+
+Voir le [rapport d'isolation](WORKER_ISOLATION.md) pour le profil, les tests,
+les résultats d'environnement et les critères précis de P1.4.2.
+
 ## Livraisons suivantes
 
 | Lot | Travail | Critères de sortie |
 | --- | --- | --- |
-| P1.4 — Isolation | Exécuter dans un worker séparé ; appliquer les quotas CPU, mémoire, processus et disque et les restrictions réseau | Dépassements arrêtés par le système ; sorties hors périmètre bloquées ; nettoyage des descendants vérifié |
+| P1.4.2 — Réseau et intégration | Ajouter le réseau limité à la mission et brancher le worker dans ATTACK | Cible autorisée joignable ; témoins hors périmètre bloqués ; refus avant lancement si contrôle absent ; profil lié aux preuves et arrêts vérifiés |
 | P1.5 — Qualification | Scénarios de saturation, crash, reprise, révocation et quotas ; Nmap réel dans un labo autorisé | Résultats reproductibles, preuves et limites publiées dans le dépôt ; aucune affirmation de production sans mesure |
 
-P1.4 commence par un worker isolé dont les ressources, les sorties réseau et
-les descendants sont contrôlés par le système. Le test de crash de P1.3 montre
-pourquoi la perte du superviseur ne suffit pas à prouver l'arrêt de son outil.
+Le test de crash du moteur actif de P1.3 montre pourquoi la perte du superviseur
+ne suffit pas à prouver l'arrêt de son outil. Le worker sans réseau de P1.4.1
+couvre ce nettoyage ; P1.4.2 doit étendre cette garantie au chemin actif.
 
 Le choix éventuel d'un système de workflows vient après ces contrats et un
 essai mesuré. Ce lot ne présume ni file distribuée ni framework particulier.

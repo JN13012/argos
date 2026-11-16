@@ -89,9 +89,13 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **248 Python tests** (pytest), validated on Python 3.12 and 3.14 with synthetic
-  processes and fixtures, no real network scans; repository-wide Ruff and pinned
-  Pyright; GitHub Actions configuration covering backend and frontend.
+- **272 Python tests** validated on Python 3.12 and 3.14 with host isolation
+  qualification enabled (262 regular tests and ten host tests requiring opt-in).
+  Synthetic processes and fixtures, no real network scans; repository-wide Ruff
+  and pinned Pyright; GitHub Actions configuration covering backend and frontend.
+- **Offline worker isolation:** Linux namespaces, cgroup quotas and descendant
+  cleanup, qualified separately. Active network isolation and its ATTACK
+  integration remain open; see the [isolation report](docs/product/WORKER_ISOLATION.md).
 - **Web foundation:** a FastAPI API (health endpoint) and a React / TypeScript /
   Vite application, with 22 Vitest tests and two Playwright browser scenarios.
 - Modular monolith ([ADR 0001](docs/architecture/adr/0001-modular-monolith.md)), dependencies locked with `uv`.
@@ -137,7 +141,7 @@ and acceptance criteria. The slide above is an earlier presentation snapshot.
 | --- | --- | --- |
 | Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
 | P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
-| P1 — Durable execution | P1.1–P1.3 validated locally | Bounded capacity, persistence, ownership and cautious recovery; OS isolation and authorized lab qualification remain |
+| P1 — Durable execution | P1.1–P1.3 and offline P1.4.1 validated locally | Mission network isolation, ATTACK integration and authorized lab qualification remain |
 | P2 — Product workflow | Planned | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
 | Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
 | Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |
