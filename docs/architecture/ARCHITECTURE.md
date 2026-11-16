@@ -50,6 +50,48 @@ Une mission peut autoriser à l’avance plusieurs étapes : l’autonomie ne d�
 pas d’une validation humaine de chaque appel. Les décisions hors mandat et les
 conditions d’arrêt restent gérées indépendamment du modèle.
 
+## Vocabulaire et boucle de mission cible
+
+Les termes suivants fixent les responsabilités dans Argos. D'autres projets
+peuvent employer « moteur », « agent » et « runtime » autrement.
+
+| Élément | Responsabilité |
+| --- | --- |
+| LLM | Proposer un plan ou une action structurée à partir de l'objectif, des observations et des capacités disponibles ; interpréter les résultats |
+| Agent | Ensemble logiciel associant le modèle, ses instructions, son contexte, sa mémoire et une boucle de décision orientée vers l'objectif |
+| Moteur de mission | Coordonner les étapes, les dépendances, les états persistants, les reprises et les conditions de fin ; il peut suivre un workflow déterministe ou consulter un agent |
+| Runtime d'exécution | Appliquer les permissions et budgets, gérer la file, lancer les workers, surveiller les processus, interrompre et conserver les preuves |
+| Capacité et adaptateur | Décrire une action avec des paramètres typés et traduire cette action vers une fonction, un script, un binaire ou une API |
+
+Ces responsabilités peuvent être regroupées dans un même processus au début.
+Elles ne nécessitent pas cinq services distincts. Dans le code actuel,
+`ExecutionManager` est une partie du runtime et `AdaptiveReconOrchestrator`
+coordonne un workflow déterministe à deux phases ; aucun des deux ne constitue
+un agent LLM.
+
+Exemple cible : une mission autorise la reconnaissance et l'identification de
+services sur une IP de laboratoire. Le modèle propose un appel structuré
+`identify_services(target, ports)`. Le moteur rattache l'appel à la mission ;
+le runtime valide le mandat, les paramètres, les budgets et la cible.
+L'adaptateur construit les arguments de l'outil et le worker l'exécute.
+Le parseur transforme la sortie en observations, les preuves sont enregistrées,
+puis l'agent reçoit le résultat ou le motif du refus et choisit la suite.
+
+Le nom `identify_services` illustre un contrat futur, pas un outil déjà exposé.
+Aujourd'hui, `AuthorizedNmapRunner.prepare()` construit déjà des arguments
+contrôlés et `ExecutionManager` lance Nmap avec `shell=False`.
+
+Un script est donc une implémentation possible d'une capacité, parmi d'autres.
+La boucle d'agent n'est pas limitée à une liste de scripts prédéfinie : elle
+peut adapter son plan aux observations. La génération de nouveaux scripts
+serait une capacité supplémentaire à concevoir et à isoler, avec ses propres
+permissions ; elle n'est pas incluse dans le périmètre actuel.
+
+Le modèle choisit parmi les possibilités proposées, sans accorder lui-même
+une permission. Les décisions de politique, les quotas et les conditions
+d'arrêt restent déterministes. Une observation d'outil n'est pas encore un
+constat vérifié ; les conclusions du rapport doivent renvoyer aux preuves.
+
 ## Contrats et stockage
 
 Les capacités métier restent appelables sans agent. L’orchestrateur adaptatif
@@ -59,7 +101,10 @@ canoniques sans dupliquer leur logique.
 
 `pyproject.toml` et `uv.lock` pilotent le Python ; le frontend conserve son
 `package.json` et son lock npm. SQLite sert aux observations et aux registres
-locaux. Les jobs en mémoire ne constituent pas encore une file durable.
+locaux. Le registre distingue une capacité active et un cache terminal borné ;
+l'audit et les preuves restent sur disque après éviction du cache. Les jobs
+en mémoire ne constituent pas encore une file durable. Voir le
+[suivi P1](../product/EXECUTION_P1.md).
 `.argos/` et `outputs/` contiennent des données runtime ignorées par Git.
 
 La [roadmap de référence](../product/ROADMAP.md) porte les lots et leurs gates ;

@@ -95,8 +95,9 @@ version de la matrice, sans le resélectionner à partir de `.python-version`.
   absente. Le mobile est émulé ; aucun appareil physique n’a été qualifié.
 - Aucun audit exhaustif des dépendances ni qualification de production n’est
   revendiqué. P0 n’ajoute ni agent, ni outil de scan, ni intégration métier.
-- Le compteur de jobs terminés, la reprise durable, les quotas système et les
-  autres limites d’ATTACK restent le lot P1 ; ils ne sont pas annoncés corrigés.
+- À la clôture de P0, le compteur de jobs terminés, la reprise durable et les
+  quotas système restaient ouverts. Le [suivi P1](EXECUTION_P1.md) décrit les
+  corrections ultérieures ; P0 ne les revendique pas.
 
 La cible produit confirmée est une mission autonome complète dans son mandat.
 Le [dossier de références](REFERENCES.md) prépare le choix entre Hermes, un
