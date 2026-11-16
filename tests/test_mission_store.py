@@ -12,7 +12,8 @@ from argos.backend.core.scope import TargetScope
 def record() -> MissionRecord:
     return MissionRecord(
         Mission.draft(
-            "Authorized lab", "MANDATE-001",
+            "Authorized lab",
+            "MANDATE-001",
             datetime.now(UTC) + timedelta(days=1),
         ),
         TargetScope(("127.0.0.0/24",), ("127.0.0.1/32",)),
@@ -49,9 +50,7 @@ def test_active_mission_cannot_be_created_without_review() -> None:
     with MissionStore(":memory:") as store:
         with pytest.raises(ValueError, match="review"):
             store.create(
-                replace(item, mission=replace(
-                    item.mission, state=MissionState.ACTIVE
-                ))
+                replace(item, mission=replace(item.mission, state=MissionState.ACTIVE))
             )
         assert store.list_ids() == ()
 

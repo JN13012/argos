@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 
@@ -24,7 +24,7 @@ class SearchScope:
             object.__setattr__(self, name, value)
 
 
-class EntityType(str, Enum):
+class EntityType(StrEnum):
     ESTABLISHMENT = "establishment"
 
 
@@ -72,7 +72,7 @@ class Observation:
         _require_utc(self.observed_at, "observed_at")
 
 
-class SearchStatus(str, Enum):
+class SearchStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -110,7 +110,7 @@ class SearchResult:
         _require_utc(self.discovered_at, "discovered_at")
 
 
-class CoverageStatus(str, Enum):
+class CoverageStatus(StrEnum):
     COMPLETE_FOR_SOURCE = "complete_for_source"
     PARTIAL = "partial"
     TRUNCATED = "truncated"

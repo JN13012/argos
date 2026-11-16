@@ -98,9 +98,11 @@ class MissionStore:
                     VALUES (?, ?, ?, ?, ?)
                     """,
                     (
-                        str(mission.id), mission.title,
+                        str(mission.id),
+                        mission.title,
                         mission.authorization_reference,
-                        mission.expires_at.isoformat(), mission.state.value,
+                        mission.expires_at.isoformat(),
+                        mission.state.value,
                     ),
                 )
                 self._db.executemany(
@@ -149,7 +151,8 @@ class MissionStore:
         ).fetchall()
         return MissionRecord(
             Mission(
-                UUID(row["id"]), row["title"],
+                UUID(row["id"]),
+                row["title"],
                 row["authorization_reference"],
                 datetime.fromisoformat(row["expires_at"]),
                 MissionState(row["state"]),
@@ -168,7 +171,9 @@ class MissionStore:
         return tuple(UUID(row["id"]) for row in rows)
 
     def activate_reviewed(
-        self, mission_id: UUID, approval: SignedApproval,
+        self,
+        mission_id: UUID,
+        approval: SignedApproval,
         verifier: ApprovalVerifier,
     ) -> None:
         """Only a verifiable, exact-scope grant can activate a stored draft."""
@@ -185,8 +190,10 @@ class MissionStore:
                 VALUES (?, ?, ?, ?)
                 """,
                 (
-                    str(mission_id), approval.reviewer,
-                    approval.expires_at.isoformat(), approval.signature,
+                    str(mission_id),
+                    approval.reviewer,
+                    approval.expires_at.isoformat(),
+                    approval.signature,
                 ),
             )
             cursor = self._db.execute(
@@ -195,7 +202,8 @@ class MissionStore:
                 WHERE id = ? AND state = ?
                 """,
                 (
-                    MissionState.ACTIVE.value, str(mission_id),
+                    MissionState.ACTIVE.value,
+                    str(mission_id),
                     MissionState.DRAFT.value,
                 ),
             )
@@ -221,8 +229,10 @@ class MissionStore:
         from .approvals import SignedApproval
 
         signed = SignedApproval(
-            mission_id, row["reviewer"],
-            datetime.fromisoformat(row["expires_at"]), row["signature"],
+            mission_id,
+            row["reviewer"],
+            datetime.fromisoformat(row["expires_at"]),
+            row["signature"],
         )
         if not verifier.verify(record, signed):
             raise PermissionError("Mission approval is no longer valid")

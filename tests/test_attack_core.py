@@ -29,8 +29,11 @@ def test_missing_mandate_fails_closed() -> None:
 
 def test_authorized_target_and_verified_mandate() -> None:
     result = evaluate(
-        mission(), TargetScope(("127.0.0.1/32",)), "127.0.0.1",
-        Action.TCP_CONNECT_SCAN, mandate_verified=True,
+        mission(),
+        TargetScope(("127.0.0.1/32",)),
+        "127.0.0.1",
+        Action.TCP_CONNECT_SCAN,
+        mandate_verified=True,
     )
     assert result.allowed
 
@@ -38,15 +41,21 @@ def test_authorized_target_and_verified_mandate() -> None:
 @pytest.mark.parametrize("target", ["127.0.0.2", "example.org", "127.0.0.1;echo bad"])
 def test_out_of_scope_and_non_numeric_targets_denied(target: str) -> None:
     assert not evaluate(
-        mission(), TargetScope(("127.0.0.1/32",)), target,
-        Action.TCP_CONNECT_SCAN, mandate_verified=True,
+        mission(),
+        TargetScope(("127.0.0.1/32",)),
+        target,
+        Action.TCP_CONNECT_SCAN,
+        mandate_verified=True,
     ).allowed
 
 
 def test_excluded_address_denied() -> None:
     assert not evaluate(
-        mission(), TargetScope(("127.0.0.0/24",), ("127.0.0.1/32",)),
-        "127.0.0.1", Action.TCP_CONNECT_SCAN, mandate_verified=True,
+        mission(),
+        TargetScope(("127.0.0.0/24",), ("127.0.0.1/32",)),
+        "127.0.0.1",
+        Action.TCP_CONNECT_SCAN,
+        mandate_verified=True,
     ).allowed
 
 
@@ -61,23 +70,32 @@ def test_excluded_address_denied() -> None:
 )
 def test_inactive_mission_denied(state: MissionState) -> None:
     assert not evaluate(
-        replace(mission(), state=state), TargetScope(("127.0.0.1/32",)),
-        "127.0.0.1", Action.TCP_CONNECT_SCAN, mandate_verified=True,
+        replace(mission(), state=state),
+        TargetScope(("127.0.0.1/32",)),
+        "127.0.0.1",
+        Action.TCP_CONNECT_SCAN,
+        mandate_verified=True,
     ).allowed
 
 
 def test_expired_mission_denied() -> None:
     expired = replace(mission(), expires_at=datetime.now(UTC) - timedelta(seconds=1))
     assert not evaluate(
-        expired, TargetScope(("127.0.0.1/32",)),
-        "127.0.0.1", Action.TCP_CONNECT_SCAN, mandate_verified=True,
+        expired,
+        TargetScope(("127.0.0.1/32",)),
+        "127.0.0.1",
+        Action.TCP_CONNECT_SCAN,
+        mandate_verified=True,
     ).allowed
 
 
 def test_unknown_action_denied() -> None:
     assert not evaluate(
-        mission(), TargetScope(("127.0.0.1/32",)), "127.0.0.1",
-        "arbitrary_command", mandate_verified=True,  # type: ignore[arg-type]
+        mission(),
+        TargetScope(("127.0.0.1/32",)),
+        "127.0.0.1",
+        "arbitrary_command",  # pyright: ignore[reportArgumentType]
+        mandate_verified=True,
     ).allowed
 
 

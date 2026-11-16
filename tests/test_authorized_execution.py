@@ -27,7 +27,8 @@ def approved_db(tmp_path):
     db = tmp_path / "missions.db"
     record = MissionRecord(
         Mission.draft(
-            "Approved private lab", "reviewed-authorization",
+            "Approved private lab",
+            "reviewed-authorization",
             datetime.now(UTC) + timedelta(hours=2),
         ),
         TargetScope(("192.168.56.10/32",)),
@@ -35,8 +36,10 @@ def approved_db(tmp_path):
     )
     verifier = ApprovalVerifier(SIGNING_KEY.public_key())
     approval = issue_offline_approval(
-        record, "authorized-reviewer",
-        datetime.now(UTC) + timedelta(hours=1), SIGNING_KEY,
+        record,
+        "authorized-reviewer",
+        datetime.now(UTC) + timedelta(hours=1),
+        SIGNING_KEY,
     )
     with MissionStore(db) as store:
         store.create(record)
@@ -73,9 +76,9 @@ def test_signed_scope_approved_scan_runs_without_shell(tmp_path) -> None:
         run.return_value = CompletedProcess(
             args=[], returncode=0, stdout=xml, stderr=b""
         )
-        result = AuthorizedNmapRunner(
-            db, verifier, executable="nmap"
-        ).execute(mission_id, "192.168.56.10", ScanPlanner().initial())
+        result = AuthorizedNmapRunner(db, verifier, executable="nmap").execute(
+            mission_id, "192.168.56.10", ScanPlanner().initial()
+        )
         assert run.call_args.kwargs["shell"] is False
         assert run.call_args.args[0][-1] == "192.168.56.10"
     assert result.observation.open_tcp_ports == frozenset({22})

@@ -20,15 +20,16 @@ from argos.backend.attack.pentest.planner import ScanPlan
 
 class FakeManager:
     def __init__(
-        self, ports: tuple[int, ...], *, stop_at: JobState | None = None,
+        self,
+        ports: tuple[int, ...],
+        *,
+        stop_at: JobState | None = None,
         revoke_at: int | None = None,
     ) -> None:
         self.ports = ports
         self.stop_at = stop_at
         self.revoke_at = revoke_at
-        self.jobs: dict[
-            UUID, tuple[JobState, UUID, str, ScanPlan, ExecutedScan]
-        ] = {}
+        self.jobs: dict[UUID, tuple[JobState, UUID, str, ScanPlan, ExecutedScan]] = {}
         self.calls: list[ScanPlan] = []
         self.cancelled: list[UUID] = []
 
@@ -46,12 +47,9 @@ class FakeManager:
             else JobState.COMPLETED
         )
         ports = (
-            tuple(
-                PortObservation(target, p, "tcp", "open")
-                for p in self.ports
-            )
-            if len(self.calls) == 1 else
-            tuple(
+            tuple(PortObservation(target, p, "tcp", "open") for p in self.ports)
+            if len(self.calls) == 1
+            else tuple(
                 PortObservation(target, p, "tcp", "open", "ssh", "9.2")
                 for p in plan.ports
             )
@@ -66,7 +64,13 @@ class FakeManager:
     def get(self, job_id: UUID) -> JobSnapshot:
         state, mission, target, _plan, _scan = self.jobs[job_id]
         return JobSnapshot(
-            job_id, mission, target, state, datetime.now(UTC), None, None,
+            job_id,
+            mission,
+            target,
+            state,
+            datetime.now(UTC),
+            None,
+            None,
             "Simulated scan failure" if state is JobState.FAILED else None,
         )
 
@@ -79,9 +83,17 @@ class FakeManager:
             return None
         return VerifiedEvidence(
             ScanEvidence(
-                job_id, mission, target, plan.phase,
-                "completed", scan.arguments, datetime.now(UTC),
-                datetime.now(UTC), 0, b"<nmaprun/>", b"",
+                job_id,
+                mission,
+                target,
+                plan.phase,
+                "completed",
+                scan.arguments,
+                datetime.now(UTC),
+                datetime.now(UTC),
+                0,
+                b"<nmaprun/>",
+                b"",
                 scan.observation,
             ),
             EvidenceReceipt(job_id, "a" * 64, "b" * 64, None),
@@ -90,18 +102,14 @@ class FakeManager:
     def cancel(self, job_id: UUID) -> bool:
         self.cancelled.append(job_id)
         state, mission, target, plan, scan = self.jobs[job_id]
-        self.jobs[job_id] = (
-            JobState.CANCELLED, mission, target, plan, scan
-        )
+        self.jobs[job_id] = (JobState.CANCELLED, mission, target, plan, scan)
         return True
 
 
 def test_two_phases_are_selected_from_open_ports():
     manager = FakeManager((22, 80))
     mission = uuid4()
-    result = AdaptiveReconOrchestrator(manager).run(
-        mission, "127.0.0.1"
-    )
+    result = AdaptiveReconOrchestrator(manager).run(mission, "127.0.0.1")
     assert result.state is JobState.COMPLETED
     assert len(result.phases) == 2
     assert manager.calls[0].identify_versions is False
@@ -109,15 +117,14 @@ def test_two_phases_are_selected_from_open_ports():
     assert manager.calls[1].identify_versions is True
     assert all(phase.receipt is not None for phase in result.phases)
     assert [r.key for r in result.recommendations] == [
-        "tcp-22", "tcp-80",
+        "tcp-22",
+        "tcp-80",
     ]
 
 
 def test_no_open_ports_stops_after_discovery():
     manager = FakeManager(())
-    result = AdaptiveReconOrchestrator(manager).run(
-        uuid4(), "127.0.0.1"
-    )
+    result = AdaptiveReconOrchestrator(manager).run(uuid4(), "127.0.0.1")
     assert result.state is JobState.COMPLETED
     assert len(result.phases) == 1
     assert result.recommendations == ()
@@ -125,9 +132,7 @@ def test_no_open_ports_stops_after_discovery():
 
 def test_revocation_prevents_second_scan():
     manager = FakeManager((22,), revoke_at=1)
-    result = AdaptiveReconOrchestrator(manager).run(
-        uuid4(), "127.0.0.1"
-    )
+    result = AdaptiveReconOrchestrator(manager).run(uuid4(), "127.0.0.1")
     assert result.state is JobState.FAILED
     assert result.error == "Mission approval is invalid"
     assert len(manager.calls) == 1
@@ -137,9 +142,7 @@ def test_revocation_prevents_second_scan():
 
 def test_initial_failure_has_no_followup():
     manager = FakeManager((22,), stop_at=JobState.FAILED)
-    result = AdaptiveReconOrchestrator(manager).run(
-        uuid4(), "127.0.0.1"
-    )
+    result = AdaptiveReconOrchestrator(manager).run(uuid4(), "127.0.0.1")
     assert result.state is JobState.FAILED
     assert result.error == "Simulated scan failure"
     assert len(manager.calls) == 1
@@ -160,9 +163,7 @@ def test_explicit_cancellation_prevents_all_scans():
 def test_missing_evidence_prevents_followup():
     manager = FakeManager((22,))
     manager.verified_evidence = lambda job_id: None
-    result = AdaptiveReconOrchestrator(manager).run(
-        uuid4(), "127.0.0.1"
-    )
+    result = AdaptiveReconOrchestrator(manager).run(uuid4(), "127.0.0.1")
     assert result.state is JobState.FAILED
     assert len(manager.calls) == 1
     assert result.error is not None

@@ -138,7 +138,9 @@ class SQLiteStorage:
         with self._connection:
             self._connection.execute(
                 """
-                INSERT INTO entities (id, entity_type, display_name, created_at, updated_at)
+                INSERT INTO entities (
+                    id, entity_type, display_name, created_at, updated_at
+                )
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
                     entity_type = excluded.entity_type,
@@ -146,14 +148,18 @@ class SQLiteStorage:
                     updated_at = excluded.updated_at
                 """,
                 (
-                    str(entity.id), entity.entity_type.value, entity.display_name,
-                    entity.created_at.isoformat(), entity.updated_at.isoformat(),
+                    str(entity.id),
+                    entity.entity_type.value,
+                    entity.display_name,
+                    entity.created_at.isoformat(),
+                    entity.updated_at.isoformat(),
                 ),
             )
 
     def get_entity(self, entity_id: UUID) -> Entity | None:
         row = self._connection.execute(
-            "SELECT * FROM entities WHERE id = ?", (str(entity_id),),
+            "SELECT * FROM entities WHERE id = ?",
+            (str(entity_id),),
         ).fetchone()
         if row is None:
             return None
@@ -185,7 +191,10 @@ class SQLiteStorage:
         return self.get_entity(UUID(row["entity_id"]))
 
     def add_identifier(self, identifier: Identifier) -> None:
-        """Keep provenance and ignore duplicates; conflicting SIRETs raise IntegrityError."""
+        """Keep provenance and ignore duplicates.
+
+        Conflicting SIRETs raise IntegrityError.
+        """
         with self._connection:
             self._connection.execute(
                 """
@@ -193,7 +202,12 @@ class SQLiteStorage:
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT (entity_id, scheme, value, source) DO NOTHING
                 """,
-                (str(identifier.entity_id), identifier.scheme, identifier.value, identifier.source),
+                (
+                    str(identifier.entity_id),
+                    identifier.scheme,
+                    identifier.value,
+                    identifier.source,
+                ),
             )
 
     def get_identifiers(self, entity_id: UUID) -> list[Identifier]:
@@ -205,21 +219,29 @@ class SQLiteStorage:
             (str(entity_id),),
         ).fetchall()
         return [
-            Identifier(UUID(row["entity_id"]), row["scheme"], row["value"], row["source"])
+            Identifier(
+                UUID(row["entity_id"]), row["scheme"], row["value"], row["source"]
+            )
             for row in rows
         ]
 
     def add_observation(self, observation: Observation) -> None:
-        """Append a fact. Reusing an observation UUID raises sqlite3.IntegrityError."""
+        """Append a fact; duplicate observation UUIDs raise IntegrityError."""
         with self._connection:
             self._connection.execute(
                 """
-                INSERT INTO observations (id, entity_id, field, value, source, observed_at)
+                INSERT INTO observations (
+                    id, entity_id, field, value, source, observed_at
+                )
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    str(observation.id), str(observation.entity_id), observation.field,
-                    observation.value, observation.source, observation.observed_at.isoformat(),
+                    str(observation.id),
+                    str(observation.entity_id),
+                    observation.field,
+                    observation.value,
+                    observation.source,
+                    observation.observed_at.isoformat(),
                 ),
             )
 
@@ -261,16 +283,22 @@ class SQLiteStorage:
                     status = excluded.status
                 """,
                 (
-                    str(search.id), search.scope.activity, search.scope.location, search.query,
+                    str(search.id),
+                    search.scope.activity,
+                    search.scope.location,
+                    search.query,
                     search.started_at.isoformat(),
-                    search.completed_at.isoformat() if search.completed_at is not None else None,
+                    search.completed_at.isoformat()
+                    if search.completed_at is not None
+                    else None,
                     search.status.value,
                 ),
             )
 
     def get_search(self, search_id: UUID) -> Search | None:
         row = self._connection.execute(
-            "SELECT * FROM searches WHERE id = ?", (str(search_id),),
+            "SELECT * FROM searches WHERE id = ?",
+            (str(search_id),),
         ).fetchone()
         if row is None:
             return None
@@ -281,22 +309,27 @@ class SQLiteStorage:
             started_at=datetime.fromisoformat(row["started_at"]),
             completed_at=(
                 datetime.fromisoformat(row["completed_at"])
-                if row["completed_at"] is not None else None
+                if row["completed_at"] is not None
+                else None
             ),
             status=SearchStatus(row["status"]),
         )
 
     def add_search_result(self, result: SearchResult) -> None:
-        """Link an existing entity to a search, retaining its first discovery per source."""
+        """Link an entity to a search, retaining its first discovery per source."""
         with self._connection:
             self._connection.execute(
                 """
-                INSERT INTO search_results (search_id, entity_id, connector, discovered_at)
+                INSERT INTO search_results (
+                    search_id, entity_id, connector, discovered_at
+                )
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT (search_id, entity_id, connector) DO NOTHING
                 """,
                 (
-                    str(result.search_id), str(result.entity_id), result.connector,
+                    str(result.search_id),
+                    str(result.entity_id),
+                    result.connector,
                     result.discovered_at.isoformat(),
                 ),
             )
@@ -342,10 +375,16 @@ class SQLiteStorage:
                     errors = excluded.errors
                 """,
                 (
-                    str(coverage.search_id), coverage.connector, coverage.status.value,
-                    coverage.pages_processed, coverage.records_seen, coverage.entities_created,
-                    coverage.entities_reused, int(coverage.pagination_exhausted),
-                    int(coverage.truncated), json.dumps(coverage.exclusions),
+                    str(coverage.search_id),
+                    coverage.connector,
+                    coverage.status.value,
+                    coverage.pages_processed,
+                    coverage.records_seen,
+                    coverage.entities_created,
+                    coverage.entities_reused,
+                    int(coverage.pagination_exhausted),
+                    int(coverage.truncated),
+                    json.dumps(coverage.exclusions),
                     json.dumps(coverage.errors),
                 ),
             )

@@ -23,7 +23,6 @@ class TargetScope:
             target = ip_address(address)
         except ValueError:
             return False
-        return (
-            any(target in ip_network(net) for net in self.networks)
-            and not any(target in ip_network(net) for net in self.excluded)
+        return any(target in ip_network(net) for net in self.networks) and not any(
+            target in ip_network(net) for net in self.excluded
         )

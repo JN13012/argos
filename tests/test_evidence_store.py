@@ -13,18 +13,23 @@ from argos.backend.attack.pentest.evidence_store import (
 from argos.backend.attack.pentest.models import PortObservation, ScanObservation
 from argos.backend.attack.pentest.nmap_parser import MAX_XML_BYTES
 
-XML = (
-    b'<nmaprun><host><address addr="127.0.0.1" addrtype="ipv4"/>'
-    b'</host></nmaprun>'
-)
+XML = b'<nmaprun><host><address addr="127.0.0.1" addrtype="ipv4"/></host></nmaprun>'
 
 
 def sample() -> ScanEvidence:
     now = datetime.now(UTC)
     return ScanEvidence(
-        uuid4(), uuid4(), "127.0.0.1", "initial", "completed",
+        uuid4(),
+        uuid4(),
+        "127.0.0.1",
+        "initial",
+        "completed",
         ("nmap", "-sT", "127.0.0.1"),
-        now - timedelta(seconds=1), now, 0, XML, b"",
+        now - timedelta(seconds=1),
+        now,
+        0,
+        XML,
+        b"",
         ScanObservation(
             "127.0.0.1",
             (PortObservation("127.0.0.1", 22, "tcp", "open", "ssh"),),
@@ -97,8 +102,13 @@ def test_bounded_and_terminal_only(tmp_path):
 
 def test_failed_scan_evidence_without_xml(tmp_path):
     record = replace(
-        sample(), state="failed", exit_code=2, stdout_xml=None,
-        stderr=b"failed", observation=None, error="Nmap exited with status 2",
+        sample(),
+        state="failed",
+        exit_code=2,
+        stdout_xml=None,
+        stderr=b"failed",
+        observation=None,
+        error="Nmap exited with status 2",
     )
     with EvidenceStore(tmp_path / "evidence.db") as store:
         store.save(record)

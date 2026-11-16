@@ -70,13 +70,21 @@ class DecisionAudit:
             decision = Decision(False, "Action is not allowed for this mission")
         else:
             decision = evaluate(
-                record.mission, record.scope, target_ip, action,
-                at=timestamp, mandate_verified=mandate_verified,
+                record.mission,
+                record.scope,
+                target_ip,
+                action,
+                at=timestamp,
+                mandate_verified=mandate_verified,
             )
         audited = AuditedDecision(
-            uuid4(), record.mission.id, target_ip,
+            uuid4(),
+            record.mission.id,
+            target_ip,
             action.value if isinstance(action, Action) else str(action),
-            decision.allowed, decision.reason, timestamp,
+            decision.allowed,
+            decision.reason,
+            timestamp,
         )
         with self._db:
             self._db.execute(
@@ -86,8 +94,12 @@ class DecisionAudit:
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    str(audited.id), str(audited.mission_id), audited.target_ip,
-                    audited.action, int(audited.allowed), audited.reason,
+                    str(audited.id),
+                    str(audited.mission_id),
+                    audited.target_ip,
+                    audited.action,
+                    int(audited.allowed),
+                    audited.reason,
                     audited.timestamp.isoformat(),
                 ),
             )
@@ -103,8 +115,12 @@ class DecisionAudit:
         ).fetchall()
         return tuple(
             AuditedDecision(
-                UUID(row["id"]), UUID(row["mission_id"]), row["target_ip"],
-                row["action"], bool(row["allowed"]), row["reason"],
+                UUID(row["id"]),
+                UUID(row["mission_id"]),
+                row["target_ip"],
+                row["action"],
+                bool(row["allowed"]),
+                row["reason"],
                 datetime.fromisoformat(row["timestamp"]),
             )
             for row in rows

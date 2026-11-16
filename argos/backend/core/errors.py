@@ -6,9 +6,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
-async def http_error_handler(
-    _request: Request, exception: Exception
-) -> JSONResponse:
+async def http_error_handler(_request: Request, exception: Exception) -> JSONResponse:
     if not isinstance(exception, StarletteHTTPException):
         raise TypeError("Expected an HTTP exception") from exception
     return JSONResponse(

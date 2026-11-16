@@ -22,8 +22,10 @@ def active_lab() -> Mission:
 def test_default_denies_without_external_mandate_check() -> None:
     with pytest.raises(ScanExecutionError, match="verified"):
         NmapRunner(executable="/usr/bin/nmap").execute(
-            active_lab(), TargetScope(("127.0.0.1/32",)),
-            "127.0.0.1", ScanPlanner().initial(),
+            active_lab(),
+            TargetScope(("127.0.0.1/32",)),
+            "127.0.0.1",
+            ScanPlanner().initial(),
         )
 
 
@@ -31,8 +33,11 @@ def test_non_loopback_refused_before_subprocess() -> None:
     with patch("argos.backend.attack.pentest.nmap_runner.subprocess.run") as run:
         with pytest.raises(ScanExecutionError, match="loopback"):
             NmapRunner("/usr/bin/nmap").execute(
-                active_lab(), TargetScope(("192.168.1.1/32",)),
-                "192.168.1.1", ScanPlanner().initial(), mandate_verified=True,
+                active_lab(),
+                TargetScope(("192.168.1.1/32",)),
+                "192.168.1.1",
+                ScanPlanner().initial(),
+                mandate_verified=True,
             )
         run.assert_not_called()
 
@@ -48,8 +53,11 @@ def test_local_scan_uses_fixed_non_shell_args_and_parses_xml() -> None:
             args=[], returncode=0, stdout=xml, stderr=b""
         )
         executed = NmapRunner("/usr/bin/nmap").execute(
-            active_lab(), TargetScope(("127.0.0.1/32",)),
-            "127.0.0.1", ScanPlanner().initial(), mandate_verified=True,
+            active_lab(),
+            TargetScope(("127.0.0.1/32",)),
+            "127.0.0.1",
+            ScanPlanner().initial(),
+            mandate_verified=True,
         )
     assert executed.observation.open_tcp_ports == frozenset({22})
     arguments = run.call_args.args[0]
@@ -63,6 +71,9 @@ def test_local_scan_uses_fixed_non_shell_args_and_parses_xml() -> None:
 def test_fail_closed_when_mandate_scope_does_not_match() -> None:
     with pytest.raises(ScanExecutionError, match="scope"):
         NmapRunner("/usr/bin/nmap").execute(
-            active_lab(), TargetScope(("127.0.0.2/32",)),
-            "127.0.0.1", ScanPlanner().initial(), mandate_verified=True,
+            active_lab(),
+            TargetScope(("127.0.0.2/32",)),
+            "127.0.0.1",
+            ScanPlanner().initial(),
+            mandate_verified=True,
         )

@@ -21,7 +21,8 @@ VERIFIER = ApprovalVerifier(SIGNING_KEY.public_key())
 def draft() -> MissionRecord:
     return MissionRecord(
         Mission.draft(
-            "Lab", "signed-mandate",
+            "Lab",
+            "signed-mandate",
             datetime.now(UTC) + timedelta(days=2),
         ),
         TargetScope(("192.168.56.10/32",)),
@@ -57,7 +58,8 @@ def test_unreviewed_and_wrong_key_denied() -> None:
             store.get_reviewed(record.mission.id, VERIFIER)
         with pytest.raises(PermissionError):
             store.activate_reviewed(
-                record.mission.id, sign(record),
+                record.mission.id,
+                sign(record),
                 ApprovalVerifier(Ed25519PrivateKey.generate().public_key()),
             )
 
@@ -108,8 +110,10 @@ def test_invalid_secret_and_overlong_grant_denied() -> None:
         ApprovalVerifier(SIGNING_KEY)  # pyright: ignore[reportArgumentType]
     with pytest.raises(ValueError):
         issue_offline_approval(
-            record, "reviewer",
-            record.mission.expires_at + timedelta(seconds=1), SIGNING_KEY,
+            record,
+            "reviewer",
+            record.mission.expires_at + timedelta(seconds=1),
+            SIGNING_KEY,
         )
 
 
@@ -122,6 +126,4 @@ def test_legacy_hmac_signature_is_rejected() -> None:
 def test_reviewer_identity_is_integrity_protected() -> None:
     record = draft()
     approval = sign(record)
-    assert not VERIFIER.verify(
-        record, replace(approval, reviewer="another-reviewer")
-    )
+    assert not VERIFIER.verify(record, replace(approval, reviewer="another-reviewer"))

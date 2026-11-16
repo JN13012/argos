@@ -25,7 +25,8 @@ def approved(tmp_path):
     key = Ed25519PrivateKey.generate()
     record = MissionRecord(
         Mission.draft(
-            "test", "reviewed",
+            "test",
+            "reviewed",
             datetime.now(UTC) + timedelta(hours=2),
         ),
         TargetScope(("127.0.0.1/32",)),
@@ -37,8 +38,7 @@ def approved(tmp_path):
         store.activate_reviewed(
             record.mission.id,
             issue_offline_approval(
-                record, "reviewer",
-                datetime.now(UTC) + timedelta(hours=1), key
+                record, "reviewer", datetime.now(UTC) + timedelta(hours=1), key
             ),
             ApprovalVerifier(key.public_key()),
         )
@@ -61,10 +61,7 @@ def wait_state(manager, job_id, desired):
 
 def test_lifecycle_completed_and_result(tmp_path):
     runner, mission_id = approved(tmp_path)
-    xml = (
-        b'<nmaprun><host><address addr="127.0.0.1" '
-        b'addrtype="ipv4"/></host></nmaprun>'
-    )
+    xml = b'<nmaprun><host><address addr="127.0.0.1" addrtype="ipv4"/></host></nmaprun>'
 
     class Finished:
         returncode = 0
@@ -84,9 +81,7 @@ def test_lifecycle_completed_and_result(tmp_path):
         Finished,
     ):
         with ExecutionManager(runner, concurrency=1) as manager:
-            job_id = manager.submit(
-                mission_id, "127.0.0.1", ScanPlanner().initial()
-            )
+            job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             snap = wait_state(manager, job_id, JobState.COMPLETED)
             assert snap.started_at and snap.finished_at
             result = manager.result(job_id)
@@ -123,12 +118,8 @@ def test_cancel_terminates_running_job(tmp_path):
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen",
         Hanging,
     ):
-        with ExecutionManager(
-            runner, concurrency=1, poll_seconds=0.01
-        ) as manager:
-            job_id = manager.submit(
-                mission_id, "127.0.0.1", ScanPlanner().initial()
-            )
+        with ExecutionManager(runner, concurrency=1, poll_seconds=0.01) as manager:
+            job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             assert started.wait(2)
             assert manager.cancel(job_id)
             wait_state(manager, job_id, JobState.CANCELLED)
@@ -141,16 +132,10 @@ def test_unknown_job_and_capacity(tmp_path):
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen"
     ) as popen:
         popen.side_effect = OSError("stub")
-        with ExecutionManager(
-            runner, concurrency=1, max_jobs=1
-        ) as manager:
-            job_id = manager.submit(
-                mission_id, "127.0.0.1", ScanPlanner().initial()
-            )
+        with ExecutionManager(runner, concurrency=1, max_jobs=1) as manager:
+            job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             with pytest.raises(RuntimeError, match="capacity"):
-                manager.submit(
-                    mission_id, "127.0.0.1", ScanPlanner().initial()
-                )
+                manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             wait_state(manager, job_id, JobState.FAILED)
 
 
@@ -177,12 +162,8 @@ def test_revocation_stops_running_scan(tmp_path):
         "argos.backend.attack.pentest.execution_manager.subprocess.Popen",
         Hanging,
     ):
-        with ExecutionManager(
-            runner, concurrency=1, poll_seconds=0.01
-        ) as manager:
-            job_id = manager.submit(
-                mission_id, "127.0.0.1", ScanPlanner().initial()
-            )
+        with ExecutionManager(runner, concurrency=1, poll_seconds=0.01) as manager:
+            job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             assert started.wait(2)
             with MissionStore(runner.database_path) as store:
                 assert store.revoke(mission_id)
@@ -220,9 +201,7 @@ def test_timeout_reaps_process_and_records_evidence(tmp_path):
         with ExecutionManager(
             runner, concurrency=1, timeout_seconds=1, poll_seconds=0.01
         ) as manager:
-            job_id = manager.submit(
-                mission_id, "127.0.0.1", ScanPlanner().initial()
-            )
+            job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
             snapshot = wait_state(manager, job_id, JobState.TIMED_OUT)
             assert snapshot.error == "Scan timeout"
             with EvidenceStore(runner.database_path) as evidence:

@@ -50,12 +50,16 @@ class SireneConnector:
         try:
             data = response.json()
         except ValueError as error:
-            raise ValueError("Invalid JSON response from the INSEE Sirene API") from error
+            raise ValueError(
+                "Invalid JSON response from the INSEE Sirene API"
+            ) from error
         if (
             not isinstance(data, dict)
             or not isinstance(data.get("header"), dict)
             or not isinstance(data.get("etablissements"), list)
             or any(not isinstance(item, dict) for item in data["etablissements"])
         ):
-            raise ValueError("Invalid Sirene response: expected header and etablissements")
+            raise ValueError(
+                "Invalid Sirene response: expected header and etablissements"
+            )
         return data

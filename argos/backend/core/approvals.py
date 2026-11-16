@@ -31,9 +31,7 @@ class SignedApproval:
     signature: str
 
 
-def _payload(
-    record: MissionRecord, reviewer: str, expires_at: datetime
-) -> bytes:
+def _payload(record: MissionRecord, reviewer: str, expires_at: datetime) -> bytes:
     mission = record.mission
     body = {
         "mission_id": str(mission.id),
@@ -77,7 +75,7 @@ class ApprovalVerifier:
             or not approval.signature.startswith(_SIGNATURE_PREFIX)
         ):
             return False
-        signature_hex = approval.signature[len(_SIGNATURE_PREFIX):]
+        signature_hex = approval.signature[len(_SIGNATURE_PREFIX) :]
         if re.fullmatch(r"[0-9a-f]{128}", signature_hex) is None:
             return False
         try:
@@ -109,7 +107,8 @@ def issue_offline_approval(
         raise ValueError("Approval expiry must be in the future")
     if expires_at > record.mission.expires_at:
         raise ValueError("Approval must not outlive the mission")
-    signature = _SIGNATURE_PREFIX + private_key.sign(
-        _payload(record, reviewer, expires_at)
-    ).hex()
+    signature = (
+        _SIGNATURE_PREFIX
+        + private_key.sign(_payload(record, reviewer, expires_at)).hex()
+    )
     return SignedApproval(record.mission.id, reviewer, expires_at, signature)

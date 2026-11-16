@@ -63,7 +63,10 @@ def _report_directory(output_dir: str | Path, search: Search, name: str | None) 
         return source / _slug(name)
     # Reuse an existing named group when exporting the same search or scope.
     identity = f"- **Identifiant de recherche :** {search.id}"
-    scope = f"**Recherche :** {_safe(search.scope.activity)} — {_safe(search.scope.location)}"
+    scope = (
+        f"**Recherche :** {_safe(search.scope.activity)} — "
+        f"{_safe(search.scope.location)}"
+    )
     existing = []
     for report in sorted(source.glob("*/rapport-*.md")):
         lines = report.read_text(encoding="utf-8").splitlines()
@@ -105,7 +108,10 @@ def write_search_report(
     output_dir: str | Path = "outputs",
     name: str | None = None,
 ) -> Path:
-    """Export facts collected by this finalized Sirene search, grouped by source/name, with one numbered report per search."""
+    """Export finalized Sirene facts, grouped by source/name.
+
+    Write one numbered report per search.
+    """
     if search.completed_at is None:
         raise ValueError("Only finalized searches can be exported")
     if coverage.search_id != search.id or coverage.connector != "sirene":
@@ -139,15 +145,27 @@ def write_search_report(
     rows.sort(key=lambda row: (row[0].casefold(), row[1]["siret"]))
     started = search.started_at.astimezone(ZoneInfo("Europe/Paris"))
     coverage_text = {
-        CoverageStatus.COMPLETE_FOR_SOURCE: "Recherche terminée pour la source et les filtres choisis.",
-        CoverageStatus.TRUNCATED: "Résultats partiels : limite de pages atteinte. Cette liste n'est pas exhaustive.",
-        CoverageStatus.PARTIAL: "Résultats partiels : la collecte a été interrompue par une erreur.",
-        CoverageStatus.FAILED: "Recherche échouée : aucun résultat exploitable confirmé.",
+        CoverageStatus.COMPLETE_FOR_SOURCE: (
+            "Recherche terminée pour la source et les filtres choisis."
+        ),
+        CoverageStatus.TRUNCATED: (
+            "Résultats partiels : limite de pages atteinte. "
+            "Cette liste n'est pas exhaustive."
+        ),
+        CoverageStatus.PARTIAL: (
+            "Résultats partiels : la collecte a été interrompue par une erreur."
+        ),
+        CoverageStatus.FAILED: (
+            "Recherche échouée : aucun résultat exploitable confirmé."
+        ),
     }[coverage.status]
     lines = [
         "# Rapport Argos — SIRENE",
         "",
-        f"**Recherche :** {_safe(search.scope.activity)} — {_safe(search.scope.location)}",
+        (
+            f"**Recherche :** {_safe(search.scope.activity)} — "
+            f"{_safe(search.scope.location)}"
+        ),
         "",
         f"- **Date :** {started:%d/%m/%Y à %H:%M:%S} (Europe/Paris)",
         f"- **Établissements enregistrés :** {len(rows)}",
@@ -157,13 +175,20 @@ def write_search_report(
         "",
         "## Établissements",
         "",
-        "Classement alphabétique. Les champs ci-dessous décrivent l'état courant reçu lors de cette recherche.",
-        "Une requête portant sur les périodes historiques peut aussi retrouver des établissements fermés ou ayant changé d'activité.",
+        (
+            "Classement alphabétique. Les champs ci-dessous décrivent l'état "
+            "courant reçu lors de cette recherche."
+        ),
+        (
+            "Une requête portant sur les périodes historiques peut aussi retrouver "
+            "des établissements fermés ou ayant changé d'activité."
+        ),
         "",
     ]
     for number, (establishment_name, identifiers, facts) in enumerate(rows, 1):
         status = facts.get("administrative_status", "")
         status = {"A": "Actif", "F": "Fermé"}.get(status, status or "Non renseigné")
+        address = format_address(facts.get("address", "")) or "Non renseignée"
         lines.extend(
             [
                 f"### {number}. {_safe(establishment_name)}",
@@ -171,8 +196,11 @@ def write_search_report(
                 f"- **SIRET :** {_safe(identifiers['siret'] or 'Non renseigné')}",
                 f"- **SIREN :** {_safe(identifiers['siren'] or 'Non renseigné')}",
                 f"- **État administratif :** {_safe(status)}",
-                f"- **Activité actuelle (code NAF) :** {_safe(facts.get('activity') or 'Non renseigné')}",
-                f"- **Adresse :** {_safe(format_address(facts.get('address', '')) or 'Non renseignée')}",
+                (
+                    "- **Activité actuelle (code NAF) :** "
+                    f"{_safe(facts.get('activity') or 'Non renseigné')}"
+                ),
+                f"- **Adresse :** {_safe(address)}",
                 "",
             ]
         )
@@ -197,7 +225,10 @@ def write_search_report(
             f"- **Identifiant de recherche :** {search.id}",
             f"- **Requête exécutée :** {_safe(search.query)}",
             "",
-            "Ce rapport est un export de la recherche sauvegardée. Sa génération ne déclenche aucun appel à l'API.",
+            (
+                "Ce rapport est un export de la recherche sauvegardée. "
+                "Sa génération ne déclenche aucun appel à l'API."
+            ),
             "",
         ]
     )
