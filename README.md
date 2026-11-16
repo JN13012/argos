@@ -89,8 +89,10 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **415 Python tests** validated on Python 3.12 and 3.14 with host isolation
-  qualification enabled (392 regular tests and 23 host tests requiring opt-in).
+- **433 Python tests collected**: 410 regular tests and 23 host tests requiring
+  opt-in. W1.2: 410 regular tests passed on Python 3.14; 122 web tests passed
+  on Python 3.12 and 3.14. Host isolation was last qualified at W1.1 (415 tests
+  passed on each version).
   Synthetic processes and fixtures, no real network scans; repository-wide Ruff
   and pinned Pyright; GitHub Actions configuration covering backend and frontend.
 - **Mission network isolation:** the execution manager defaults to rootless
@@ -146,7 +148,9 @@ reports and retesting start with the CLI. This is planned work, not a current pr
 capability. The [web mission configuration](docs/product/WEB_CONFIG.md) is
 implemented as an offline Python library with signed persistence; HTTP execution
 and the web CLI remain to be built. The [web delivery plan](docs/product/WEB_PENTEST_PLAN.md) defines
-W0–W9, dependencies, evaluation gates and the first pilot criteria.
+W0–W9, dependencies, evaluation gates and the first pilot criteria. The
+[W1.2 evaluation corpus](benchmarks/web/README.md) now pins 12 candidate cases;
+it has not been executed against an agent.
 
 | Stage | Status | Content |
 | --- | --- | --- |

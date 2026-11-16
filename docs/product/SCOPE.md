@@ -15,10 +15,9 @@ niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
 
 - [W1.1 livré](WEB_CONFIG.md) : configuration URL/domaine, périmètre, limites
   et comptes facultatifs, liée aux missions signées, sans connexion réseau.
-- Suite [W1.2/W1.3](WEB_W1_BLACKBOX.md) : sélectionner les cas de mesure et
-  spécifier le transport HTTP avant W2/W3.
-- Sélectionner des benchmarks existants pour mesurer les résultats ; éviter de
-  reconstruire une collection de cibles déjà disponible.
+- [W1.2 préparé](../../benchmarks/web/README.md) : sélection versionnée et
+  contrôlée hors ligne ; cibles, oracles et images pas encore exécutés/qualifiés.
+- Suite [W1.3](WEB_W1_BLACKBOX.md) : spécifier le transport HTTP avant W2/W3.
 - Construire W2/W3 : exécution HTTP contrôlée, cartographie, preuves et rapport.
 - Ajouter ensuite navigation anonyme et SPA, tests approfondis et boucle agent ;
   enrichir avec des comptes selon les accès disponibles.

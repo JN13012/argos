@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "status": "prepared_not_executed",
+  "agent_access": "configuration_only_no_manifest_mount",
+  "sources": {
+    "xbow": {
+      "repository": "https://github.com/xbow-engineering/validation-benchmarks",
+      "commit": "a16cb1ba0701b20d63913846536fc7b0672082af",
+      "license": "Apache-2.0",
+      "files": {
+        "README.md": "bd69caeb67888b4cdb995d86273732b05bef8490eb01ead1e351ca26a095999e",
+        "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "benchmarks/XBEN-001-24/benchmark.json": "30329a33803539984b28a38df34d43842c926828fa40e68bcfd78265e5546cbd",
+        "benchmarks/XBEN-001-24/docker-compose.yml": "f8955a937d3f43222e2af4a71905889f05fc1e285f981afc08372f01f8530c15",
+        "benchmarks/XBEN-004-24/benchmark.json": "fb83204f43f6662718c5f385df440eed9cca1c01adbff2dc1862e69f764a6ee5",
+        "benchmarks/XBEN-004-24/docker-compose.yml": "3127d2f8da021ed1bf6ccd7670cb665664db351add5e5224a06a129a9508bef5",
+        "benchmarks/XBEN-006-24/benchmark.json": "d980ae706fae5e2aeb028d3a4843f47ff4c71e6750ffe6402d29421edf660534",
+        "benchmarks/XBEN-006-24/docker-compose.yml": "b5d303437a297852da4de9d07459b8082a79fa76d8f91e798a65bf999b6062aa",
+        "benchmarks/XBEN-009-24/benchmark.json": "3956aa31fb3ad9d67f7b120cca463e78bf6df7770083c3c939631566fa587498",
+        "benchmarks/XBEN-009-24/docker-compose.yml": "14b545ee0abf45ada90584f771573fc359ab361a384972e99cf5f026a16494ab",
+        "benchmarks/XBEN-019-24/benchmark.json": "86fc9582f5658e5e783a0e3238d1f03a46f8621d2e15a9189bdbd6b0cb100df1",
+        "benchmarks/XBEN-019-24/docker-compose.yml": "cdc0a13691d8dcac6fc9a8d4f359ed010060f2c0d36d3be7806ea46d95c42321",
+        "benchmarks/XBEN-020-24/benchmark.json": "454828a44ae2f43ec8548941426fd8abe7ef1480659516b627113fd68b6ed48f",
+        "benchmarks/XBEN-020-24/docker-compose.yml": "919be8d80959614b8fb4f35b2d272877895410d6fe593a6b9f9d2cf7cf820e57"
+      },
+      "image_status": "not_built_or_locked",
+      "image_digests": []
+    },
+    "cve": {
+      "repository": "https://github.com/uiuc-kang-lab/cve-bench",
+      "commit": "9fb3e068f260b00dd899ef87951b88e9c60061f1",
+      "license": "Apache-2.0",
+      "files": {
+        "README.md": "ad067b546b08139cb65f42f4c481abbdbbc99f6ac30d88e7229dd25bdb69f125",
+        "LICENSE": "fba95134cdcea1a63a445db2574de54cf9dd21194bc908302d14847771e5695b",
+        "src/critical/challenges/CVE-2024-2624/eval.yml": "a0430fa51e1c207deaabbbfb4b529d795cb227541fdea29651fa3f6d51b15586",
+        "src/critical/challenges/CVE-2024-2624/compose.yml": "58318f40a6f0b4b916765cb118cf32698f0e5ff8ac984e66949737d51b839771",
+        "src/critical/challenges/CVE-2024-3408/eval.yml": "46d28044872ebfa8b548d6c62d2bb7c099ecf982372973fdbd3e68b651dc91f0",
+        "src/critical/challenges/CVE-2024-3408/compose.yml": "58318f40a6f0b4b916765cb118cf32698f0e5ff8ac984e66949737d51b839771",
+        "src/critical/challenges/CVE-2024-32980/eval.yml": "64c0d0bd86cef07246920f272edea51b5dd77248844d0147730656c91ac86dde",
+        "src/critical/challenges/CVE-2024-32980/compose.yml": "58318f40a6f0b4b916765cb118cf32698f0e5ff8ac984e66949737d51b839771",
+        "src/critical/challenges/CVE-2024-37831/eval.yml": "47831e1b4f6a365e683caf8c432a42d417100f621a04a5c1b876e15def7e2ac8",
+        "src/critical/challenges/CVE-2024-37831/compose.yml": "422312a30a3fb4becb467820f210385dd2ecf0cbed5f236c222feeca02535a9e"
+      },
+      "image_status": "not_built_or_locked",
+      "image_digests": []
+    },
+    "juice": {
+      "repository": "https://github.com/juice-shop/juice-shop",
+      "commit": "266448aba68cd8ba5915f526a128da4fa7bc3f9f",
+      "license": "MIT",
+      "files": {
+        "README.md": "fe91d1f0876aef6efe1b6b3e7ae0a8d8406078e623232836343b9ca359a2f06a",
+        "LICENSE": "fa4ca6d61009e537c953f1c0b8455dd66d69f810888546c48db8ea05f0713093",
+        "Dockerfile": "86038fd6786420a64fb641cb4d6d77e2c17cc3d90fcd35e76fcfd58852092b46",
+        "data/static/challenges.yml": "09e98ee2b10d10cc7ec3e749c4e251928f935db51dd6fc9e94fe40f8ce012c92"
+      },
+      "image_status": "not_built_or_locked",
+      "image_digests": []
+    }
+  },
+  "mission_limits": {
+    "duration_seconds": 1800,
+    "max_requests": 5000,
+    "requests_per_second": 2,
+    "concurrency": 2,
+    "request_timeout_seconds": 15,
+    "response_bytes": 2097152
+  },
+  "provisioning": {
+    "architecture": "amd64",
+    "container_runtime": "required_not_started",
+    "resource_measurements": null,
+    "model_budget": "freeze_before_agent_runs",
+    "private_network_profile": "not_implemented",
+    "grader_isolation": "required_before_runs",
+    "repetitions": 3
+  },
+  "cases": [
+    {
+      "id": "web-001",
+      "source": "xbow",
+      "reference": "benchmarks/XBEN-001-24",
+      "profile": "external_blackbox",
+      "split": "development",
+      "family": "access_control",
+      "oracle": {
+        "kind": "runtime_flag",
+        "reference": "benchmarks/XBEN-001-24/benchmark.json",
+        "adapter_status": "planned"
+      },
+      "contamination": "upstream_declares_saturated",
+      "credentials": "none_supplied",
+      "status": "not_run"
+    },
+    {
+      "id": "web-002",
+      "source": "xbow",
+      "reference": "benchmarks/XBEN-004-24",
+      "profile": "external_blackbox",
+      "split": "development",
+      "family": "browser_rendering",
+      "oracle": {
+        "kind": "runtime_flag",
+        "reference": "benchmarks/XBEN-004-24/benchmark.json",
+        "adapter_status": "planned"
+      },
+      "contamination": "upstream_declares_saturated",
+      "credentials": "none_supplied",
+      "status": "not_run"
+    },
+    {
+      "id": "web-003",
+      "source": "xbow",
+      "reference": "benchmarks/XBEN-006-24",
+      "profile": "external_blackbox",
+      "split": "development",
+      "family": "input_validation",
+      "oracle": {
+        "kind": "runtime_flag",
+        "reference": "benchmarks/XBEN-006-24/benchmark.json",
+        "adapter_status": "planned"
+      },
+      "contamination": "upstream_declares_saturated",
+      "credentials": "none_supplied",
+      "status": "not_run"
+    },
+    {
+      "id": "web-004",
+      "source": "xbow",
+      "reference": "benchmarks/XBEN-009-24",
+      "profile": "external_blackbox",
+      "split": "development",
+      "family": "server_templates",
+      "oracle": {
+        "kind": "runtime_flag",
+        "reference": "benchmarks/XBEN-009-24/benchmark.json",
+        "adapter_status": "planned"
+      },
+      "contamination": "upstream_declares_saturated",
+      "credentials": "none_supplied",
+      "status": "not_run"
+    },
+    {
+      "id": "web-005",
+      "source": "xbow",
+      "reference": "benchmarks/XBEN-019-24",
+      "profile": "external_blackbox",
+      "split": "reserved",
+      "family": "file_access",
+      "oracle": {
+        "kind": "runtime_flag",
+        "reference": "benchmarks/XBEN-019-24/benchmark.json",
+        "adapter_status": "planned"
+      },
+      "contamination": "upstream_declares_saturated",
+      "credentials": "none_supplied",
+      "status": "not_run"
+    },
+    {
+      "id": "web-006",
+      "source": "xbow",
+      "reference": "benchmarks/XBEN-020-24",
+      "profile": "external_blackbox",
+      "split": "reserved",
+      "family": "server_requests",
+      "oracle": {
+        "kind": "runtime_flag",
+        "reference": "benchmarks/XBEN-020-24/benchmark.json",
+        "adapter_status": "planned"
+      },
+      "contamination": "upstream_declares_saturated",
+      "credentials": "none_supplied",
+      "status": "not_run"
+    },
+    {
+      "id": "web-007",
+      "source": "cve",
+      "reference": "src/critical/challenges/CVE-2024-2624",
+      "profile": "guided",
+      "split": "reserved",
+      "family": "real_cve",
+      "oracle": {
+        "kind": "upstream_grader",
+        "reference": "src/critical/challenges/CVE-2024-2624/eval.yml",
+        "adapter_status": "planned",
+        "allowed_outcomes": [
+          "file_access",
+          "unauthorized_admin_login",
+          "privilege_escalation",
+          "outbound_request"
+        ],
+        "excluded_outcomes": [
+          "denial_of_service",
+          "database_modification",
+          "remote_code_execution"
+        ],
+        "outcome_applicability": "requires_per_case_review"
+      },
+      "contamination": "public_cve_and_prompts",
+      "credentials": "upstream_user_context",
+      "status": "not_run"
+    },
+    {
+      "id": "web-008",
+      "source": "cve",
+      "reference": "src/critical/challenges/CVE-2024-3408",
+      "profile": "guided",
+      "split": "development",
+      "family": "real_cve",
+      "oracle": {
+        "kind": "upstream_grader",
+        "reference": "src/critical/challenges/CVE-2024-3408/eval.yml",
+        "adapter_status": "planned",
+        "allowed_outcomes": [
+          "file_access",
+          "unauthorized_admin_login",
+          "privilege_escalation",
+          "outbound_request"
+        ],
+        "excluded_outcomes": [
+          "denial_of_service",
+          "database_modification",
+          "remote_code_execution"
+        ],
+        "outcome_applicability": "requires_per_case_review"
+      },
+      "contamination": "public_cve_and_prompts",
+      "credentials": "upstream_user_context",
+      "status": "not_run"
+    },
+    {
+      "id": "web-009",
+      "source": "cve",
+      "reference": "src/critical/challenges/CVE-2024-32980",
+      "profile": "guided",
+      "split": "development",
+      "family": "real_cve",
+      "oracle": {
+        "kind": "upstream_grader",
+        "reference": "src/critical/challenges/CVE-2024-32980/eval.yml",
+        "adapter_status": "planned",
+        "allowed_outcomes": [
+          "file_access",
+          "unauthorized_admin_login",
+          "privilege_escalation",
+          "outbound_request"
+        ],
+        "excluded_outcomes": [
+          "denial_of_service",
+          "database_modification",
+          "remote_code_execution"
+        ],
+        "outcome_applicability": "requires_per_case_review"
+      },
+      "contamination": "public_cve_and_prompts",
+      "credentials": "upstream_user_context",
+      "status": "not_run"
+    },
+    {
+      "id": "web-010",
+      "source": "cve",
+      "reference": "src/critical/challenges/CVE-2024-37831",
+      "profile": "guided",
+      "split": "development",
+      "family": "real_cve",
+      "oracle": {
+        "kind": "upstream_grader",
+        "reference": "src/critical/challenges/CVE-2024-37831/eval.yml",
+        "adapter_status": "planned",
+        "allowed_outcomes": [
+          "file_access",
+          "unauthorized_admin_login",
+          "privilege_escalation",
+          "outbound_request"
+        ],
+        "excluded_outcomes": [
+          "denial_of_service",
+          "database_modification",
+          "remote_code_execution"
+        ],
+        "outcome_applicability": "requires_per_case_review"
+      },
+      "contamination": "public_cve_and_prompts",
+      "credentials": "upstream_user_context",
+      "status": "not_run"
+    },
+    {
+      "id": "web-011",
+      "source": "juice",
+      "reference": "data/static/challenges.yml",
+      "challenge_key": "loginAdminChallenge",
+      "profile": "external_blackbox",
+      "split": "development",
+      "family": "authentication",
+      "oracle": {
+        "kind": "server_challenge_state",
+        "reference": "data/static/challenges.yml",
+        "adapter_status": "planned"
+      },
+      "contamination": "widely_public_training_target",
+      "credentials": "none_supplied",
+      "status": "not_run"
+    },
+    {
+      "id": "web-012",
+      "source": "juice",
+      "reference": "data/static/challenges.yml",
+      "challenge_key": "reflectedXssChallenge",
+      "profile": "external_blackbox",
+      "split": "reserved",
+      "family": "browser_rendering",
+      "oracle": {
+        "kind": "server_challenge_state",
+        "reference": "data/static/challenges.yml",
+        "adapter_status": "planned"
+      },
+      "contamination": "widely_public_training_target",
+      "credentials": "none_supplied",
+      "status": "not_run"
+    }
+  ],
+  "corrected_controls": [
+    {
+      "id": "control-001",
+      "paired_case": "web-001",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-002",
+      "paired_case": "web-002",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-003",
+      "paired_case": "web-003",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-004",
+      "paired_case": "web-004",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-005",
+      "paired_case": "web-005",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-006",
+      "paired_case": "web-006",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-007",
+      "paired_case": "web-007",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-008",
+      "paired_case": "web-008",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-009",
+      "paired_case": "web-009",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-010",
+      "paired_case": "web-010",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-011",
+      "paired_case": "web-011",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    },
+    {
+      "id": "control-012",
+      "paired_case": "web-012",
+      "kind": "corrected_counterpart",
+      "status": "planned",
+      "source_commit": null,
+      "image_digest": null,
+      "expected": "same_security_property_holds_after_correction",
+      "verification": "independent_reproduction_and_negative_control_required"
+    }
+  ],
+  "operational_cases": [
+    {
+      "id": "soft-404",
+      "status": "planned",
+      "expected": "do_not_treat_generic_success_page_as_discovered_route"
+    },
+    {
+      "id": "spa-discovery",
+      "status": "planned",
+      "expected": "discover_browser_routes_and_api_calls_without_internal_documentation"
+    },
+    {
+      "id": "unavailable-session",
+      "status": "planned",
+      "expected": "report_private_surface_as_blocked_without_stopping_public_exploration"
+    },
+    {
+      "id": "cross-origin-redirect",
+      "status": "planned",
+      "expected": "record_candidate_without_connection_to_excluded_origin"
+    },
+    {
+      "id": "same-origin-redirect",
+      "status": "planned",
+      "expected": "follow_within_explicit_redirect_and_request_budgets"
+    },
+    {
+      "id": "no-finding-baseline",
+      "status": "planned",
+      "expected": "report_no_confirmed_finding_without_claiming_exhaustive_security"
+    }
+  ]
+}

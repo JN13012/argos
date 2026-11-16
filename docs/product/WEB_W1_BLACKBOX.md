@@ -1,6 +1,7 @@
 # W1 — Préparer le pentest web en boîte noire externe
 
-Statut : **W1.1 livré et validé localement** ; W1.2 et W1.3 restent à faire.
+Statut : **W1.1 validé localement et W1.2 préparé hors ligne** ; W1.3 reste
+à réaliser. Les cibles et mécanismes de notation ne sont pas encore qualifiés.
 Le [contrat effectivement accepté](WEB_CONFIG.md) utilise JSON UTF-8.
 Décision du 16 novembre 2026 ; dépend du [plan web](WEB_PENTEST_PLAN.md).
 
@@ -132,24 +133,30 @@ aucune connexion ni scan effectué par le chargement du fichier.
 
 ### W1.2 — Références de mesure
 
-- [ ] Sélectionner un sous-ensemble de benchmarks existants et épingler les
-  versions/images ainsi que leurs conditions d'usage.
-- [ ] Enregistrer séparément URL fournie à Argos, prérequis techniques,
-  ressources, résultat attendu et mécanisme de vérification externe.
-- [ ] Attribuer le profil boîte noire à au moins deux tiers des missions :
-  aucune CVE, catégorie de faille, solution ou documentation interne donnée
-  à l'agent. Les pistes visibles publiquement dans la cible restent accessibles.
-- [ ] Séparer jeux de développement et jeux réservés ; identifier contamination
-  connue, aides imposées par les suites et biais des défis à flag.
-- [ ] Inclure les cas sans faille attendue, chemins inaccessibles, soft-404,
-  SPA, changement d'origine et session absente. Ajouter des témoins corrigés
-  lorsque le benchmark ne les fournit pas.
-- [ ] Noter les scores guidés séparément ; ne pas confondre un seul objectif
-  réussi avec la couverture entière de l'application.
+Préparation livrée dans le [corpus versionné](../../benchmarks/web/README.md),
+avec manifeste JSON et contrôleur hors ligne :
+
+- [x] Sélectionner 12 cas sur trois sources, épingler leurs commits et les
+  empreintes de 28 fichiers de référence, dont les licences consultées.
+- [x] Séparer métadonnées évaluateur et configuration minimale exportée à
+  l'agent ; les mécanismes de notation restent à implémenter.
+- [x] Prévoir 8 cas boîte noire sans compte ni description de faille, et
+  4 CVE-Bench guidés évalués séparément.
+- [x] Répartir 8 cas de développement et 4 réservés ; consigner contamination
+  publique, aides amont et biais des défis à flag.
+- [x] Définir 12 témoins corrigés et 6 cas de comportement avec états `planned`,
+  sans prétendre que ces cibles sont construites ou vérifiées.
+- [x] Distinguer guidé/boîte noire et contrôle des artefacts/résultat cyber ;
+  aucun score de pentest n'est publié sans exécution.
+
+Restent avant exécution : verrouillage des images et dépendances, ressources
+mesurées, profil privé explicite, oracles isolés, témoins corrigés et cas de
+comportement. Ces travaux accompagnent le transport et le runner ; W1.2 ne
+qualifie pas leur exécution. Voir le corpus pour les points précis.
 
 Commit indicatif : `test(web): define black-box evaluation cases`.
-Critère : manifeste des cas exploitable par le futur runner, résultats attendus
-séparés du contexte agent ; aucun score de réussite inventé avant exécution.
+Critère de préparation : manifeste vérifié hors ligne et export sans indices
+évaluateur ; images et résultats ne sont jamais inventés pour compléter ce lot.
 
 ### W1.3 — Passage à W2/W3
 
@@ -195,5 +202,22 @@ de navigateur, framework d'agent ou scanner supplémentaire dans W1.1.
 - Les points W2 (DNS/egress, plafonds d'exploration et de stockage cumulé) ne
   sont pas revendiqués par cette validation de configuration.
 
-Suite immédiate : W1.2, sélection versionnée des cas de mesure sans indices
-internes donnés à l'agent, puis W1.3 pour préparer la tranche HTTP W2/W3.
+À la clôture de W1.1, la suite prévue était W1.2 puis W1.3 ; le bilan ci-dessous
+consigne la préparation W1.2 désormais livrée.
+
+## Bilan W1.2
+
+- 12 cas référencés et contrôlés, 12 témoins corrigés et 6 comportements
+  seulement prévus ; sources téléchargées dans `/tmp`, jamais exécutées.
+- SHA-256 des 28 fichiers consultés vérifiés contre les checkouts ; aucun code
+  ni contenu tiers n'est intégré au paquet Argos.
+- Projection vers une configuration W1.1 anonyme, sans métadonnées évaluateur ;
+  la projection ne remplace pas l'isolation des fichiers et du réseau.
+- **122 tests web réussis sous Python 3.12 et 3.14**, dont 18 nouveaux tests
+  d'intégrité, de séparation d'entrées et de détection d'altération.
+- Suite normale sous Python 3.14 : **410 réussites, 23 tests hôte ignorés**.
+  Les tests hôte ne sont pas rejoués pour cette préparation sans changement
+  du runtime. Ruff, formatage et Pyright passent.
+- Aucun conteneur construit, service démarré, scan client ou score de benchmark.
+
+Prochain lot : **W1.3**, interfaces et contrôles du transport HTTP avant W2/W3.
