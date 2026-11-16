@@ -1,6 +1,7 @@
 # W1 — Préparer le pentest web en boîte noire externe
 
-Statut : **prêt à implémenter**, aucune tâche ci-dessous n'est encore livrée.
+Statut : **W1.1 livré et validé localement** ; W1.2 et W1.3 restent à faire.
+Le [contrat effectivement accepté](WEB_CONFIG.md) utilise JSON UTF-8.
 Décision du 16 novembre 2026 ; dépend du [plan web](WEB_PENTEST_PLAN.md).
 
 ## Objectif et premier parcours
@@ -26,7 +27,9 @@ client réelle, y compris en présence de redirections et d'une couverture parti
 
 ## Contrat de configuration à implémenter
 
-Exemple de format **proposé**, pas un fichier déjà pris en charge :
+Exemple YAML de conception conservé pour lecture ; **le format implémenté
+est JSON**, voir le [contrat et son exemple](WEB_CONFIG.md). Le YAML ci-dessous
+n’est pas directement chargé par Argos :
 
 ```yaml
 schema_version: 1
@@ -113,15 +116,15 @@ Définir les contrats sans créer un second système de stockage de preuves.
 
 ### W1.1 — Configuration et périmètre
 
-- [ ] Examiner et réutiliser les contrats existants dans `core/missions.py`,
+- [x] Examiner et réutiliser les contrats existants dans `core/missions.py`,
   `core/scope.py`, `core/policy.py` et `core/approvals.py`.
-- [ ] Ajouter les modèles web dans un module dédié sous `backend/attack/web/`.
-- [ ] Implémenter chargement, validation et normalisation sans réseau.
-- [ ] Relier configuration et mission existante ; isoler les changements
+- [x] Ajouter les modèles web dans un module dédié sous `backend/attack/web/`.
+- [x] Implémenter chargement, validation et normalisation sans réseau.
+- [x] Relier configuration et mission existante ; isoler les changements
   nécessaires aux missions Nmap et conserver leurs règles actuelles.
-- [ ] Tester URL seule, zéro compte, domaine nu, ports, IDNA, IPv6, exclusions,
+- [x] Tester URL seule, zéro compte, domaine nu, ports, IDNA, IPv6, exclusions,
   sous-domaines trompeurs, credentials intégrés et limites invalides.
-- [ ] Documenter le format effectivement accepté et les valeurs retenues.
+- [x] Documenter le format effectivement accepté et les valeurs retenues.
 
 Commit indicatif : `feat(web): add black-box mission config`.
 Critère : configuration anonyme valide et refus déterministes prouvés ;
@@ -176,3 +179,21 @@ Validation adaptée au code livré : tests ciblés des nouveaux contrats puis
 régressions des politiques/CLI touchés, Ruff, formatage, Pyright et diff propre.
 Les essais réels ne commencent qu'avec le transport W2 effectif. Aucun ajout
 de navigateur, framework d'agent ou scanner supplémentaire dans W1.1.
+
+## Bilan W1.1
+
+- Modèles immuables sous `backend/attack/web/`, chargeur JSON borné et
+  normalisation hors ligne ; aucune dépendance ajoutée.
+- Configuration liée à la mission, persistée atomiquement et incluse dans
+  l'approbation signée ; aucune permission IP inventée à partir d'un domaine.
+- Action HTTP déclarée mais exécution refusée jusqu'à W2 ; mission web
+  inutilisable pour autoriser Nmap. Aucune commande CLI web ajoutée.
+- **415 tests réussis sous Python 3.14 et Python 3.12**, dont 104 nouveaux tests
+  web et 23 tests hôte activés explicitement. Ruff, formatage et Pyright propres.
+- Suite complète exécutée avec `ARGOS_TEST_ISOLATION=1 ARGOS_TEST_NETWORK=1` et
+  les chemins explicites du proxy déjà qualifié ; aucun scan client effectué.
+- Les points W2 (DNS/egress, plafonds d'exploration et de stockage cumulé) ne
+  sont pas revendiqués par cette validation de configuration.
+
+Suite immédiate : W1.2, sélection versionnée des cas de mesure sans indices
+internes donnés à l'agent, puis W1.3 pour préparer la tranche HTTP W2/W3.

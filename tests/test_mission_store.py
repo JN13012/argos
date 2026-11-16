@@ -31,6 +31,7 @@ def test_persists_mission_scope_and_actions_across_connections(tmp_path) -> None
         restored = store.get(item.mission.id)
         assert restored == item
         assert restored is not None
+        assert restored.scope is not None
         assert not restored.scope.permits("127.0.0.1")
         assert restored.scope.permits("127.0.0.2")
         assert restored.mission.state is MissionState.DRAFT

@@ -38,12 +38,14 @@ def _payload(record: MissionRecord, reviewer: str, expires_at: datetime) -> byte
         "title": mission.title,
         "reference": mission.authorization_reference,
         "mission_expiry": mission.expires_at.isoformat(),
-        "allowed_networks": sorted(record.scope.networks),
-        "excluded_networks": sorted(record.scope.excluded),
+        "allowed_networks": sorted(record.scope.networks) if record.scope else [],
+        "excluded_networks": sorted(record.scope.excluded) if record.scope else [],
         "actions": sorted(action.value for action in record.allowed_actions),
         "reviewer": reviewer,
         "approval_expiry": expires_at.isoformat(),
     }
+    if record.web_configuration is not None:
+        body["web_configuration"] = record.web_configuration
     data = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
     return _DOMAIN_SEPARATOR + data
 

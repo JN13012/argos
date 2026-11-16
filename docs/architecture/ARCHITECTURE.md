@@ -6,6 +6,11 @@ frontend React/TypeScript/Vite séparé pour son outillage.
 Priorité de réalisation : [pentest web autonome depuis le CLI](../product/WEB_PENTEST_PLAN.md).
 Le parcours cible commence par une URL/domaine sans compte ni documentation.
 La découverte anonyme est obligatoire ; les comptes enrichissent la couverture.
+La configuration web immuable est livrée : JSON, normalisation, périmètre
+hors ligne et liaison signée aux missions. Une mission web n'a pas de réseau
+IP implicite ; sa configuration est stockée dans une table additive. L'action
+HTTP reste refusée par la politique jusqu'au transport W2. Voir le
+[contrat W1.1](../product/WEB_CONFIG.md).
 Les adaptateurs HTTP et navigateur, le contrôle d'origine web, les sessions
 multi-rôles et les services de mission sont une cible à construire. Le contrôle
 IP/port livré ne suffit pas à isoler des origines web partageant une IP.
@@ -19,7 +24,8 @@ argos/
 │   ├── api/                 FastAPI : santé HTTP et erreurs stables
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
-│   └── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
+│   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
+│   └── attack/web/          Configuration boîte noire hors ligne, sans exécuteur
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
 ```

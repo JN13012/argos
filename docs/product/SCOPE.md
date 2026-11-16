@@ -13,8 +13,10 @@ niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
 
 ## Prochain travail : première chaîne web depuis le CLI
 
-- Implémenter [W1 — boîte noire](WEB_W1_BLACKBOX.md) : URL/domaine, périmètre,
-  limites et comptes facultatifs ; aucune connaissance des failles requise.
+- [W1.1 livré](WEB_CONFIG.md) : configuration URL/domaine, périmètre, limites
+  et comptes facultatifs, liée aux missions signées, sans connexion réseau.
+- Suite [W1.2/W1.3](WEB_W1_BLACKBOX.md) : sélectionner les cas de mesure et
+  spécifier le transport HTTP avant W2/W3.
 - Sélectionner des benchmarks existants pour mesurer les résultats ; éviter de
   reconstruire une collection de cibles déjà disponible.
 - Construire W2/W3 : exécution HTTP contrôlée, cartographie, preuves et rapport.
@@ -31,8 +33,8 @@ sont vérifiés avant usage client. P0 et P1.1–P1.4 sont validés localement ;
 le [bilan réseau](MISSION_NETWORK.md). Aucun pentest web autonome n'est encore
 implémenté. Le [plan détaillé](WEB_PENTEST_PLAN.md) fixe les dépendances.
 
-Ce lot de planification livre uniquement les documents et l'organisation.
-Aucun nouvel outil, endpoint métier, commande web ou agent n'est ajouté.
+W1.1 livre les contrats Python et leur validation. Aucun nouvel outil actif,
+endpoint métier, commande CLI web ou agent n'est ajouté.
 
 ## Travaux différés et fondations conservées
 

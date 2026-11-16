@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "name": "Client web",
+  "mode": "external_blackbox",
+  "seeds": ["https://app.example.com/"],
+  "scope": {
+    "origins": ["https://app.example.com"],
+    "subdomain_roots": [],
+    "excluded_paths": ["/logout"]
+  },
+  "access": {"credential_refs": []},
+  "effects": {
+    "allow_registration": false,
+    "allow_test_writes": false
+  },
+  "limits": {
+    "duration_seconds": 1800,
+    "max_requests": 5000,
+    "requests_per_second": 2,
+    "concurrency": 2,
+    "request_timeout_seconds": 15,
+    "response_bytes": 2097152
+  }
+}

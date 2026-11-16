@@ -25,14 +25,30 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class MissionRecord:
     mission: Mission
-    scope: TargetScope
+    scope: TargetScope | None
     allowed_actions: frozenset[Action]
+    web_configuration: str | None = None
 
     def __post_init__(self) -> None:
         if not self.allowed_actions or not all(
             type(action) is Action for action in self.allowed_actions
         ):
             raise ValueError("At least one supported action is required")
+        if self.web_configuration is not None:
+            from argos.backend.attack.web.config import WebMissionConfig
+
+            config = WebMissionConfig.from_json(self.web_configuration)
+            if (
+                self.scope is not None
+                or self.allowed_actions != frozenset({Action.WEB_HTTP_REQUEST})
+                or config.name != self.mission.title
+                or config.to_json() != self.web_configuration
+            ):
+                raise ValueError(
+                    "Web missions require an exact canonical configuration"
+                )
+        elif self.scope is None or Action.WEB_HTTP_REQUEST in self.allowed_actions:
+            raise ValueError("Web actions require a bound web configuration")
 
 
 class MissionStore:
@@ -76,6 +92,10 @@ class MissionStore:
                 action TEXT NOT NULL,
                 PRIMARY KEY(mission_id, action)
             );
+            CREATE TABLE IF NOT EXISTS pentest_web_config (
+                mission_id TEXT PRIMARY KEY REFERENCES pentest_missions(id),
+                configuration TEXT NOT NULL
+            );
             """
         )
 
@@ -113,8 +133,8 @@ class MissionStore:
                     [
                         (str(mission.id), network, excluded)
                         for excluded, networks in (
-                            (0, record.scope.networks),
-                            (1, record.scope.excluded),
+                            (0, record.scope.networks if record.scope else ()),
+                            (1, record.scope.excluded if record.scope else ()),
                         )
                         for network in networks
                     ],
@@ -129,6 +149,11 @@ class MissionStore:
                         for action in sorted(record.allowed_actions)
                     ],
                 )
+                if record.web_configuration is not None:
+                    self._db.execute(
+                        "INSERT INTO pentest_web_config VALUES (?, ?)",
+                        (str(mission.id), record.web_configuration),
+                    )
         except sqlite3.IntegrityError as error:
             raise ValueError("Duplicate or invalid mission record") from error
 
@@ -149,6 +174,12 @@ class MissionStore:
             "SELECT action FROM pentest_actions WHERE mission_id = ?",
             (str(mission_id),),
         ).fetchall()
+        web_row = self._db.execute(
+            "SELECT configuration FROM pentest_web_config WHERE mission_id = ?",
+            (str(mission_id),),
+        ).fetchone()
+        if web_row is not None and scope_rows:
+            raise ValueError("Web configuration cannot grant numeric network access")
         return MissionRecord(
             Mission(
                 UUID(row["id"]),
@@ -160,8 +191,11 @@ class MissionStore:
             TargetScope(
                 tuple(r["network"] for r in scope_rows if not r["excluded"]),
                 tuple(r["network"] for r in scope_rows if r["excluded"]),
-            ),
+            )
+            if web_row is None
+            else None,
             frozenset(Action(r["action"]) for r in action_rows),
+            web_row["configuration"] if web_row is not None else None,
         )
 
     def list_ids(self) -> tuple[UUID, ...]:

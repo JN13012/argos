@@ -12,6 +12,7 @@ class Action(StrEnum):
     PASSIVE_REVIEW = "passive_review"
     TCP_CONNECT_SCAN = "tcp_connect_scan"
     SERVICE_IDENTIFICATION = "service_identification"
+    WEB_HTTP_REQUEST = "web_http_request"
 
 
 @dataclass(frozen=True)
@@ -22,7 +23,7 @@ class Decision:
 
 def evaluate(
     mission: Mission,
-    scope: TargetScope,
+    scope: TargetScope | None,
     target_ip: str,
     action: Action,
     *,
@@ -40,6 +41,8 @@ def evaluate(
         return Decision(False, "Mission is not active or authorization expired")
     if not isinstance(action, Action):
         return Decision(False, "Unsupported action")
+    if scope is None or action is Action.WEB_HTTP_REQUEST:
+        return Decision(False, "Web transport authorization is not implemented")
     if not scope.permits(target_ip):
         return Decision(False, "Target is outside authorized scope")
     return Decision(True, "Authorized target and action")
