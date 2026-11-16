@@ -10,26 +10,23 @@ cartographie, tests, validation, preuves, rapport et recontrôle. L'agent doit
 pouvoir enchaîner les actions préautorisées sans approbation répétitive. Le
 niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
 
-## Prochain lot d'implémentation : W0 / P1.5
+## Prochain travail : première chaîne web depuis le CLI
 
-- Qualifier Nmap réel dans un laboratoire local autorisé, y compris ses fichiers
-  de données et la reconnaissance en deux phases.
-- Comparer aux services attendus ; vérifier refus, délais, annulation,
-  révocation, crash, reprise, quotas et nettoyage.
-- Documenter une installation reproductible des dépendances réseau et les
-  environnements effectivement qualifiés.
-- Réaliser la revue ciblée des frontières d'exécution et publier les limites.
+- Définir la configuration de mission : URLs, comptes, débit, durée et actions.
+- Sélectionner des benchmarks existants pour mesurer les résultats ; éviter de
+  reconstruire une collection de cibles déjà disponible.
+- Construire W2/W3 : exécution HTTP contrôlée, cartographie, preuves et rapport.
+- Ajouter ensuite navigateur, comptes multiples, tests et boucle agent.
+- Évaluer les capacités démontrées sur les applications client, avec comparaison
+  humaine et résultats reproduits. Les failles n'ont pas à être connues avant
+  la mission ; leur nombre total inconnu interdit un score de rappel absolu.
 
-P0 et P1.1–P1.4 ont été validés localement. Le worker réseau existe ; sa
-qualification synthétique ne démontre pas encore la compatibilité Nmap réelle.
-Voir le [bilan réseau](MISSION_NETWORK.md) et le [découpage P1](EXECUTION_P1.md).
-
-## Lot de préparation suivant : W1
-
-Figer le contrat de mandat web, les comptes/rôles, les budgets et les effets
-permis ; construire le laboratoire réinitialisable et la vérité terrain. Définir
-les scénarios réservés et le protocole d'évaluation avant le développement de
-l'agent. Le détail des dépendances et critères figure dans le plan W0–W9.
+W0/P1.5 poursuit la vérification du socle : refus, délais, révocation, panne,
+reprise, quotas et nettoyage. Sa qualification Nmap réelle reste ouverte mais
+ne bloque pas les travaux HTTP indépendants. Les contrôles nécessaires au web
+sont vérifiés avant usage client. P0 et P1.1–P1.4 sont validés localement ; voir
+le [bilan réseau](MISSION_NETWORK.md). Aucun pentest web autonome n'est encore
+implémenté. Le [plan détaillé](WEB_PENTEST_PLAN.md) fixe les dépendances.
 
 Ce lot de planification livre uniquement les documents et l'organisation.
 Aucun nouvel outil, endpoint métier, commande web ou agent n'est ajouté.

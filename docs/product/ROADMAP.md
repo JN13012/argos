@@ -41,7 +41,7 @@ s’imposent au moteur indépendamment du modèle.
 | --- | --- | --- |
 | P0 — Fiabilisation | Validé localement ; exécution distante de CI à confirmer après publication | Typage et lint globaux propres, installation verrouillée reproductible, tests Python 3.12/3.14, frontend et navigateur ; documents cohérents. Voir le [bilan P0](FIABILISATION_P0.md). |
 | P1 — Exécution durable et isolée | P1.1–P1.4 livrés et qualifiés localement ; P1.5 à faire | Réseau rootless à refus par défaut, quotas, nettoyage et profil lié aux preuves. Suite : Nmap réel en labo autorisé et revue ciblée. Voir le [découpage P1](EXECUTION_P1.md) et la [qualification réseau](MISSION_NETWORK.md). |
-| W0–W9 — Pentest web autonome | Planifié, priorité commerciale | W0 clôt P1.5 ; W1–W6 construisent mandat, labo, HTTP, CLI, navigateur, tests et restitution ; W7 ajoute l'agent ; W8 mesure et W9 prépare les pilotes. Voir le [plan détaillé](WEB_PENTEST_PLAN.md). |
+| W0–W9 — Pentest web autonome | Planifié, priorité commerciale | W0 poursuit P1.5 ; W1–W6 construisent configuration, benchmarks, HTTP, CLI, navigateur, tests et restitution ; W7 ajoute l'agent ; W8 mesure et W9 prépare les pilotes. Voir le [plan détaillé](WEB_PENTEST_PLAN.md). |
 | P2 — API et interface métier | Après validation du parcours CLI web | Identités et droits par mission ; API et UI mission → autorisation → job → preuves → rapport → recontrôle. Réutiliser les services CLI ; accès croisés refusés. Requis avant le libre-service multi-utilisateur. |
 | A1–A3 — Connaissance, outils et état | Conçus | Catalogue original versionné, prérequis et preuves explicites, registre de capacités typées, état de mission persistant. Recommandations bloquées expliquées, provenance conservée, reprise testée. |
 | A4 — Mission autonome V0 | À construire, dépend de P1 et A1–A3 | Boucle objectif → plan → action → observation → vérification → replanification → rapport ; modèle interchangeable, budgets et arrêts. Une mission de référence se termine sans intervention entre les actions préautorisées ; chaque conclusion renvoie à ses preuves. |
@@ -56,7 +56,10 @@ mesurée ; elle doit apporter un bénéfice vérifié.
 Pour la première offre, A1–A3 sont concrétisés par W1–W6, A4 par W7 et A5 par
 le protocole défini dès W1 puis exécuté en W8. Ces identifiants désignent des
 responsabilités existantes, pas deux programmes de développement concurrents.
-Ordre actif : **W0/P1.5 → W1 → W2/W3 → W4/W5/W6 → W7 → W8 → W9** ;
+Ordre actif : **W1 → W2/W3 → W4/W5/W6 → W7 → W8 → W9** ;
+W0/P1.5 continue sur le socle, sans bloquer le web sur la qualification Nmap.
+Les capacités démontrées peuvent être évaluées sur des applications client
+avec revue des résultats avant l’offre généralisée ;
 les dépendances précises et les travaux préparatoires figurent dans le plan.
 
 ## Sources et réutilisation
