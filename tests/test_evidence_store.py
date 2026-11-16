@@ -38,6 +38,7 @@ def test_round_trip_verifies_raw_output_and_observations(tmp_path):
     with EvidenceStore(db) as store:
         receipt = store.save(original)
         assert len(receipt.record_sha256) == 64
+        assert receipt.xml_sha256 is not None
         assert len(receipt.xml_sha256) == 64
         assert store.list_for_mission(original.mission_id) == (original.job_id,)
     with EvidenceStore(db) as store:

@@ -89,7 +89,9 @@ def test_lifecycle_completed_and_result(tmp_path):
             )
             snap = wait_state(manager, job_id, JobState.COMPLETED)
             assert snap.started_at and snap.finished_at
-            assert manager.result(job_id).observation.target == "127.0.0.1"
+            result = manager.result(job_id)
+            assert result is not None
+            assert result.observation.target == "127.0.0.1"
             with EvidenceStore(runner.database_path) as evidence:
                 saved = evidence.get_verified(job_id)
                 assert saved is not None
@@ -185,6 +187,7 @@ def test_revocation_stops_running_scan(tmp_path):
             with MissionStore(runner.database_path) as store:
                 assert store.revoke(mission_id)
             snapshot = wait_state(manager, job_id, JobState.CANCELLED)
+            assert snapshot.error is not None
             assert "revoked" in snapshot.error
             with EvidenceStore(runner.database_path) as evidence:
                 saved = evidence.get_verified(job_id)

@@ -7,8 +7,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 async def http_error_handler(
-    _request: Request, exception: StarletteHTTPException
+    _request: Request, exception: Exception
 ) -> JSONResponse:
+    if not isinstance(exception, StarletteHTTPException):
+        raise TypeError("Expected an HTTP exception") from exception
     return JSONResponse(
         status_code=exception.status_code,
         content={
@@ -22,7 +24,7 @@ async def http_error_handler(
 
 
 async def validation_error_handler(
-    _request: Request, _exception: RequestValidationError
+    _request: Request, _exception: Exception
 ) -> JSONResponse:
     return JSONResponse(
         status_code=422,

@@ -2,7 +2,7 @@
 
 import threading
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from argos.backend.attack.pentest.adaptive_orchestrator import (
     AdaptiveReconOrchestrator,
@@ -15,20 +15,27 @@ from argos.backend.attack.pentest.evidence_store import (
 from argos.backend.attack.pentest.execution_manager import JobSnapshot, JobState
 from argos.backend.attack.pentest.models import PortObservation, ScanObservation
 from argos.backend.attack.pentest.nmap_runner import ExecutedScan
+from argos.backend.attack.pentest.planner import ScanPlan
 
 
 class FakeManager:
-    def __init__(self, ports, *, stop_at=None, revoke_at=None):
+    def __init__(
+        self, ports: tuple[int, ...], *, stop_at: JobState | None = None,
+        revoke_at: int | None = None,
+    ) -> None:
         self.ports = ports
         self.stop_at = stop_at
         self.revoke_at = revoke_at
-        self.jobs = {}
-        self.calls = []
-        self.cancelled = []
+        self.jobs: dict[
+            UUID, tuple[JobState, UUID, str, ScanPlan, ExecutedScan]
+        ] = {}
+        self.calls: list[ScanPlan] = []
+        self.cancelled: list[UUID] = []
 
-    def submit(self, mission_id, target, plan):
+    def submit(self, mission_id: UUID, target_ip: str, plan: ScanPlan) -> UUID:
         from argos.backend.attack.pentest.nmap_runner import ScanExecutionError
 
+        target = target_ip
         if self.revoke_at == len(self.calls):
             raise ScanExecutionError("Mission approval is invalid")
         job = uuid4()
@@ -56,17 +63,17 @@ class FakeManager:
         self.jobs[job] = (state, mission_id, target, plan, scan)
         return job
 
-    def get(self, job_id):
+    def get(self, job_id: UUID) -> JobSnapshot:
         state, mission, target, _plan, _scan = self.jobs[job_id]
         return JobSnapshot(
             job_id, mission, target, state, datetime.now(UTC), None, None,
             "Simulated scan failure" if state is JobState.FAILED else None,
         )
 
-    def result(self, job_id):
+    def result(self, job_id: UUID) -> ExecutedScan:
         return self.jobs[job_id][4]
 
-    def verified_evidence(self, job_id):
+    def verified_evidence(self, job_id: UUID) -> VerifiedEvidence | None:
         state, mission, target, plan, scan = self.jobs[job_id]
         if state is not JobState.COMPLETED:
             return None
@@ -80,7 +87,7 @@ class FakeManager:
             EvidenceReceipt(job_id, "a" * 64, "b" * 64, None),
         )
 
-    def cancel(self, job_id):
+    def cancel(self, job_id: UUID) -> bool:
         self.cancelled.append(job_id)
         state, mission, target, plan, scan = self.jobs[job_id]
         self.jobs[job_id] = (
@@ -158,4 +165,5 @@ def test_missing_evidence_prevents_followup():
     )
     assert result.state is JobState.FAILED
     assert len(manager.calls) == 1
+    assert result.error is not None
     assert "Evidence" in result.error

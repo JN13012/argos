@@ -16,6 +16,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pyright==1.1.414",
     "pytest>=9,<10",
     "ruff>=0.11,<1",
 ]
@@ -30,6 +31,15 @@ source-exclude = ["/argos/frontend"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "argos/backend/tests"]
+
+[tool.pyright]
+include = ["argos", "tests"]
+exclude = ["argos/frontend", "**/__pycache__", "**/node_modules"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportUnnecessaryTypeIgnoreComment = true
 
 [tool.ruff]
 line-length = 88

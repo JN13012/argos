@@ -104,7 +104,8 @@ def test_forged_signature_is_denied() -> None:
 def test_invalid_secret_and_overlong_grant_denied() -> None:
     record = draft()
     with pytest.raises(TypeError):
-        ApprovalVerifier(SIGNING_KEY)
+        # Deliberately invalid input verifies the runtime public-key boundary.
+        ApprovalVerifier(SIGNING_KEY)  # pyright: ignore[reportArgumentType]
     with pytest.raises(ValueError):
         issue_offline_approval(
             record, "reviewer",

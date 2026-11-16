@@ -83,5 +83,7 @@ def test_sql_input_is_stored_as_data() -> None:
     item = replace(item, mission=replace(item.mission, title=name))
     with MissionStore(":memory:") as store:
         store.create(item)
-        assert store.get(item.mission.id).mission.title == name
+        restored = store.get(item.mission.id)
+        assert restored is not None
+        assert restored.mission.title == name
         assert len(store.list_ids()) == 1
