@@ -1,8 +1,8 @@
 # W1.3 — Première tranche HTTP et CLI
 
-Statut : **W2.2 livré et validé localement**, runtime persistant W2.3 à construire.
+Statut : **W2.3 livré et validé localement**, CLI/découverte W3.1 à construire.
 Voir les [contrats W2.1](WEB_HTTP_POLICY.md) et le [transport W2.2](WEB_HTTP_TRANSPORT.md).
-Aucun parcours utilisateur HTTP, commande CLI web ou boucle agent n’est activé. Suite du [plan web](WEB_PENTEST_PLAN.md).
+Le [runtime HTTP persistant](WEB_HTTP_RUNTIME.md) est livré ; CLI web et boucle agent restent à construire. Suite du [plan web](WEB_PENTEST_PLAN.md).
 
 ## Résultat attendu de W2/W3
 
@@ -331,8 +331,8 @@ Consultées le 16 novembre 2026 ; aucune dépendance nouvelle ni cible exécuté
 - [RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110) : sémantique HTTP, redirections et Retry-After ; les budgets et politiques ci-dessus sont les choix Argos.
 
 Le document est vérifié contre les contraintes actuelles du code. W2.2 livre
-montages, framing et contrôles DNS/TLS ; compteurs, preuves persistées et oracles
-restent à implémenter et mesurer. La préparation W1 est terminée ; les cibles corrigées,
+montages, framing et contrôles DNS/TLS ; W2.3 livre compteurs et preuves
+persistées. CLI, découverte et oracles restent à implémenter et mesurer. La préparation W1 est terminée ; les cibles corrigées,
 images et scores du corpus W1.2 restent à qualifier avec l'exécution.
 
 ## Bilan W2.1
@@ -356,4 +356,5 @@ images et scores du corpus W1.2 restent à qualifier avec l'exécution.
   et la vérification des reçus de preuve ne sont pas livrées par les DTO.
 
 **W2.2 livré** : voir le [bilan du transport](WEB_HTTP_TRANSPORT.md).
-Suite : W2.3, stockage, tickets, compteurs et cycle du runtime avant le CLI W3.
+**W2.3 livré** : voir le [bilan du runtime](WEB_HTTP_RUNTIME.md).
+Suite : W3.1, CLI et découverte HTTP déterministe, puis premier test W3.2.

@@ -1,6 +1,6 @@
-"""Internal isolated HTTP primitive. No CLI, durable ticket or mission dispatcher.
+"""Internal isolated HTTP primitive, called by the ticket-owning runtime.
 
-Only the future ticket-owning runtime may call this with a freshly revalidated
+Only the trusted ticket-owning runtime may call this with a freshly revalidated
 plan. A Python plan is not an execution grant. No host transport fallback.
 """
 
@@ -21,6 +21,7 @@ from argos.backend.core.network_policy import NetworkPolicy
 from argos.backend.core.network_worker import NetworkTools
 
 from .policy import PreparedWebRequest
+from .receipts import digest, request_data
 
 _CORE = Path(__file__).resolve().parents[2] / "core"
 _CA = "/etc/ssl/certs/ca-certificates.crt"
@@ -127,6 +128,10 @@ class HTTPWorker:
             "version": "argos-http-worker-v1",
             "configuration_sha256": plan.preflight.configuration_sha256,
             "request_id": str(plan.preflight.request.request_id),
+            "request_sha256": digest(request_data(plan.preflight.request)),
+            "timeout_ms": plan.preflight.timeout_ms,
+            "host_header": plan.host_header,
+            "tls_hostname": plan.tls_hostname,
             "target_ip": policy.target_ip,
             "connect_ip": policy.connect_ip,
             "port": plan.preflight.port,
@@ -160,11 +165,14 @@ class HTTPWorker:
         *,
         active: Callable[[], bool],
         cancel: Event | None = None,
+        expected_profile: dict | None = None,
     ) -> HTTPExchange:
         if not active() or cancel is not None and cancel.is_set():
             return HTTPExchange("cancelled", "cancelled", None, (), b"", False)
         policy = NetworkPolicy(plan.target_ip, (plan.preflight.port,))
         profile = self.profile(plan)
+        if expected_profile is not None and profile != expected_profile:
+            raise IsolationError("HTTP isolation profile changed")
         parts = urlsplit(plan.preflight.request.url)
         settings = {
             "connect_ip": policy.connect_ip,

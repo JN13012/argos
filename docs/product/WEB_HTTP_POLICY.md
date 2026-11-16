@@ -140,7 +140,7 @@ restant du snapshot sont comparés. Le corps retenu est plafonné à
 concurrence saturée, compteur épuisé, manque de capacité de preuve ou moins
 d'une seconde disponible donnent `budget_exhausted`. La demande réserve la
 capacité maximale de sortie ; acquisition atomique, débit, écriture de preuve
-et libération de la marge inutilisée restent W2.3.
+et libération de la marge inutilisée sont assurés par le [runtime W2.3](WEB_HTTP_RUNTIME.md).
 
 La liste conservatrice d'effets reconnaît notamment déconnexion, suppression,
 inscription et action métier explicite dans le chemin ou la query. Elle peut
@@ -152,7 +152,8 @@ cette heuristique.
 `PreparedWebRequest.transport_enabled` vaut toujours faux. Le plan n'est ni
 un objet sérialisable depuis l'entrée agent, ni une permission à présenter à
 un client HTTP alternatif. Le [confinement W2.2](WEB_HTTP_TRANSPORT.md) est
-livré ; verrou, tickets durables, audit et raccordement au runtime restent W2.3.
+livré ; le [runtime W2.3](WEB_HTTP_RUNTIME.md) ajoute verrou, tickets durables,
+audit et preuve. Ce plan seul demeure insuffisant pour autoriser une exécution.
 
 ## Autres contrats livrés
 
@@ -178,5 +179,5 @@ d'upgrade sans nouvelle signature, DNS mixte/périmé, IP littérales, headers,
 Les résultats finaux sont consignés dans le bilan W2.1 du
 [lot de réalisation](WEB_HTTP_EXECUTION.md). Aucun service n'est activé.
 **W2.2 livré** : [résolveur et transport isolé](WEB_HTTP_TRANSPORT.md), TLS,
-entrée privée et framing borné. Suite : W2.3, réservations durables, preuves
-et cycle du runtime avant l’ouverture du CLI W3.
+entrée privée et framing borné. **W2.3 livré** : [réservations, preuves et cycle
+du runtime](WEB_HTTP_RUNTIME.md). Suite : W3.1, CLI et découverte déterministe.

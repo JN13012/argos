@@ -109,9 +109,17 @@ class WebPolicy:
         self._database = database
         self._verifier = verifier
 
-    def _configuration(self, mission_id: UUID) -> WebExecutionConfig:
+    def configuration(
+        self, mission_id: UUID, *, connection: sqlite3.Connection | None = None
+    ) -> WebExecutionConfig:
+        """Reload the exact signed v2 grant for the trusted HTTP runtime."""
+        return self._configuration(mission_id, connection=connection)
+
+    def _configuration(
+        self, mission_id: UUID, *, connection: sqlite3.Connection | None = None
+    ) -> WebExecutionConfig:
         try:
-            with MissionStore(self._database) as store:
+            with MissionStore(self._database, connection=connection) as store:
                 saved = store.get(mission_id)
                 if saved is None or not saved.mission.is_active():
                     raise WebPolicyError(WebErrorCode.MISSION_INACTIVE)

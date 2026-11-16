@@ -9,14 +9,16 @@ La découverte anonyme est obligatoire ; les comptes enrichissent la couverture.
 La configuration web immuable est livrée : JSON, normalisation, périmètre
 hors ligne et liaison signée aux missions. Une mission web n'a pas de réseau
 IP implicite ; sa configuration est stockée dans une table additive. L'action
-HTTP reste refusée par la politique jusqu'au runtime persistant W2.3. Voir le
+HTTP générique reste refusée ; seul le runtime HTTP interne suit les tickets. Voir le
 [contrat W1.1](../product/WEB_CONFIG.md). Le
 [transport W1.3](../product/WEB_HTTP_EXECUTION.md) précise le chemin cible :
 résolution supervisée dans le runtime, IP épinglée, worker HTTP fixe, TLS vérifié
 et preuves expurgées. Les [contrats v2 et la politique hors ligne W2.1](../product/WEB_HTTP_POLICY.md)
 sont livrés. Le [transport isolé W2.2](../product/WEB_HTTP_TRANSPORT.md) et le
-résolveur supervisé sont qualifiés sur endpoints locaux ; tickets, preuves et
-compteurs durables restent W2.3. Aucun chemin utilisateur HTTP n’est ouvert.
+résolveur supervisé sont qualifiés sur endpoints locaux. Le
+[runtime W2.3](../product/WEB_HTTP_RUNTIME.md) ajoute tickets et compteurs
+persistants, preuves expurgées, audit et récupération sans renvoi implicite.
+Le CLI web reste à construire.
 Les adaptateurs navigateur, les sessions
 multi-rôles et les services de mission sont une cible à construire. Le contrôle
 IP/port livré ne suffit pas à isoler des origines web partageant une IP.
@@ -31,7 +33,7 @@ argos/
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
-│   └── attack/web/          Configuration v1/v2, politique, DNS supervisé et transport interne isolé
+│   └── attack/web/          Configuration, politique, DNS, transport isolé et runtime HTTP persistant
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
 ```

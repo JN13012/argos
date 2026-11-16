@@ -23,9 +23,10 @@ niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
   budgets et capacités, politique hors ligne et régressions v1. Aucun trafic.
 - [W2.2 livré](WEB_HTTP_TRANSPORT.md) : résolution supervisée, worker HTTP
   épinglé à une IP, TLS vérifié et IPC privé ; essais sur endpoints locaux.
-- **Prochain lot : W2.3**, runtime, tickets, compteurs et preuves durables ;
-  W3.1/W3.2 : CLI, découverte et
-  redirection ouverte avec recontrôle.
+- [W2.3 livré](WEB_HTTP_RUNTIME.md) : runtime HTTP, tickets et compteurs
+  persistants, preuves expurgées, audit et récupération sans renvoi implicite.
+- **Prochain lot : W3.1**, CLI et découverte déterministe depuis une URL ;
+  puis W3.2, redirection ouverte avec preuve et recontrôle.
 - Ajouter ensuite navigation anonyme et SPA, tests approfondis et boucle agent ;
   enrichir avec des comptes selon les accès disponibles.
 - Évaluer les capacités démontrées sur les applications client, avec comparaison

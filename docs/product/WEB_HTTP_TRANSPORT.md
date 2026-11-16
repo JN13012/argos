@@ -108,7 +108,7 @@ IP/port, DNS direct, UDP et modification du firewall restent refusés.
 Les montages HTTP fixes et refus d'entrée/exécutable supplémentaires sont
 contrôlés séparément ; les essais HTTP réels de cette tranche utilisent IPv4.
 
-**602 tests passent sous Python 3.12 et 3.14**, dont 567 tests réguliers et
+**À la livraison W2.2, 602 tests passent sous Python 3.12 et 3.14**, dont 567 tests réguliers et
 35 tests hôte activés, avec Ruff, formatage et Pyright propres. Le contrôle du
 manifest de benchmarks passe aussi ; les 12 cas sélectionnés restent non exécutés.
 
@@ -126,14 +126,10 @@ provisionnés temporairement sur cet hôte ; ils ne sont pas installés par cett
 étape. Un autre hôte doit provisionner ses dépendances, sinon le worker refuse.
 Aucun service externe, cible client ou benchmark vulnérable n'est exécuté ici.
 
-## Prochaine étape : W2.3
+## Suite : W3.1
 
-Construire le runtime HTTP persistant : propriétaire unique de la base,
-réservation atomique avant DNS, compteurs et débit globaux/par origine, deadline
-restante incluant DNS et attente, revalidation de mission avant lancement et
-commit, redirections contrôlées et backoff 429/503. Ajouter échanges et preuves
-expurgées liés aux tickets et aux empreintes des requêtes/profils complets,
-audit atomique, saturation et rollback injectés,
-arrêt/révocation puis crash/reprise sans renvoi implicite. Garder le refus du
-chemin utilisateur tant que ces invariants ne sont pas qualifiés. W3 ajoutera
-ensuite CLI, découverte et premier test de redirection ouverte.
+Le [runtime persistant W2.3](WEB_HTTP_RUNTIME.md) est livré : réservations avant
+DNS, quotas, revalidation transactionnelle, redirections, pauses, preuves
+expurgées et récupération sans renvoi. Ses 49 tests supplémentaires incluent
+quatre essais hôte du worker HTTP réel. Prochaine étape : CLI et découverte
+HTTP déterministe W3.1, puis preuve de redirection ouverte W3.2.

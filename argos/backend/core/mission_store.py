@@ -58,7 +58,15 @@ class MissionStore:
     workflow must be designed before mission activation is implemented.
     """
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(
+        self, path: str | Path, *, connection: sqlite3.Connection | None = None
+    ) -> None:
+        self._owns_connection = connection is None
+        if connection is not None:
+            # Trusted transaction caller already initialized this database.
+            self._db = connection
+            self._db.row_factory = sqlite3.Row
+            return
         path = str(path)
         if path != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -103,7 +111,8 @@ class MissionStore:
         return self
 
     def __exit__(self, *_exc: object) -> None:
-        self._db.close()
+        if self._owns_connection:
+            self._db.close()
 
     def create(self, record: MissionRecord) -> None:
         mission = record.mission

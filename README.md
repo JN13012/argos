@@ -89,8 +89,8 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **602 Python tests** validated on Python 3.12 and 3.14 with host isolation
-  qualification enabled (567 regular tests and 35 host tests requiring opt-in).
+- **651 Python tests** validated on Python 3.12 and 3.14 with host isolation
+  qualification enabled (612 regular tests and 39 host tests requiring opt-in).
   Owned local HTTP/TLS endpoints and synthetic processes, no client scans;
   repository-wide Ruff and pinned Pyright; GitHub Actions configuration covering backend and frontend.
 - **Mission network isolation:** the execution manager defaults to rootless
@@ -154,14 +154,16 @@ the worker, DNS/TLS controls, evidence and first verified web test.
 [W2.1 contracts and offline policy](docs/product/WEB_HTTP_POLICY.md) are implemented
 with signed v2 configuration. [W2.2 isolated HTTP transport](docs/product/WEB_HTTP_TRANSPORT.md)
 and supervised DNS are implemented and qualified on owned local endpoints.
-Next: W2.3, durable tickets, evidence and runtime lifecycle before the web CLI.
+[W2.3 persistent HTTP runtime](docs/product/WEB_HTTP_RUNTIME.md) now adds durable
+tickets, quotas, redacted receipts, audit and explicit recovery. Next: W3.1,
+the web CLI and deterministic discovery from a URL.
 
 | Stage | Status | Content |
 | --- | --- | --- |
 | Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
 | P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
 | P1 — Durable execution | P1.1–P1.4 validated locally | Isolated mission network integrated; real Nmap lab qualification and focused review remain |
-| W0–W9 — Web pentesting | W2.2 validated locally; W2.3 implementation next | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
+| W0–W9 — Web pentesting | W2.3 validated locally; W3.1 implementation next | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
 | P2 — Product workflow | After the web CLI workflow | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
 | Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
 | Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |
