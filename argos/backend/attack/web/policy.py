@@ -19,6 +19,7 @@ from argos.backend.core.isolated_worker import WorkerLimits
 from argos.backend.core.mission_store import MissionStore
 from argos.backend.core.policy import Action
 
+from .browser_config import WebBrowserConfig
 from .config import WebMissionConfig
 from .contracts import (
     ResolvedWebTarget,
@@ -28,6 +29,7 @@ from .contracts import (
     WebRequest,
 )
 from .execution_config import WebExecutionConfig, WebExecutionLimits
+from .navigation import NavigationPlan, NavigationRequest, NavigationUsage
 
 # A conservative stop-list, not a proof that arbitrary GET endpoints have no effects.
 _EFFECT_WORDS = frozenset(
@@ -112,7 +114,7 @@ class WebPolicy:
     def configuration(
         self, mission_id: UUID, *, connection: sqlite3.Connection | None = None
     ) -> WebExecutionConfig:
-        """Reload the exact signed v2 grant for the trusted HTTP runtime."""
+        """Reload the exact signed v2/v3 grant for the trusted HTTP runtime."""
         return self._configuration(mission_id, connection=connection)
 
     def _configuration(
@@ -137,6 +139,40 @@ class WebPolicy:
         if not isinstance(config, WebExecutionConfig):
             raise WebPolicyError(WebErrorCode.APPROVAL_INVALID)
         return config
+
+    def navigation_preflight(
+        self,
+        request: NavigationRequest,
+        *,
+        usage: WebBudgetUsage,
+        navigation_usage: NavigationUsage,
+        connection: sqlite3.Connection | None = None,
+    ) -> NavigationPlan:
+        """Offline checks only. Each future resource still needs an HTTP ticket."""
+        config = self._configuration(request.mission_id, connection=connection)
+        if not isinstance(config, WebBrowserConfig):
+            raise WebPolicyError(WebErrorCode.EFFECT_DENIED)
+        if (
+            navigation_usage.mission_id != request.mission_id
+            or navigation_usage.navigations_used >= config.browser.max_navigations
+            or navigation_usage.in_flight >= config.browser.concurrency
+        ):
+            raise WebPolicyError(WebErrorCode.BUDGET_EXHAUSTED)
+        http = self._preflight(
+            WebRequest(request.mission_id, request.url), config, usage, None
+        )
+        return NavigationPlan(
+            request=replace(request, url=http.request.url),
+            configuration_sha256=http.configuration_sha256,
+            limits=config.browser,
+            timeout_ms=min(
+                config.browser.navigation_seconds * 1000,
+                config.limits.duration_seconds * 1000 - usage.elapsed_ms,
+            ),
+            effective_body_bytes=min(
+                config.browser.resource_body_bytes, http.effective_body_bytes
+            ),
+        )
 
     def _preflight(
         self,

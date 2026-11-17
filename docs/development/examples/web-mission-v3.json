@@ -1,0 +1,20 @@
+{
+  "schema_version": 3,
+  "name": "Client web navigateur",
+  "seeds": ["https://app.example.com/"],
+  "capabilities": ["http.discover", "http.check_redirect", "browser.discover"],
+  "destination": {"kind": "external", "networks": []},
+  "scope": {
+    "origins": ["https://app.example.com"],
+    "excluded_paths": ["/logout"]
+  },
+  "browser": {
+    "max_navigations": 10,
+    "concurrency": 1,
+    "navigation_seconds": 30,
+    "max_resources": 64,
+    "resource_body_bytes": 524288,
+    "navigation_body_bytes": 8388608,
+    "max_links": 128
+  }
+}

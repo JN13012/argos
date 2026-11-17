@@ -14,21 +14,20 @@ Les comptes accessibles ou fournis enrichissent les tests. L’agent devra
 explorer, choisir ses hypothèses, exécuter, vérifier et produire rapport/recontrôle
 sans validation humaine entre les actions comprises dans sa configuration.
 
-**Prochaine implémentation : W4.2a, contrats et configuration navigateur.**
-Le [lot W4.2](WEB_BROWSER_RUNTIME.md) est préparé, non implémenté. Commencer par
-la configuration v3 et les états de navigation ; raccorder ensuite le relais
-HTTP durable, puis exposer la découverte SPA/API au CLI. Aucun autre grand
-chantier n’est requis avant cette tranche.
+**Prochaine implémentation : W4.2b, relais HTTP durable du navigateur.**
+Les contrats v3 et états de navigation W4.2a sont livrés et validés localement. Le [lot W4.2](WEB_BROWSER_RUNTIME.md) détaille la suite :
+raccorder les ressources aux tickets et reçus HTTP, puis exposer la découverte
+SPA/API au CLI en W4.2c. Aucun autre grand chantier n’est requis avant ce relais.
 
 ## Capacités disponibles et limites
 
 | Capacité | État réel |
 | --- | --- |
 | CLI web | Configuration, activation, découverte HTML, arrêt/reprise, status/report JSON, vérification et recontrôle du premier oracle |
-| Runtime HTTP | GET/HEAD, missions signées, DNS/TLS, contrôle de scope et d’effets, tickets, quotas, audit et preuves ; pas encore de sessions ni de corps POST |
+| Runtime HTTP | GET/HEAD, configurations signées v2/v3, DNS/TLS, contrôle de scope et d’effets, tickets, quotas, audit et preuves ; pas encore de sessions ni de corps POST |
 | Découverte HTML | Liens et paramètres observés, frontière persistante, raisons de refus et états partiels |
 | Premier oracle web | Redirection externe pilotée par un paramètre découvert : référence, deux marqueurs et recontrôle ; impact métier à qualifier |
-| Navigateur | Worker Chromium isolé et JavaScript qualifiés sur réponses de test en mémoire ; pas encore de navigation de mission CLI |
+| Navigateur | Worker Chromium isolé et JavaScript qualifiés sur réponses de test en mémoire ; contrats v3 et planification persistante ajoutés, sans navigation de mission CLI |
 | Autres outils web | ZAP, Nuclei, SQLmap, ffuf et Katana sont des candidats ; aucun de leurs adaptateurs de mission n’est livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client complète | À construire ; les preuves JSON et le premier recontrôle ne sont pas un rapport de pentest complet |
@@ -36,9 +35,10 @@ chantier n’est requis avant cette tranche.
 | API et interface | Santé HTTP reliée au frontend ; aucune interface métier de mission active |
 | Enum2Root / PromptLab | Références étudiées, sans intégration fonctionnelle complète |
 
-**Argos n’effectue pas encore un pentest web complet.** Le dernier bilan W4.1
-compte 760 tests locaux sous Python 3.12 et 3.14, dont 53 essais hôte activés.
-Ce bilan est une preuve de régression/isolation datée, pas une mesure du taux
+**Argos n’effectue pas encore un pentest web complet.** Le bilan W4.2a
+compte 849 tests locaux sous Python 3.12 et 3.14, dont 53 essais hôte activés
+et 89 nouveaux cas de contrats/navigation hors réseau. Ce bilan est une preuve
+de régression/isolation datée, pas une mesure du taux
 de failles détectées. Le corpus de 12 cas W1.2 est préparé, non exécuté.
 Les résultats de CI distante ne sont pas revérifiés par cette mise à jour.
 
@@ -58,7 +58,7 @@ Les résultats de CI distante ne sont pas revérifiés par cette mise à jour.
 
 | Lot | Statut | Livrable observable et critère de sortie |
 | --- | --- | --- |
-| W4.2a | Préparé | Configuration v3, budgets et états navigateur ; anciennes configurations et signatures inchangées, aucun trafic ajouté |
+| W4.2a | Validé localement | Configuration v3, budgets et états navigateur ; anciennes configurations et signatures inchangées, aucun trafic ajouté |
 | W4.2b | Préparé | Relais vers le runtime HTTP, ticket par ressource, remise après commit et deadlines ; panne de preuve = aucune remise au navigateur |
 | W4.2c | Préparé | Commande `browse`, frontière DOM/API, provenance et vues ; chaîne HTML → JS → API → lien dynamique sur HTTP/TLS réel, avec arrêt/reprise testés |
 | W4.3 | À détailler | Requêtes structurées avec méthodes/corps/headers nécessaires, redirections validées, formulaires, sessions anonymes et identités optionnelles séparées ; parcours et nettoyage sans fuite entre identités |

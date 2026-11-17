@@ -34,10 +34,10 @@ universelle sur des applications client.
 
 | Domaine | Documents |
 | --- | --- |
-| Configuration web | [W1 boîte noire](product/WEB_W1_BLACKBOX.md), [configuration W1.1](product/WEB_CONFIG.md), [exemples](development/examples/web-mission-v2.json) |
+| Configuration web | [W1 boîte noire](product/WEB_W1_BLACKBOX.md), [configuration W1.1](product/WEB_CONFIG.md), exemples [HTTP v2](development/examples/web-mission-v2.json) et [navigateur v3](development/examples/web-mission-v3.json) |
 | HTTP | [Spécification W1.3](product/WEB_HTTP_EXECUTION.md), [politique W2.1](product/WEB_HTTP_POLICY.md), [transport W2.2](product/WEB_HTTP_TRANSPORT.md), [runtime W2.3](product/WEB_HTTP_RUNTIME.md) |
 | Découverte et premier test | [CLI W3.1](product/WEB_CLI_DISCOVERY.md), [redirection/recontrôle W3.2](product/WEB_OPEN_REDIRECT.md) |
-| Navigateur | [Worker W4.1](product/WEB_BROWSER_WORKER.md), [intégration W4.2 préparée](product/WEB_BROWSER_RUNTIME.md) |
+| Navigateur | [Worker W4.1](product/WEB_BROWSER_WORKER.md), [contrats et intégration W4.2](product/WEB_BROWSER_RUNTIME.md) |
 | Évaluation web | [Corpus et limites](../benchmarks/web/README.md), [manifest pour l’évaluateur](../benchmarks/web/manifest.json) ; données de correction séparées des entrées de l’agent évalué |
 | Isolation | [Worker sans réseau](product/WORKER_ISOLATION.md), [réseau de mission](product/MISSION_NETWORK.md), [exécution P1](product/EXECUTION_P1.md) |
 | Fondations Nmap | [MVP](product/PENTEST_MVP.md), [signature](product/PENTEST_P131_ED25519.md), [exécution](product/PENTEST_P132_EXECUTION.md), [preuves](product/PENTEST_P133_EVIDENCE.md), [reconnaissance adaptative](product/PENTEST_P134_ADAPTIVE.md), [limites ouvertes P1.5](product/PENTEST_P135_HARDENING.md) |

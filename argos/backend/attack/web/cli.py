@@ -24,6 +24,7 @@ from argos.backend.core.mission_store import MissionStore
 from argos.backend.core.missions import Mission
 from argos.backend.core.network_worker import NetworkTools
 
+from .browser_config import WebBrowserConfig
 from .config import WebMissionConfig
 from .execution_config import WebExecutionConfig
 from .exploration import Exploration, summary
@@ -62,7 +63,7 @@ def add_parser(commands):
         )
         if name == "init":
             parser.add_argument("target", nargs="?", help="URL or domain")
-            parser.add_argument("--config", help="Explicit v2 configuration")
+            parser.add_argument("--config", help="Explicit v2/v3 configuration")
             parser.add_argument("--name", default="Web mission")
             parser.add_argument("--reference", default="web-cli")
             parser.add_argument("--expires-at", help="Aware ISO date; default 24 hours")
@@ -208,7 +209,7 @@ def dispatch(args: argparse.Namespace) -> int:
             )
         )
         if not isinstance(config, WebExecutionConfig):
-            raise ValueError("Executable v2 configuration required")
+            raise ValueError("Executable v2/v3 configuration required")
         expiry = (
             datetime.fromisoformat(args.expires_at)
             if args.expires_at
@@ -260,7 +261,7 @@ def dispatch(args: argparse.Namespace) -> int:
                 raise ValueError("Unknown web mission")
             config = WebMissionConfig.from_json(record.web_configuration)
             if not isinstance(config, WebExecutionConfig):
-                raise ValueError("Executable v2 required")
+                raise ValueError("Executable v2/v3 required")
             if args.public_key:
                 WebPolicy(path, verifier(args.public_key)).configuration(
                     args.mission_id, connection=store.db
@@ -278,6 +279,9 @@ def dispatch(args: argparse.Namespace) -> int:
                 discovery="anonymous_get_html",
                 confirmed_findings=0,
             )
+            if isinstance(config, WebBrowserConfig):
+                value["browser"] = json.loads(config.to_json())["browser"]
+                value["browser_execution"] = "not_connected"
         emit(value, args.json)
         return 0
     if action in ("status", "report"):

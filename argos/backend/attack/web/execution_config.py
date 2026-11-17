@@ -49,6 +49,7 @@ class WebExecutionLimits:
 @dataclass(frozen=True)
 class WebExecutionConfig(WebMissionConfig):
     VERSION: ClassVar[int] = 2
+    ALLOWED_CAPABILITIES: ClassVar[frozenset[str]] = HTTP_CAPABILITIES
     schema_version: int = 2
     capabilities: tuple[str, ...] = ("http.discover",)
     destination: DestinationProfile = field(default_factory=DestinationProfile)
@@ -60,7 +61,7 @@ class WebExecutionConfig(WebMissionConfig):
         ):
             raise ValueError("Expected typed HTTP execution sections")
         capabilities = _strings(self.capabilities, nonempty=True)
-        if not set(capabilities) <= HTTP_CAPABILITIES:
+        if not set(capabilities) <= self.ALLOWED_CAPABILITIES:
             raise ValueError("Unsupported HTTP capability")
         object.__setattr__(self, "capabilities", tuple(sorted(capabilities)))
         expected_scope = (
@@ -83,6 +84,11 @@ class WebExecutionConfig(WebMissionConfig):
 
     @classmethod
     def from_dict(cls, value: object) -> "WebExecutionConfig":
+        return cls(**cls._fields(value))
+
+    @classmethod
+    def _fields(cls, value: object, *, browser: bool = False) -> dict:
+        """Shared parsing; version-specific fields remain explicitly closed."""
         data = _keys(
             value,
             {
@@ -97,8 +103,10 @@ class WebExecutionConfig(WebMissionConfig):
                 "capabilities",
                 "destination",
                 "execution",
-            },
-            {"schema_version", "name", "seeds", "capabilities"},
+            }
+            | ({"browser"} if browser else set()),
+            {"schema_version", "name", "seeds", "capabilities"}
+            | ({"browser"} if browser else set()),
         )
         dest = _keys(data.get("destination", {}), {"kind", "networks"})
         destination = DestinationProfile(
@@ -118,7 +126,7 @@ class WebExecutionConfig(WebMissionConfig):
             {"origins", "subdomain_roots", "excluded_paths"},
             {"origins"},
         )
-        return cls(
+        return dict(
             name=data["name"],
             seeds=seeds,
             scope=scope_type(**scope_data),

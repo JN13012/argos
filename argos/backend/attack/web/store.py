@@ -18,6 +18,7 @@ from uuid import UUID
 from .contracts import WebBudgetUsage, WebErrorCode, WebRequest
 from .execution_config import WebExecutionConfig
 from .frontier import Frontier
+from .navigation_store import NavigationStore
 from .policy import WebPolicyError, WebPreflight
 from .receipts import (
     FINAL_STATES,
@@ -129,6 +130,7 @@ class WebStore:
         self.db.commit()
         Frontier(self.db).initialize()
         RedirectChecks(self.db).initialize()
+        NavigationStore(self).initialize()
 
     def _event(self, request_id: UUID, decision: str) -> None:
         row = self._row(request_id)

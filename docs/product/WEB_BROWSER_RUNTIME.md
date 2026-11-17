@@ -1,6 +1,7 @@
 # W4.2 — Navigation de mission et découverte SPA/API
 
-Statut : **préparé, non implémenté**. Dépendances livrées :
+Statut : **W4.2a livré et validé localement ; W4.2b/c préparés**.
+Dépendances livrées :
 [runtime HTTP W2.3](WEB_HTTP_RUNTIME.md), [CLI W3.1](WEB_CLI_DISCOVERY.md),
 [oracle W3.2](WEB_OPEN_REDIRECT.md), [worker navigateur W4.1](WEB_BROWSER_WORKER.md).
 
@@ -16,7 +17,7 @@ Cette tranche fournit une découverte anonyme supplémentaire. Elle ne livre
 ni un agent LLM, ni de nouvelles familles de vulnérabilités, ni un pentest
 complet. Une API observée n'est pas une API testée ou une vulnérabilité.
 
-## Écart concret dans le code actuel
+## Écart initial et découpage de réalisation
 
 | Point existant | Travail nécessaire |
 | --- | --- |
@@ -69,11 +70,12 @@ complet. Une API observée n'est pas une API testée ou une vulnérabilité.
    ressource vue, échange exécuté, liens observés et tests de vulnérabilité.
    Le rendu peut être partiel même si des requêtes HTTP ont réussi.
 
-## Budgets à signer
+## Budgets signés en v3
 
-La section navigateur v3 devra valider des entiers bornés, refuser les champs
-inconnus et exposer ses limites dans `web plan`. Valeurs de départ proposées
-pour l'implémentation, sans changer le profil système qualifié en W4.1 :
+La section `browser` est obligatoire en v3 ; `{}` sélectionne ses valeurs par
+défaut. Elle valide des entiers bornés, refuse les champs inconnus et expose
+ses limites dans `web plan`. Valeurs implémentées, sans changer le profil
+système qualifié en W4.1 :
 
 | Budget | Valeur de départ / plafond de cette tranche |
 | --- | --- |
@@ -138,9 +140,9 @@ jamais de la cible ou du modèle. La sortie conserve UUID, compteurs, hashes,
 états et raisons stables ; chemins et valeurs de query restent privés.
 Une mission v2 demandant `browse` sera refusée clairement avant lancement.
 
-## Point de départ de W4.2a
+## Contrat de livraison de W4.2a
 
-Première tâche d’implémentation, sans lancer Chromium ni ajouter de trafic :
+Première tranche, sans lancer Chromium ni ajouter de trafic :
 
 1. Définir les contrats de navigation et la section navigateur v3, sans élargir
    `HTTP_CAPABILITIES` ni permettre une requête navigateur dans `WebRequest`.
@@ -155,9 +157,106 @@ Première tâche d’implémentation, sans lancer Chromium ni ajouter de trafic 
 5. Consigner le bilan du sous-lot et mettre à jour sa ligne de roadmap avant
    de raccorder le relais W4.2b.
 
+### Implémentation et limites
+
+- `browser_config.py` : configuration v3 explicite, `browser.discover` et
+  `http.discover` obligatoires, budgets signés. Les capacités HTTP restent
+  fermées aux deux capacités v2 ; aucune conversion navigateur → requête HTTP.
+- `navigation.py` : requête liée à mission/run/route, usage, plan hors réseau
+  et snapshot expurgé. `WebPolicy.navigation_preflight` recharge la signature,
+  vérifie scope/effets et budgets HTTP/navigateur, borne durée et corps.
+- `navigation_store.py` : tables versionnées additives de navigations et
+  ressources, liaisons vérifiées à la configuration et à la frontière,
+  propriété, empreintes, réservation, annulation et récupération explicite.
+  Chaque écriture est une transaction courte ; aucune action réseau.
+- États utilisables : `pending` → `reserved` → `cancelled` ou `interrupted` ;
+  annulation depuis `pending` possible. Une réservation consomme une tentative
+  même après interruption. Au plus dix lignes de planification par mission,
+  y compris annulations, pour borner également les métadonnées. Les états de
+  succès et les lignes de ressources sont refusés à la lecture dans cette
+  tranche : le relais durable devra apporter leurs contrats et preuves.
+- Le schéma de ressources est réservé pour W4.2b ; aucune ressource n'est
+  encore écrite. Le hash de profil de réservation est une entrée interne de
+  confiance, pas une vérification de l'installation Chromium. La qualification
+  du profil réel et la réservation des octets de preuves relèvent de W4.2b.
+- Une réservation contrôle à nouveau la mission dans sa transaction, partage
+  l'horloge et les budgets HTTP, et utilise le slot navigateur distinct. La
+  récupération explicite marque les réservations interrompues sans relecture
+  de page ni attribution de succès. Elle n'est pas encore raccordée au runtime
+  ou à la commande CLI ; ce raccordement appartient à W4.2b/c.
+- Les lectures navigateur d'une ancienne base renvoient un usage vide sans
+  créer de table. Un schéma partiel/inconnu est refusé. Initialiser un store
+  en écriture ajoute les tables ; `status/report` restent sans migration.
+- `web init --config` accepte v2/v3, conserve v2 par défaut ; `web plan`
+  affiche les budgets v3 avec `browser_execution: not_connected`. Le reste
+  du CLI continue uniquement les capacités HTTP existantes, sans navigateur.
+
+[Exemple v3](../development/examples/web-mission-v3.json). Les représentations
+v1/v2 n'ajoutent aucun champ navigateur ; les signatures lient toute la v3.
+La durée de navigation peut dépasser celle d'une requête HTTP ; chaque
+ressource devra néanmoins respecter les deux deadlines lors du relais.
+
+### Validation W4.2a
+
+Les essais de `tests/test_web_navigation.py` interdisent explicitement sockets,
+DNS, worker HTTP, navigateur et lancement de worker. Ils couvrent budgets et
+enveloppes invalides, anciennes configurations, signature modifiée, refus
+d'effet/périmètre, durée restante, propriété, stop, concurrence, révocation,
+rollback transactionnel, récupération, snapshots privés/expurgés, corruption,
+schémas anciens/partiels et sortie `plan`.
+
+Bilan du 17 novembre 2026 :
+
+| Vérification | Résultat |
+| --- | --- |
+| Tests de contrats/navigation seuls | 89 réussis, réseau et workers interdits dans les essais |
+| Suite complète Python 3.14.6 | 849 réussis en 175,08 s, aucun ignoré |
+| Suite complète Python 3.12.15 | 849 réussis en 177,03 s, aucun ignoré |
+| Ruff lint et formatage | Validés sur tout le dépôt |
+| Pyright | 0 erreur, 0 avertissement |
+| JSON v1/v2 comparé au code du commit `fef5ffd` | Identique sur les configurations de référence ; anciennes signatures revérifiées par les tests |
+| Exemple v3, liens locaux et `git diff --check` | Validés |
+| Wheel et sdist hors ligne | Construits ; nouveaux modules inclus, frontend/node_modules exclus |
+| Contrats v3 depuis la wheel extraite hors checkout | Chargement et aller-retour validés |
+
+Les deux suites complètes incluent 796 cas réguliers et 53 essais hôte.
+Elles sont lancées avec la configuration hôte W4.1 existante :
+
+```bash
+ARGOS_TEST_ISOLATION=1 ARGOS_TEST_NETWORK=1 ARGOS_TEST_BROWSER=1 \
+ARGOS_SLIRP_PATH=/tmp/argos-network-tools/usr/bin/slirp4netns \
+ARGOS_SLIRP_LIBRARY=/tmp/argos-network-tools/usr/lib/x86_64-linux-gnu/libslirp.so.0 \
+ARGOS_BROWSER_CORE=/home/cyber/work/argos/tools/browser/node_modules/playwright-core \
+ARGOS_BROWSER_ENGINE=/home/cyber/.cache/ms-playwright/chromium_headless_shell-1255/chrome-headless-shell-linux64 \
+.venv/bin/python -m pytest -q -o faulthandler_timeout=30
+```
+
+Même commande sous Python 3.12 en remplaçant l'interpréteur par
+`/tmp/argos-stabilization-py312/bin/python`. Les chemins `/tmp` désignent les
+outils provisionnés pour cet hôte ; ils ne sont pas des dépendances embarquées.
+Construction : `UV_CACHE_DIR=/tmp/argos-uv-cache uv build --offline --wheel
+--sdist --out-dir /tmp/argos-w42a-dist`.
+
+Ces résultats vérifient les contrats et les régressions des workers existants.
+Aucune navigation de mission nouvelle ni évaluation de détection de failles
+n'a été exécutée. L'acceptation finale W4.2 reste ouverte ; elle exige W4.2b/c.
+
+## Point de départ de W4.2b
+
+1. Ajouter le contrat ressource/ticket et sa validation, puis lier ce contrat
+   atomiquement dans `WebStore.create/finish`, avec son quota de preuves.
+2. Ajouter un passage interne à usage unique du `HTTPExchange` après commit ;
+   conserver le retour public de `WebRuntime.run` sans corps ni headers privés.
+3. Construire le médiateur sur le thread propriétaire, sous `operation()`,
+   avec contrôles d'activité parent/enfant et deadline minimale propagée dans
+   attente de débit, résolution et worker ; ne pas ouvrir de transaction réseau.
+4. Raccorder arrêt/récupération et transitions vérifiées. Démontrer concurrence
+   HTTP égale à un, refus de remise après panne/arrêt/deadline et absence de
+   relance implicite avant de préparer l'exposition CLI W4.2c.
+
 ## Ordre des commits et critères d'acceptation
 
-- [ ] **W4.2a — Contrats et configuration** : v3, budgets, modèles de navigation,
+- [x] **W4.2a — Contrats et configuration** : v3, budgets, modèles de navigation,
   schéma additif, intégrité et états ; aucun trafic nouveau. Régressions des
   configurations, signatures et reçus v1/v2 compris.
 - [ ] **W4.2b — Relais HTTP durable** : liaison ticket/ressource, remise après
