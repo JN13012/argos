@@ -126,10 +126,11 @@ provisionnés temporairement sur cet hôte ; ils ne sont pas installés par cett
 étape. Un autre hôte doit provisionner ses dépendances, sinon le worker refuse.
 Aucun service externe, cible client ou benchmark vulnérable n'est exécuté ici.
 
-## Suite : W3.2
+## Suite : W4.1
 
 Le [runtime persistant W2.3](WEB_HTTP_RUNTIME.md) est livré : réservations avant
 DNS, quotas, revalidation transactionnelle, redirections, pauses, preuves
 expurgées et récupération sans renvoi. Ses 49 tests supplémentaires incluent
 quatre essais hôte du worker HTTP réel. Le [CLI et la découverte W3.1](WEB_CLI_DISCOVERY.md)
-sont livrés. Prochaine étape : preuve de redirection ouverte W3.2.
+sont livrés, ainsi que [l’oracle et le recontrôle W3.2](WEB_OPEN_REDIRECT.md).
+Prochaine étape : navigateur anonyme confiné W4.1.

@@ -29,6 +29,7 @@ from .receipts import (
     receipt,
     request_data,
 )
+from .redirect_checks import RedirectChecks
 
 
 class WebDeferred(RuntimeError):
@@ -127,6 +128,7 @@ class WebStore:
         """)
         self.db.commit()
         Frontier(self.db).initialize()
+        RedirectChecks(self.db).initialize()
 
     def _event(self, request_id: UUID, decision: str) -> None:
         row = self._row(request_id)
@@ -349,6 +351,7 @@ class WebStore:
                 ),
             )
             self._event(request.request_id, "submitted")
+            RedirectChecks(self.db).attach(request, owner_id)
             if route_id is not None:
                 Frontier(self.db).attach_request(route_id, request.request_id, owner_id)
 
@@ -652,6 +655,7 @@ class WebStore:
                     (pause_until, int(suspended), row["mission_id"], row["origin"]),
                 )
             self._event(request_id, "terminal")
+            RedirectChecks(self.db).record(self, request_id, payload)
 
     @checked_read
     def evidence(self, request_id: UUID) -> dict | None:
@@ -664,6 +668,7 @@ class WebStore:
                 raise WebIntegrityError("Missing HTTP terminal receipt")
             return None
         payload = json.loads(evidence["payload_json"])
+        RedirectChecks(self.db).validate_receipt(request_id, payload)
         ticket = self.ticket(request_id)
         profile = (
             json.loads(ticket["profile_json"])

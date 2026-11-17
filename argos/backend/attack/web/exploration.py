@@ -11,6 +11,7 @@ from .contracts import WebErrorCode, WebRequest
 from .frontier import GAPS, Frontier
 from .policy import WebPolicyError
 from .receipts import WebIntegrityError, WebPersistenceError, digest
+from .redirect_checks import RedirectChecks
 from .runtime import WebRuntime
 from .store import WebStore
 
@@ -54,6 +55,7 @@ def summary(store: WebStore, run_id: UUID, *, details: bool = False) -> dict:
     )
     if details:
         value["surface"] = observations
+    value.update(RedirectChecks(store.db).report(store, run_id))
     return value
 
 

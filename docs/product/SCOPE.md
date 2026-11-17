@@ -27,8 +27,10 @@ niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
   persistants, preuves expurgées, audit et récupération sans renvoi implicite.
 - [W3.1 livré](WEB_CLI_DISCOVERY.md) : CLI web, frontière persistante, liens et
   paramètres observés, sorties expurgées, arrêt et reprise explicite.
-- **Prochain lot : W3.2**, redirection ouverte avec preuve, témoin corrigé
-  et recontrôle ; aucune vulnérabilité confirmée par la découverte seule.
+- [W3.2 livré](WEB_OPEN_REDIRECT.md) : redirection externe pilotée par un
+  paramètre découvert, trois preuves, témoin corrigé et recontrôle explicite.
+- **Prochain lot : W4.1**, navigation anonyme dans un navigateur confiné,
+  budgets/arrêt et preuves ; découverte SPA et API observées ensuite.
 - Ajouter ensuite navigation anonyme et SPA, tests approfondis et boucle agent ;
   enrichir avec des comptes selon les accès disponibles.
 - Évaluer les capacités démontrées sur les applications client, avec comparaison

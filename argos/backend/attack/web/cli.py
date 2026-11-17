@@ -30,6 +30,8 @@ from .exploration import Exploration, summary
 from .frontier import Frontier
 from .policy import WebPolicy, WebPolicyError
 from .receipts import WebIntegrityError, WebPersistenceError, digest
+from .redirect_checks import RedirectChecks
+from .redirect_verification import RedirectVerification
 from .runtime import WebRuntime
 from .store import WebStore
 from .transport import HTTPWorker
@@ -49,6 +51,8 @@ def add_parser(commands):
         "stop",
         "resume",
         "report",
+        "check",
+        "retest",
     ):
         parser = actions.add_parser(name)
         parser.set_defaults(action="web_" + name)
@@ -68,9 +72,11 @@ def add_parser(commands):
             target = parser.add_mutually_exclusive_group(required=True)
             target.add_argument("--run-id", type=UUID)
             target.add_argument("--mission-id", type=UUID)
+        elif name == "retest":
+            parser.add_argument("--check-id", type=UUID, required=True)
         else:
             parser.add_argument("--run-id", type=UUID, required=True)
-        if name in ("activate", "run", "resume", "plan"):
+        if name in ("activate", "run", "resume", "plan", "check", "retest"):
             parser.add_argument(
                 "--public-key",
                 required=name != "plan",
@@ -80,7 +86,7 @@ def add_parser(commands):
             parser.add_argument(
                 "--approval", required=True, help="Offline-issued SignedApproval JSON"
             )
-        if name in ("run", "resume"):
+        if name in ("run", "resume", "check", "retest"):
             parser.add_argument(
                 "--slirp",
                 default="/usr/bin/slirp4netns",
@@ -334,13 +340,40 @@ def dispatch(args: argparse.Namespace) -> int:
             path, verifier(args.public_key), worker=worker, stop=stopped
         ) as runtime:
             exploration = Exploration(runtime)
-            if action == "run":
-                run_id = exploration.start(args.mission_id)
+            if action in ("check", "retest"):
+                with WebStore(path) as store:
+                    run_id = (
+                        UUID(RedirectChecks(store.db).case(args.check_id)[0]["run_id"])
+                        if action == "retest"
+                        else args.run_id
+                    )
+                print(f"Run ID: {run_id}", file=sys.stderr, flush=True)
+                value = RedirectVerification(runtime).run(
+                    run_id, retest=args.check_id if action == "retest" else None
+                )
             else:
-                run_id = args.run_id
-                exploration.resume(run_id)
-            print(f"Run ID: {run_id}", file=sys.stderr, flush=True)
-            value = exploration.run(run_id)
+                if action == "run":
+                    run_id = exploration.start(args.mission_id)
+                else:
+                    run_id = args.run_id
+                    exploration.resume(run_id)
+                print(f"Run ID: {run_id}", file=sys.stderr, flush=True)
+                value = exploration.run(run_id)
+                with WebStore(path) as store:
+                    mission_id = UUID(Frontier(store.db).run(run_id)["mission_id"])
+                config = runtime.policy.configuration(mission_id)
+                if (
+                    "http.check_redirect" in config.capabilities
+                    and value["status"] in ("completed", "partial")
+                    and value["reason"]
+                    not in (
+                        "isolation_unavailable",
+                        "profile_changed",
+                        "evidence_failed",
+                    )
+                    and not stopped.is_set()
+                ):
+                    value = RedirectVerification(runtime).run(run_id)
         emit(value, args.json)
         if received:
             return 128 + received[0]

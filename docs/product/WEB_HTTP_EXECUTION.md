@@ -1,8 +1,8 @@
 # W1.3 — Première tranche HTTP et CLI
 
-Statut : **W3.1 livré et validé localement**, premier test W3.2 à construire.
+Statut : **W3.2 livré et validé localement**, navigateur anonyme W4.1 à préparer.
 Voir les [contrats W2.1](WEB_HTTP_POLICY.md) et le [transport W2.2](WEB_HTTP_TRANSPORT.md).
-Le [runtime HTTP persistant](WEB_HTTP_RUNTIME.md) et le [CLI/découverte](WEB_CLI_DISCOVERY.md) sont livrés ; boucle agent et tests vérifiés restent à construire. Suite du [plan web](WEB_PENTEST_PLAN.md).
+Le [runtime HTTP persistant](WEB_HTTP_RUNTIME.md) et le [CLI/découverte](WEB_CLI_DISCOVERY.md) sont livrés ; [le premier oracle W3.2 et son recontrôle](WEB_OPEN_REDIRECT.md) aussi. Boucle agent et autres familles restent à construire. Suite du [plan web](WEB_PENTEST_PLAN.md).
 
 ## Résultat attendu de W2/W3
 
@@ -315,7 +315,7 @@ ne doivent ouvrir aucune socket ; l'absence de transport n'est pas compensée
 par un appel HTTPX direct dans le CLI ou dans les tests d'intégration produit.
 
 Commandes `argos web init`, `plan`, `activate`, `run`, `status`, `stop`, `resume`
-et `report` livrées en W3.1 ; `retest` reste à construire. Un import Python n'autorise
+et `report` livrées en W3.1 ; `check` et `retest` sont livrées en W3.2. Un import Python n'autorise
 pas un transport hôte alternatif. Réutiliser les services derrière le CLI pour
 la future API. Les contrats d’erreurs, sorties et codes du CLI sont documentés dans
 [W3.1](WEB_CLI_DISCOVERY.md), sans confondre découverte et pentest complet.
@@ -358,4 +358,5 @@ images et scores du corpus W1.2 restent à qualifier avec l'exécution.
 **W2.2 livré** : voir le [bilan du transport](WEB_HTTP_TRANSPORT.md).
 **W2.3 livré** : voir le [bilan du runtime](WEB_HTTP_RUNTIME.md).
 **W3.1 livré** : voir le [bilan CLI/découverte](WEB_CLI_DISCOVERY.md).
-Suite : W3.2, première preuve de redirection ouverte et recontrôle.
+**W3.2 livré** : voir le [bilan vérification/recontrôle](WEB_OPEN_REDIRECT.md).
+Suite : W4.1, navigation anonyme confinée.

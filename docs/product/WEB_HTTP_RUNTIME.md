@@ -3,7 +3,7 @@
 Le runtime HTTP interne est implémenté : demandes, tickets, quotas, échanges
 expurgés, couverture et audit persistent dans la base des missions. Il réutilise
 le [transport isolé W2.2](WEB_HTTP_TRANSPORT.md). Le [CLI et la découverte W3.1](WEB_CLI_DISCOVERY.md)
-le consomment désormais ; la première détection vérifiée reste W3.2.
+le consomment désormais, ainsi que [la vérification et le recontrôle W3.2](WEB_OPEN_REDIRECT.md).
 La politique générale n'autorise toujours aucun appel HTTP générique ; seul ce
 chemin interne possède le cycle de tickets et de revalidation décrit ici.
 
@@ -137,7 +137,7 @@ ne sont copiés dans cette preuve. Les erreurs ne reprennent pas les exceptions
 brutes. Cette approche évite de prétendre qu'une regex expurge tout contenu.
 Le hash couvre la preuve expurgée, sans publier un hash du corps brut. L'extraction
 d'observations propres à une capacité, notamment les nonces de redirection,
-sera ajoutée avec cette capacité en W3.2.
+est ajoutée avec la capacité W3.2, sans exposition des Locations arbitraires.
 
 La requête originale nécessaire à une reprise `pending`, le profil technique et
 la résolution restent dans la zone privée de la base, en clair. Pas de chiffrement
@@ -186,7 +186,7 @@ hôte sont celles du [rapport W2.2](WEB_HTTP_TRANSPORT.md#validation).
 capture déterministe bornée, frontière persistante, lecture seule des sorties,
 stop et reprise, avec preuve/capture/nouveaux liens dans la même transaction.
 
-Suite : **W3.2**, route et paramètre découverts, comparaison avec deux marqueurs
-synthétiques jamais contactés, preuve de redirection ouverte, témoin corrigé
-et recontrôle. Aucun benchmark W1.2 ou cible client n'est évalué par W2.3/W3.1 ;
-l'agent LLM, le navigateur, les comptes et les autres familles restent au plan.
+[W3.2 est livré](WEB_OPEN_REDIRECT.md) : route et paramètre découverts, référence,
+deux marqueurs jamais contactés, constat contrôlé par oracle, témoin corrigé
+et recontrôle. Suite : W4.1, navigateur anonyme confiné. Aucun benchmark W1.2
+ou client réel n'est évalué par ces lots ; l'agent et les autres familles restent au plan.

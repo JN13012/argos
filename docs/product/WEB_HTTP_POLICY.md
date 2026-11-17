@@ -181,4 +181,5 @@ Les résultats finaux sont consignés dans le bilan W2.1 du
 **W2.2 livré** : [résolveur et transport isolé](WEB_HTTP_TRANSPORT.md), TLS,
 entrée privée et framing borné. **W2.3 livré** : [réservations, preuves et cycle
 du runtime](WEB_HTTP_RUNTIME.md). [W3.1 livre le CLI et la découverte](WEB_CLI_DISCOVERY.md) ;
-suite W3.2, premier test vérifié.
+[W3.2 livre le premier oracle et le recontrôle](WEB_OPEN_REDIRECT.md).
+Suite W4.1, navigation anonyme confinée.

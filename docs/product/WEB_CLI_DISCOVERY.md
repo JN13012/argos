@@ -4,7 +4,8 @@ Argos peut maintenant partir d'une URL, explorer les liens HTML inclus et
 conserver une surface observée depuis le terminal. Il utilise le runtime HTTP
 signé, les tickets et le worker isolé existants. Cette étape réalise la
 découverte anonyme ; elle ne confirme aucune vulnérabilité et ne constitue pas
-encore un pentest web complet. La première capacité de vérification reste W3.2.
+encore un pentest web complet. La [vérification W3.2](WEB_OPEN_REDIRECT.md)
+complète désormais la découverte ; ce bilan décrit W3.1 à sa livraison.
 
 ## Commandes livrées
 
@@ -137,9 +138,9 @@ encodages et APIs non HTML demandent les capacités suivantes du plan.
 
 `completed` signifie seulement que cette frontière est épuisée. Login, réponse
 partielle, contenu non interprété ou limite donnent une couverture partielle.
-Un lien exclu est distingué d'une URL incluse non testée. Le champ
-`confirmed_findings` reste zéro : 200, 302 ou un formulaire ne confirme aucune
-vulnérabilité. Les preuves HTTP restent séparées de cette classification de
+Un lien exclu est distingué d'une URL incluse non testée. La découverte seule ne produit aucun constat : 200, 302 ou un formulaire ne
+confirme aucune vulnérabilité. `confirmed_findings` est désormais alimenté
+uniquement par l’oracle et les reçus de [W3.2](WEB_OPEN_REDIRECT.md). Les preuves HTTP restent séparées de cette classification de
 surface ; l'une ne transforme pas l'autre en constat vérifié.
 
 Les sorties ordinaires contiennent IDs, empreintes d'URL, profondeur, états,
@@ -182,7 +183,7 @@ compatibilité des reçus, sorties CLI et lecture sans mutation. Quatre tests h�
 lancent réellement le CLI dans des processus séparés, avec le worker rootless
 et une application HTTP locale : découverte et rapport, commande stop, SIGINT,
 processus tué puis reprise sans répétition des requêtes déjà envoyées.
-**685 tests passent sous Python 3.12 et 3.14**, dont 642 tests réguliers et
+**À la livraison W3.1, 685 tests passent sous Python 3.12 et 3.14**, dont 642 tests réguliers et
 43 tests hôte activés explicitement. Ruff, formatage et Pyright passent aussi.
 Le contrôle du manifest W1.2 reste valide ; ses défis ne sont pas encore exécutés.
 
@@ -191,9 +192,7 @@ Les dépendances sont celles du [transport W2.2](WEB_HTTP_TRANSPORT.md#validatio
 identifiés par empreintes, jamais des champs de requête accessibles au modèle.
 Aucune dépendance globale n'est installée par ce lot.
 
-**Suite : W3.2**, première preuve de redirection ouverte : route et paramètre
-réellement découverts, réponse de référence, deux marqueurs synthétiques distincts,
-absence de DNS/connexion vers ces marqueurs, témoin corrigé et recontrôle.
-Ajouter une observation spécifique autorisée dans la preuve ; ne pas déduire
-une vulnérabilité du seul header Location. Le navigateur, l'agent LLM et le
-catalogue complet de tests restent aux étapes suivantes du plan.
+**W3.2 livré** : [vérification de redirection ouverte et recontrôle](WEB_OPEN_REDIRECT.md).
+`run/resume` enchaînent les sondes si la capacité est signée ; `check` et `retest`
+sont aussi disponibles. Le rapport garde les trois preuves, l'historique et les
+résultats non reproduits/incertains. Suite : W4.1, navigateur anonyme confiné.

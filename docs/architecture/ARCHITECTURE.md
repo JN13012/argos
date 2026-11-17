@@ -1,6 +1,6 @@
 # Argos — Architecture
 
-État des sources au 16 novembre 2026. Monolithe modulaire, package Python unique,
+État des sources au 17 novembre 2026. Monolithe modulaire, package Python unique,
 frontend React/TypeScript/Vite séparé pour son outillage.
 
 Priorité de réalisation : [pentest web autonome depuis le CLI](../product/WEB_PENTEST_PLAN.md).
@@ -20,7 +20,9 @@ résolveur supervisé sont qualifiés sur endpoints locaux. Le
 persistants, preuves expurgées, audit et récupération sans renvoi implicite.
 Le [CLI W3.1](../product/WEB_CLI_DISCOVERY.md) réalise la découverte HTML
 anonyme avec frontière persistante, capture atomique et arrêt/reprise.
-Le premier test de vulnérabilité reste W3.2.
+Le [vérificateur W3.2](../product/WEB_OPEN_REDIRECT.md) lie référence, deux
+sondes à marqueurs, sources de découverte et recontrôle. Les constats sont
+issus de cet oracle vérifié, jamais du seul statut HTTP ou du modèle.
 Les adaptateurs navigateur, les sessions
 multi-rôles et les services de mission sont une cible à construire. Le contrôle
 IP/port livré ne suffit pas à isoler des origines web partageant une IP.
@@ -35,7 +37,7 @@ argos/
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
-│   └── attack/web/          Configuration, runtime HTTP, CLI, parseur et frontière persistante
+│   └── attack/web/          Runtime HTTP, CLI, frontière, oracle de redirection et recontrôle
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
 ```

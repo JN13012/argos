@@ -37,6 +37,7 @@ from .receipts import (
     digest,
     receipt,
 )
+from .redirect_checks import RedirectChecks
 from .resolver import WebResolver
 from .store import WebDeferred, WebStore
 from .transport import HTTPExchange, HTTPWorker
@@ -113,6 +114,7 @@ class WebRuntime:
                 store.initialize()
                 self.recovered = store.reconcile()
                 Frontier(store.db).reconcile()
+                RedirectChecks(store.db).reconcile()
         except BaseException:
             self._ownership.close()
             raise
@@ -241,7 +243,9 @@ class WebRuntime:
             return False
         try:
             with WebStore(self.database) as store:
-                if Frontier(store.db).stop_for(request.request_id):
+                if Frontier(store.db).stop_for(request.request_id) or RedirectChecks(
+                    store.db
+                ).stopped(request.request_id):
                     return False
             config = self.policy.configuration(request.mission_id)
             return digest(json.loads(config.to_json())) == expected
@@ -260,6 +264,7 @@ class WebRuntime:
             or event.is_set()
             or self.stop.is_set()
             or Frontier(connection).stop_for(request.request_id)
+            or RedirectChecks(connection).stopped(request.request_id)
         ):
             return False
         try:
@@ -293,7 +298,9 @@ class WebRuntime:
         try:
             while True:
                 with WebStore(self.database) as store:
-                    stopped = Frontier(store.db).stop_for(request_id)
+                    stopped = Frontier(store.db).stop_for(request_id) or RedirectChecks(
+                        store.db
+                    ).stopped(request_id)
                 if event.is_set() or self.stop.is_set() or stopped:
                     return self._finish(
                         request, event, error="cancelled", state="cancelled"
@@ -535,6 +542,12 @@ class WebRuntime:
                             self._now(),
                             prepared.preflight.execution_limits.max_retry_after_seconds,
                         )
+                    if payload["state"] == "completed" and exchange is not None:
+                        observation = RedirectChecks(store.db).observe(
+                            request, exchange
+                        )
+                        if observation is not None:
+                            payload["redirect_check"] = observation
                     store.finish(
                         request.request_id,
                         self.owner,
