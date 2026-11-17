@@ -32,7 +32,7 @@ niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
 - [W4.1 livré](WEB_BROWSER_WORKER.md) : primitive navigateur anonyme isolée,
   rendu JavaScript, relais borné, arrêt et nettoyage qualifiés sur fixtures.
   Aucun navigateur exposé aux missions CLI à ce stade.
-- **Prochain lot : W4.2**, raccordement aux missions signées, tickets HTTP,
+- **Prochain lot : [W4.2 préparé](WEB_BROWSER_RUNTIME.md)**, raccordement aux missions signées, tickets HTTP,
   preuves persistantes et découverte SPA/API depuis le CLI.
 - Ajouter ensuite parcours SPA approfondis, tests web et boucle agent ;
   enrichir avec des comptes selon les accès disponibles.

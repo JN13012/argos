@@ -163,8 +163,8 @@ frontier, redacted status/report, stop and explicit resume.
 baseline and two marker probes, retains evidence and supports explicit retest.
 [W4.1 browser worker](docs/product/WEB_BROWSER_WORKER.md) adds isolated anonymous
 JavaScript rendering and a bounded Unix relay, qualified on owned fixtures.
-Next: W4.2, connect this primitive to signed missions, durable HTTP tickets and
-SPA/API discovery. The browser is not exposed through the mission CLI yet.
+Next: [W4.2 implementation plan](docs/product/WEB_BROWSER_RUNTIME.md), prepared
+for signed missions, durable HTTP tickets and SPA/API discovery. The browser is not exposed through the mission CLI yet.
 
 | Stage | Status | Content |
 | --- | --- | --- |

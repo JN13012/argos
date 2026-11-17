@@ -172,6 +172,9 @@ exécuté depuis la wheel extraite, hors du checkout Python.
 
 ## W4.2 — Raccordement aux missions et découverte SPA/API
 
+Le [découpage de réalisation W4.2](WEB_BROWSER_RUNTIME.md) est préparé :
+contrats v3, relais HTTP durable, puis CLI et qualification. Il n’est pas implémenté.
+
 1. Ajouter explicitement la capacité navigateur à une version de configuration
    signée. Une configuration v2 existante n'autorise pas implicitement ce worker.
 2. Réserver les budgets de navigation, puis associer chaque ressource à un
