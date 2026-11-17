@@ -5,20 +5,32 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
+from collections.abc import Callable
 from pathlib import Path
 
 
-def tree_digest(root: Path) -> str:
+def tree_digest(root: Path, *, active: Callable[[], bool] | None = None) -> str:
     """Bind all installation files, refusing symlinks and special files."""
     if not root.is_dir() or root.is_symlink():
         raise RuntimeError("Invalid browser installation")
     result = hashlib.sha256()
-    for path in sorted(root.rglob("*")):
+    paths = []
+    for path in root.rglob("*"):
+        if active is not None and not active():
+            raise RuntimeError("Browser preparation interrupted")
+        paths.append(path)
+    for path in sorted(paths):
         if path.is_symlink() or not (path.is_file() or path.is_dir()):
             raise RuntimeError("Invalid browser installation entry")
         if path.is_file():
             result.update(path.relative_to(root).as_posix().encode() + b"\0")
-            result.update(hashlib.sha256(path.read_bytes()).digest())
+            content = hashlib.sha256()
+            with path.open("rb") as source:
+                while chunk := source.read(1048576):
+                    if active is not None and not active():
+                        raise RuntimeError("Browser preparation interrupted")
+                    content.update(chunk)
+            result.update(content.digest())
     return result.hexdigest()
 
 

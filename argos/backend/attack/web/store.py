@@ -18,6 +18,7 @@ from uuid import UUID
 from .contracts import WebBudgetUsage, WebErrorCode, WebRequest
 from .execution_config import WebExecutionConfig
 from .frontier import Frontier
+from .navigation_evidence import NavigationEvidence
 from .navigation_store import NavigationStore
 from .policy import WebPolicyError, WebPreflight
 from .receipts import (
@@ -301,6 +302,7 @@ class WebStore:
             else:
                 active += has_ticket
                 evidence += row["capacity"] if has_ticket else 0
+        evidence += NavigationEvidence(NavigationStore(self)).quota(mission_id)
         return WebBudgetUsage(
             mission_id,
             used,
@@ -328,6 +330,7 @@ class WebStore:
         *,
         max_pending: int,
         route_id: UUID | None = None,
+        browser_resource: tuple[UUID, int] | None = None,
     ) -> None:
         request = preflight.request
         with self.db:
@@ -353,6 +356,10 @@ class WebStore:
                 ),
             )
             self._event(request.request_id, "submitted")
+            if browser_resource is not None:
+                NavigationEvidence(NavigationStore(self)).attach(
+                    request.request_id, *browser_resource, owner_id
+                )
             RedirectChecks(self.db).attach(request, owner_id)
             if route_id is not None:
                 Frontier(self.db).attach_request(route_id, request.request_id, owner_id)
@@ -431,6 +438,8 @@ class WebStore:
                 config.limits.request_timeout_seconds,
                 (config.limits.duration_seconds * 1000 - usage.elapsed_ms) / 1000,
             )
+            if NavigationEvidence(NavigationStore(self)).for_request(request_id):
+                deadline = min(deadline, now + preflight.timeout_ms / 1000)
             reservation = dict(
                 request_id=str(request_id),
                 owner_id=str(owner_id),
@@ -658,6 +667,7 @@ class WebStore:
                 )
             self._event(request_id, "terminal")
             RedirectChecks(self.db).record(self, request_id, payload)
+            NavigationEvidence(NavigationStore(self)).record(request_id, payload)
 
     @checked_read
     def evidence(self, request_id: UUID) -> dict | None:
@@ -712,6 +722,7 @@ class WebStore:
             and ticket["used_bytes"] != size
         ):
             raise WebIntegrityError("HTTP evidence binding differs")
+        NavigationEvidence(NavigationStore(self)).validate_receipt(request_id, payload)
         return payload
 
     def snapshot(self, request_id: UUID) -> WebJobSnapshot:

@@ -69,10 +69,15 @@ class NavigationSnapshot:
             _uuid(value)
         _digest(self.configuration_sha256)
         _digest(self.record_sha256)
-        # Successful/running states require the durable relay, not delivered here.
         if (self.state, self.reason) not in {
             ("pending", "pending"),
             ("reserved", "reserved"),
+            ("running", "running"),
+            ("completed", "observed"),
+            ("partial", "limited"),
+            ("failed", "isolation_unavailable"),
+            ("failed", "profile_changed"),
+            ("failed", "request_timeout"),
             ("cancelled", "cancelled"),
             ("interrupted", "interrupted"),
         }:

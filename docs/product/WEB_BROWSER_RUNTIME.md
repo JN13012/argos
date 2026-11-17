@@ -1,6 +1,6 @@
 # W4.2 — Navigation de mission et découverte SPA/API
 
-Statut : **W4.2a livré et validé localement ; W4.2b/c préparés**.
+Statut : **W4.2a et W4.2b livrés et validés localement ; W4.2c préparé**.
 Dépendances livrées :
 [runtime HTTP W2.3](WEB_HTTP_RUNTIME.md), [CLI W3.1](WEB_CLI_DISCOVERY.md),
 [oracle W3.2](WEB_OPEN_REDIRECT.md), [worker navigateur W4.1](WEB_BROWSER_WORKER.md).
@@ -243,7 +243,8 @@ n'a été exécutée. L'acceptation finale W4.2 reste ouverte ; elle exige W4.2b
 
 ## Plan exécutable de W4.2b
 
-Statut : **préparé, non implémenté**. Base inspectée : commit `b1ac7f4`.
+Plan préparé sur le commit `b1ac7f4`, puis implémenté ci-dessous. La roadmap
+porte le statut courant ; les décisions et critères suivants restent applicables.
 Ce sous-lot raccordera le navigateur au runtime depuis une entrée interne liée
 à un run et une route. Il livrera une navigation avec ressources HTTP tracées,
 une capture bornée et un résultat vérifiable. La commande `browse`, la sélection
@@ -358,16 +359,98 @@ pas ce sous-lot. Refaire wheel/sdist et une exécution depuis la wheel hors
 checkout pour le nouveau chemin navigateur → HTTP. Reprendre les variables
 hôte du bilan W4.2a, sans les présenter comme un nouvel essai déjà passé.
 
-Livraison prévue : `feat(web): connect browser relay`, avec bilan des commandes,
-résultats, limites et mise à jour de la ligne W4.2b dans la roadmap. Cette
-préparation documentaire ne lance aucun de ces essais et ne valide pas W4.2b.
+Livraison : `feat(web): connect browser relay`, avec le bilan ci-dessous et la
+mise à jour de la ligne W4.2b dans la roadmap.
+
+### Bilan d'implémentation W4.2b
+
+Entrée interne : `BrowserNavigation(runtime, worker).navigate(run_id, route_id)`
+dans `browser_runtime.py`. Elle exige une route HTML effectivement visitée,
+avec reçu et capture de découverte vérifiés. Elle garde `runtime.operation()`
+jusqu'au nettoyage, réserve la navigation et utilise le médiateur HTTP existant.
+Le worker vient de l'administration ; aucune URL libre, installation ou commande
+choisie par une page n'est introduite dans cette entrée.
+
+| Composant | Comportement livré |
+| --- | --- |
+| `navigation_store.py` | Schéma navigateur v2, migration transactionnelle du marqueur v1 ; enregistrements de planification v1 conservés à l'identique et lectures sans DDL |
+| `navigation_evidence.py` | Ressources bornées, liaison atomique requête/reçu, contrôle des empreintes et du propriétaire, capture/couverture, quotas et récupération ; les octets des réponses ne sont pas stockés |
+| `browser_response.py` | Filtrage commun des réponses, empreintes du corps et des headers filtrés, passage privé à consommation unique ; substitution et deuxième consommation refusées |
+| `runtime.py` / `store.py` | Contexte interne par ressource, même politique DNS/TLS/scope/effets/débit, ticket avant connexion et reçu lié avant passage ; contrôle du parent aux attentes et au commit |
+| `browser.py` / pilote fixe | Plafonds v3 abaissés, signal de fermeture IPC privé, refus de protocole comptés, erreurs d'intégrité propagées et attente bornée des ressources avant capture DOM |
+| Profil et arrêt | Identité réelle et limites effectives avant/après ; contrôle d'activité pendant le calcul des empreintes, arrêt de mission/run/navigation et descendants nettoyés |
+
+La durée commence avant la préparation du profil. Chaque ressource est bornée
+par le minimum mission/navigation/requête et une fenêtre interne de 10 s,
+inférieure à l'attente IPC fixe de 12 s. La fermeture complète de l'IPC arrête
+l'activité enfant ; le demi-arrêt normal d'envoi du pilote reste accepté.
+Les gardes de transaction et de remise relisent l'activité ; les vérifications
+pendant le calcul du profil peuvent réutiliser un état pendant au plus 50 ms,
+avec événement d'annulation et échéance vérifiés à chaque appel.
+
+Les trois états `pending`, `reserved`, `running` distinguent planification,
+réservation et lancement. La fin donne `completed/observed`, `partial/limited`,
+`failed` avec raison fermée, `cancelled` ou `interrupted`. Le reçu HTTP et la
+ressource sont liés dans une transaction ; la capture, son empreinte et ses
+sources sont liées dans une autre transaction après vérification et garde
+finale. Une remise est enregistrée comme `offer_attempted` : aucun accusé de
+réception d'exécution Chromium n'est inventé. Un crash conserve les échanges
+et leur état de remise sans relancer la page.
+
+Le quota de preuves inclut les lignes de planification, réservations et
+captures navigateur, en plus des preuves HTTP. La réservation navigateur borne
+le coût maximal des URLs/liaisons/profil/capture à partir des limites signées ;
+elle est remplacée par la taille réellement conservée à la terminaison. Les
+budgets de transfert comptent aussi les corps partiels ; le plafond du worker
+est abaissé avant chaque téléchargement selon le transfert restant.
+
+La capture conserve les liens candidats et les empreintes de reçus des
+ressources, dont les types `fetch`/`xhr` permettent d'identifier leur provenance.
+Cette tranche ne les ajoute pas à la frontière et ne modifie pas `status/report`.
+La commande `browse` n'existe pas encore ; le champ CLI `browser_execution`
+reste `not_connected`, décrivant l'absence de parcours navigateur au CLI.
+Les restrictions GET/HEAD, origine exacte, absence d'authentification/cookies
+transmis, refus de 3xx et plafonds W4.1 restent ceux de cette livraison.
+
+Validation du 17 novembre 2026 :
+
+| Vérification | Résultat |
+| --- | --- |
+| Suite complète Python 3.14.6, mêmes variables hôte que W4.2a | 880 réussis en 225,90 s, aucun ignoré |
+| Suite complète Python 3.12.15, mêmes variables hôte | 880 réussis en 232,11 s, aucun ignoré |
+| Cas nouveaux | 23 cas de runtime/pannes, 7 essais hôte de mission et 1 cas de protocole ; les contrats W4.2a et anciennes suites restent inclus |
+| Fermeture IPC et propagation des erreurs de preuve | Cas de protocole revérifié après ajout du contrôle de fermeture, 1 réussi |
+| HTTP et HTTPS depuis la wheel extraite hors du checkout | 2 réussis en 21,68 s, source importée vérifiée sous `/tmp/argos-w42b-wheel` |
+| Ruff, formatage, Pyright et `git diff --check` | Validés ; 0 erreur et 0 avertissement de typage |
+| Wheel/sdist hors ligne | Construits ; nouveaux modules et pilote inclus, frontend/node_modules exclus |
+
+Les suites complètes comprennent 820 cas réguliers et 60 essais hôte.
+Les essais hôte ajoutés exécutent réellement Chromium, puis les workers HTTP
+sur des serveurs HTTP/TLS locaux possédés, avec IP littérale loopback dans le
+profil privé signé. Ils vérifient la chaîne HTML → script → fetch → lien DOM,
+les tickets, les limites abaissées de ressources et de transfert, le refus TLS,
+l'annulation pendant HTTP et la mort du propriétaire avec navigateur + worker
+HTTP actifs. Les cgroups sont contrôlés après le crash, puis la base est
+rouverte sans replay. Le protocole et les pannes sont aussi testés séparément.
+Aucun score de détection de vulnérabilités ou benchmark externe n'est déduit.
+
+Commandes de qualification : reprendre les variables hôte du bilan W4.2a et
+lancer chaque interpréteur avec `-m pytest -xq -o faulthandler_timeout=30`.
+Construction : `UV_CACHE_DIR=/tmp/argos-uv-cache uv build --offline --wheel
+--sdist --out-dir /tmp/argos-w42b-dist`. L'essai du paquet charge explicitement
+la wheel extraite via `PYTHONPATH`, depuis `/tmp`, et rejoue les deux parcours
+HTTP/TLS. Les chemins de qualification sont propres à cet hôte.
+
+Suite immédiate W4.2c : sélection des routes depuis un run, commande `browse`,
+expansion des candidats DOM/API, vues expurgées et reprise explicite des travaux
+jamais commencés. L'intégration interne ne constitue pas encore ce parcours CLI.
 
 ## Ordre des commits et critères d'acceptation
 
 - [x] **W4.2a — Contrats et configuration** : v3, budgets, modèles de navigation,
   schéma additif, intégrité et états ; aucun trafic nouveau. Régressions des
   configurations, signatures et reçus v1/v2 compris.
-- [ ] **W4.2b — Relais HTTP durable** : liaison ticket/ressource, remise après
+- [x] **W4.2b — Relais HTTP durable** : liaison ticket/ressource, remise après
   commit, deadlines imbriquées, contrôle d'arrêt et réservation des preuves.
   Essais positifs et injections de pannes avant exposition CLI.
 - [ ] **W4.2c — Découverte CLI et qualification** : `browse`, frontière DOM/API,

@@ -52,7 +52,7 @@ function exchange(request) {
           const response = await exchange({
             url: req.url(), method: req.method(), resource: req.resourceType(),
           });
-          if (response.blocked) return await route.abort();
+          if (response.blocked) { limited = true; return await route.abort(); }
           await route.fulfill({
             status: response.status, headers: Object.fromEntries(response.headers),
             body: Buffer.from(response.body, 'base64'),
@@ -69,8 +69,16 @@ function exchange(request) {
     try {
       await page.goto(input.url, { waitUntil: 'domcontentloaded', timeout: 12000 });
       await page.waitForTimeout(1000);
+      // The host may need several seconds per isolated exchange. Drain the
+      // bounded relay queue before capturing a DOM produced by fetch callbacks.
+      for (let i = 0; i < input.max_requests; i++) {
+        const current = queue;
+        await current;
+        await page.waitForTimeout(100);
+        if (current === queue) break;
+      }
     } catch { state = 'partial'; }
-    const snapshot = await page.evaluate(() => {
+    const snapshot = await page.evaluate(maxLinks => {
       const links = [];
       const seen = new Set();
       let bytes = 0;
@@ -80,13 +88,13 @@ function exchange(request) {
       for (let i = 0; i < Math.min(elements.length, 1024); i++) {
         const href = elements[i].href;
         if (!href || seen.has(href)) continue;
-        if (href.length > 8192 || links.length >= 128 || bytes + href.length > 65536) {
+        if (href.length > 8192 || links.length >= maxLinks || bytes + href.length > 65536) {
           limited = true; break;
         }
         seen.add(href); links.push(href); bytes += href.length;
       }
       return { links, limited: limited || elements.length > 1024 };
-    }).catch(() => ({ links: [], limited: true }));
+    }, input.max_links || 128).catch(() => ({ links: [], limited: true }));
     await context.close();
     await queue;
     process.stdout.write(JSON.stringify({

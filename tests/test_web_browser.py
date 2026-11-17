@@ -303,3 +303,58 @@ def test_browser_task_ceiling_remains_bounded():
         WorkerLimits(tasks=257)
     with pytest.raises(ValueError, match="file_descriptors"):
         WorkerLimits(file_descriptors=1025)
+
+
+def test_private_proof_error_is_not_downgraded_to_a_blocked_resource(relay, tmp_path):
+    from argos.backend.attack.web.receipts import WebIntegrityError
+
+    relay.mediator.side_effect = WebIntegrityError("injected proof mismatch")
+    with pytest.raises(WebIntegrityError):
+        relay.answer(request())
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.connect(relay.listener.getsockname())
+        client.sendall(json.dumps(request()).encode() + b"\n")
+        with pytest.raises(WebIntegrityError):
+            relay.poll()
+
+    # The trusted child activity callback also sees a full IPC peer close,
+    # while a normal request half-close remains usable (covered above).
+    import threading
+    import time
+
+    started = Event()
+    stopped = Event()
+    address = str(tmp_path / "closed")
+    second = BrowserRelay(
+        address, "https://fixture.test/", lambda _: exchange(), lambda: True, None
+    )
+
+    def mediate(_):
+        started.set()
+        until = time.monotonic() + 2
+        while second.alive() and time.monotonic() < until:
+            time.sleep(0.01)
+        assert not second.alive(), "Closed IPC peer left its HTTP child active"
+        stopped.set()
+        return exchange()
+
+    second.mediator = mediate
+
+    def peer_client():
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stream:
+            stream.connect(address)
+            stream.sendall(json.dumps(request()).encode() + b"\n")
+            stream.shutdown(socket.SHUT_WR)
+            assert started.wait(2)
+
+    thread = threading.Thread(target=peer_client)
+    try:
+        thread.start()
+        until = time.monotonic() + 2
+        while not stopped.is_set() and time.monotonic() < until:
+            second.poll()
+            time.sleep(0.01)
+        assert stopped.is_set()
+    finally:
+        second.close()
+        thread.join(timeout=3)

@@ -1,7 +1,7 @@
-"""Additive navigation planning storage. No launch, relay or successful receipt.
+"""Durable navigation states, with no network I/O in storage operations.
 
-Internal callers hold RuntimeLock. Reservations are not execution capabilities.
-W4.2b will add atomic HTTP/resource receipts and successful terminal transitions.
+Internal callers hold RuntimeLock. NavigationEvidence binds resource receipts,
+quotas and captures on this connection. Reservations alone cannot launch work.
 """
 
 from __future__ import annotations
@@ -45,17 +45,29 @@ class NavigationStore:
             return False  # Old databases remain readable without DDL.
         if names != expected or [
             row[0] for row in self.db.execute("SELECT version FROM web_browser_version")
-        ] != [1]:
+        ] not in ([1], [2]):
             raise WebIntegrityError("Unsupported browser storage schema")
         return True
 
     def initialize(self) -> None:
         if self.available():
+            if (
+                self.db.execute("SELECT version FROM web_browser_version").fetchone()[0]
+                == 1
+            ):
+                with self.db:
+                    self.db.execute("BEGIN IMMEDIATE")
+                    self.db.execute("DROP TABLE web_browser_version")
+                    self.db.execute(
+                        "CREATE TABLE web_browser_version "
+                        "(version INTEGER PRIMARY KEY CHECK(version=2))"
+                    )
+                    self.db.execute("INSERT INTO web_browser_version VALUES(2)")
             return
         self.db.executescript("""
         CREATE TABLE web_browser_version (
-            version INTEGER PRIMARY KEY CHECK(version=1));
-        INSERT INTO web_browser_version VALUES(1);
+            version INTEGER PRIMARY KEY CHECK(version=2));
+        INSERT INTO web_browser_version VALUES(2);
         CREATE TABLE web_browser_navigations (
             id TEXT PRIMARY KEY,
             mission_id TEXT NOT NULL,
@@ -106,7 +118,7 @@ class NavigationStore:
             raise ValueError("Unknown navigation")
         try:
             value = json.loads(row["payload_json"])
-            if set(value) != {
+            expected = {
                 "version",
                 "request",
                 "owner_id",
@@ -115,12 +127,15 @@ class NavigationStore:
                 "reason",
                 "reservation",
                 "stop_requested",
-            }:
+            }
+            if value.get("version") == 2:
+                expected.add("execution")
+            if set(value) != expected:
                 raise ValueError
             request = self._request(value)
             UUID(value["owner_id"])
             if (
-                value["version"] != 1
+                value["version"] not in {1, 2}
                 or type(value["version"]) is not int
                 or digest(value) != row["payload_sha256"]
                 or str(request.navigation_id) != row["id"]
@@ -172,12 +187,18 @@ class NavigationStore:
                     raise ValueError
             if value["stop_requested"] != (value["state"] == "cancelled"):
                 raise ValueError
-            # This tranche cannot have executed resources. Never interpret an
-            # injected/future successful response as a qualified navigation.
-            if self.db.execute(
-                "SELECT 1 FROM web_browser_resources WHERE navigation_id=? LIMIT 1",
-                (str(navigation_id),),
-            ).fetchone():
+            from .navigation_evidence import NavigationEvidence
+
+            if value["version"] == 2:
+                NavigationEvidence(self).validate(value)
+            elif (
+                value["state"]
+                not in {"pending", "reserved", "cancelled", "interrupted"}
+                or self.db.execute(
+                    "SELECT 1 FROM web_browser_resources WHERE navigation_id=? LIMIT 1",
+                    (str(navigation_id),),
+                ).fetchone()
+            ):
                 raise ValueError
             return value
         except (
@@ -244,7 +265,7 @@ class NavigationStore:
         return NavigationUsage(
             mission_id,
             sum(v["reservation"] is not None for v in values),
-            sum(v["state"] == "reserved" for v in values),
+            sum(v["state"] in {"reserved", "running"} for v in values),
         )
 
     def create(
@@ -295,6 +316,8 @@ class NavigationStore:
         *,
         now: float,
         profile_sha256: str,
+        profile: dict | None = None,
+        started: float | None = None,
     ) -> float:
         _uuid(owner)
         _digest(profile_sha256)
@@ -317,7 +340,13 @@ class NavigationStore:
                 navigation_usage=self.usage(request.mission_id),
                 connection=self.db,
             )
-            deadline = now + plan.timeout_ms / 1000
+            deadline = min(
+                now + plan.timeout_ms / 1000,
+                (started if started is not None else now)
+                + plan.limits.navigation_seconds,
+            )
+            if deadline <= now:
+                raise WebPolicyError(WebErrorCode.REQUEST_TIMEOUT)
             value.update(
                 state="reserved",
                 reason="reserved",
@@ -328,6 +357,12 @@ class NavigationStore:
                     limits=asdict(plan.limits),
                 ),
             )
+            if profile is not None:
+                from .navigation_evidence import NavigationEvidence
+
+                if not isinstance(config, WebBrowserConfig):
+                    raise WebIntegrityError("Browser configuration required")
+                NavigationEvidence(self).attach_reservation(value, config, profile)
             self._save(value)
         return deadline
 
@@ -339,10 +374,18 @@ class NavigationStore:
             if value["owner_id"] != str(owner) or value["state"] not in {
                 "pending",
                 "reserved",
+                "running",
             }:
                 raise ValueError("Navigation is not owned and active")
-            value.update(state="cancelled", reason="cancelled", stop_requested=True)
-            self._save(value)
+            if value["version"] == 2:
+                from .navigation_evidence import NavigationEvidence
+
+                # Already in the owning transaction: update and size atomically.
+                value.update(state="cancelled", reason="cancelled", stop_requested=True)
+                NavigationEvidence(self).save(value)
+            else:
+                value.update(state="cancelled", reason="cancelled", stop_requested=True)
+                self._save(value)
 
     def reconcile(self) -> tuple[UUID, ...]:
         """Explicit writer recovery, never invoked by a read-only view."""
@@ -356,8 +399,18 @@ class NavigationStore:
             ).fetchall():
                 navigation_id = UUID(row[0])
                 value = self.private(navigation_id)
-                if value["state"] == "reserved":
+                if value["state"] in {"reserved", "running"}:
                     value.update(state="interrupted", reason="interrupted")
-                    self._save(value)
+                    if value["version"] == 2:
+                        from .navigation_evidence import NavigationEvidence
+
+                        evidence = NavigationEvidence(self)
+                        for resource in evidence.resources(navigation_id):
+                            if resource["state"] in {"observed", "ready"}:
+                                resource.update(state="blocked", reason="interrupted")
+                                evidence._write_resource(resource)
+                        evidence.save(value)
+                    else:
+                        self._save(value)
                     recovered.append(navigation_id)
         return tuple(recovered)

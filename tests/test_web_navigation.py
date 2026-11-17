@@ -506,7 +506,7 @@ def test_partial_or_unknown_browser_schema_is_not_silently_migrated(mission, mod
         else:
             store.db.executescript(
                 "PRAGMA ignore_check_constraints=ON; "
-                "UPDATE web_browser_version SET version=2;"
+                "UPDATE web_browser_version SET version=99;"
             )
         store.db.commit()
         with pytest.raises(WebIntegrityError):

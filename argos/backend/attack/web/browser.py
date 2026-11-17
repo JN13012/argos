@@ -14,7 +14,7 @@ import socket
 import tempfile
 import time
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from threading import Event
 
@@ -25,7 +25,10 @@ from argos.backend.core.isolated_worker import (
     WorkerLimits,
 )
 
+from .browser_config import WebBrowserLimits
+from .browser_response import relay_response
 from .config import _normalize_url, _origin
+from .receipts import WebIntegrityError
 from .transport import HTTPExchange
 
 VERSION = "argos-browser-v1"
@@ -62,7 +65,7 @@ class BrowserInstallation:
     core: Path
     engine: Path
 
-    def identity(self) -> dict:
+    def identity(self, active: Callable[[], bool] | None = None) -> dict:
         try:
             if not self.core.is_absolute() or not self.engine.is_absolute():
                 raise ValueError
@@ -84,8 +87,8 @@ class BrowserInstallation:
             return {
                 "core": str(self.core),
                 "engine": str(self.engine),
-                "core_sha256": tree_digest(self.core),
-                "engine_sha256": tree_digest(self.engine),
+                "core_sha256": tree_digest(self.core, active=active),
+                "engine_sha256": tree_digest(self.engine, active=active),
                 "playwright_version": PLAYWRIGHT_VERSION,
                 "chromium_revision": CHROMIUM_REVISION,
                 "browser_version": browser["browserVersion"],
@@ -114,7 +117,12 @@ class BrowserRelay:
         mediator: Callable[[BrowserRequest], HTTPExchange],
         active: Callable[[], bool],
         cancel: Event | None,
+        limits: WebBrowserLimits | None = None,
+        refused: Callable[[BrowserRequest | None, str], None] | None = None,
     ):
+        self.limits = limits or WebBrowserLimits()
+        self.refused = refused
+        self.peer_active: Callable[[], bool] = lambda: True
         self.origin = _origin(_normalize_url(url, private_profile=True))
         self.mediator = mediator
         self.active = active
@@ -133,11 +141,15 @@ class BrowserRelay:
         self.deadline = 0.0
 
     def alive(self) -> bool:
-        return not (self.cancel and self.cancel.is_set()) and self.active()
+        return (
+            not (self.cancel and self.cancel.is_set())
+            and self.active()
+            and self.peer_active()
+        )
 
     def answer(self, payload: object) -> dict:
         self.attempts += 1
-        if self.attempts > 64 or not self.alive():
+        if self.attempts > self.limits.max_resources or not self.alive():
             self.limited = True
             return {"blocked": True}
         try:
@@ -168,58 +180,24 @@ class BrowserRelay:
             }
             self.events.append(event)
             if not allowed:
+                if self.refused:
+                    self.refused(
+                        BrowserRequest(url, event["method"], event["resource"]),
+                        "relay_denied",
+                    )
                 self.limited = True
                 return {"blocked": True}
             response = self.mediator(BrowserRequest(url, method, resource))
-            # Never forward a partial, compressed or oversized body as a valid resource.
+            response = relay_response(response, self.limits.resource_body_bytes)
             if (
-                not self.alive()
-                or response.state != "completed"
-                or not response.body_complete
-                or response.error is not None
-                or type(response.status) is not int
-                or not 200 <= response.status <= 599
-                or response.status in {301, 302, 303, 304, 305, 307, 308}
-                or len(response.body) > 524288
-                or self.body_bytes + len(response.body) > 8 * 1024 * 1024
-                or len(response.headers) > 100
+                response is None
+                or not self.alive()
+                or self.body_bytes + len(response.body)
+                > self.limits.navigation_body_bytes
             ):
                 self.limited = True
                 return {"blocked": True}
-            headers = []
-            seen = set()
-            for name, value in response.headers:
-                key = name.lower()
-                if not key or any(
-                    c not in "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz"
-                    for c in key
-                ):
-                    raise ValueError
-                if len(value.encode()) > 8192 or any(
-                    ord(c) < 32 or ord(c) == 127 for c in value
-                ):
-                    raise ValueError
-                if key in {
-                    "set-cookie",
-                    "connection",
-                    "transfer-encoding",
-                    "content-length",
-                    "keep-alive",
-                    "upgrade",
-                    "proxy-authenticate",
-                    "proxy-authorization",
-                }:
-                    continue
-                if (
-                    key in seen
-                    or key == "content-encoding"
-                    and value.lower() != "identity"
-                ):
-                    raise ValueError
-                seen.add(key)
-                headers.append([key, value])
-            if sum(len(k.encode()) + len(v.encode()) for k, v in headers) > 32768:
-                raise ValueError
+            headers = [list(header) for header in response.headers]
             self.body_bytes += len(response.body)
             event["state"] = "supplied"
             return {
@@ -227,7 +205,11 @@ class BrowserRelay:
                 "headers": headers,
                 "body": base64.b64encode(response.body).decode("ascii"),
             }
+        except WebIntegrityError:
+            raise
         except (ValueError, TypeError):
+            if self.refused:
+                self.refused(None, "invalid_resource")
             self.limited = True
             return {"blocked": True}
 
@@ -249,7 +231,16 @@ class BrowserRelay:
                     raise ValueError
                 return True
             payload = json.loads(self.buffer)
+            connection = self.connection
+            # MSG_PEEK sees EOF after the fixed driver's request half-close;
+            # poll RDHUP would therefore be ambiguous. A full HUP is decisive.
+            import select
+
+            poller = select.poll()
+            poller.register(connection, select.POLLHUP | select.POLLERR)
+            self.peer_active = lambda: not poller.poll(0)
             result = self.answer(payload)
+            self.peer_active = lambda: True
             self.connection.settimeout(0.2)
             self.connection.sendall(json.dumps(result).encode())
             self.connection.close()
@@ -259,6 +250,8 @@ class BrowserRelay:
                 self.connection.close()
                 self.connection = None
                 self.limited = True
+        except WebIntegrityError:
+            raise
         except (OSError, ValueError):
             self.limited = True
             if self.connection is not None:
@@ -304,11 +297,11 @@ class BrowserWorker:
             file_descriptors=1024,
         )
 
-    def profile(self) -> dict:
+    def profile(self, active: Callable[[], bool] | None = None) -> dict:
         return {
             "version": VERSION,
             "limits": asdict(self.limits),
-            **self.installation.identity(),
+            **self.installation.identity(active=active),
             "script_sha256": hashlib.sha256(
                 (_CORE / "browser_driver.cjs").read_bytes()
             ).hexdigest(),
@@ -325,6 +318,27 @@ class BrowserWorker:
             ).hexdigest(),
         }
 
+    def effective_profile(
+        self,
+        limits: WebBrowserLimits | None = None,
+        active: Callable[[], bool] | None = None,
+    ) -> dict:
+        profile = self.profile(active=active)
+        if limits is not None:
+            profile = {
+                **profile,
+                "navigation_limits": asdict(limits),
+                "limits": asdict(
+                    replace(
+                        self.limits,
+                        wall_seconds=min(
+                            self.limits.wall_seconds, limits.navigation_seconds
+                        ),
+                    )
+                ),
+            }
+        return profile
+
     def navigate(
         self,
         url: str,
@@ -333,22 +347,36 @@ class BrowserWorker:
         active: Callable[[], bool],
         cancel: Event | None = None,
         expected_profile: dict | None = None,
+        limits: WebBrowserLimits | None = None,
+        refused: Callable[[BrowserRequest | None, str], None] | None = None,
+        bind_activity: Callable[[Callable[[], bool]], None] | None = None,
     ) -> BrowserObservation:
         if not active() or cancel is not None and cancel.is_set():
             return BrowserObservation("cancelled", (), (), True, 0, {})
         url = _normalize_url(url, private_profile=True)
         if len(url.encode()) > 8192:
             raise ValueError("Browser URL limit")
-        profile = self.profile()
+        profile = self.effective_profile(limits, active=active)
         if expected_profile is not None and profile != expected_profile:
             raise IsolationError("Browser isolation profile changed")
         with tempfile.TemporaryDirectory(prefix="argos-browser-") as directory:
             path = Path(directory)
-            payload = json.dumps({"url": url, "max_requests": 64}).encode()
+            bounds = limits or WebBrowserLimits()
+            payload = json.dumps(
+                {
+                    "url": url,
+                    "max_requests": bounds.max_resources,
+                    "max_links": bounds.max_links,
+                }
+            ).encode()
             source = path / "input.json"
             source.touch(mode=0o600)
             source.write_bytes(payload)
-            relay = BrowserRelay(str(path / "relay"), url, mediator, active, cancel)
+            relay = BrowserRelay(
+                str(path / "relay"), url, mediator, active, cancel, limits, refused
+            )
+            if bind_activity is not None:
+                bind_activity(relay.alive)
             try:
                 settings = {
                     **profile,
@@ -358,7 +386,17 @@ class BrowserWorker:
                 }
                 if not relay.alive():
                     return BrowserObservation("cancelled", (), (), True, 0, profile)
-                result = OfflineWorker(self.limits)._run(
+                worker_limits = (
+                    self.limits
+                    if limits is None
+                    else replace(
+                        self.limits,
+                        wall_seconds=min(
+                            self.limits.wall_seconds, limits.navigation_seconds
+                        ),
+                    )
+                )
+                result = OfflineWorker(worker_limits)._run(
                     ("/usr/bin/node", "/argos-browser.cjs"),
                     active=relay.poll,
                     cancel=cancel,
@@ -378,8 +416,10 @@ class BrowserWorker:
                     result.stdout, tuple(relay.events), profile, relay.limited
                 )
                 # Detect installation changes while running; no fallback/replay.
-                if self.profile() != profile:
+                if self.effective_profile(limits, active=active) != profile:
                     raise IsolationError("Browser isolation profile changed")
+                if limits and len(observation.links) > limits.max_links:
+                    raise IsolationError("Browser link limit exceeded")
                 return observation
             finally:
                 relay.close()

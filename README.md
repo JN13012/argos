@@ -143,9 +143,10 @@ snapshot, not the active backlog.
 The first commercial target is **autonomous external black-box web and API
 pentesting**, starting from a URL or domain. The current CLI supports bounded
 HTML discovery, controlled HTTP, evidence and a first open-redirect check with
-retesting. Chromium rendering is an isolated internal primitive awaiting
-mission integration. A complete autonomous pentest and an LLM mission loop
-remain to be built.
+retesting. Internal Chromium missions now relay resources through the signed
+HTTP runtime, with durable receipts, DOM captures and crash recovery. Browser
+CLI discovery is the next integration step. A complete autonomous pentest and
+an LLM mission loop remain to be built.
 
 See the [web delivery plan](docs/product/WEB_PENTEST_PLAN.md),
 [capability catalogue](docs/product/WEB_CAPABILITIES.md) and

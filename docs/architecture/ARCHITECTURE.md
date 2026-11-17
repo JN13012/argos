@@ -25,10 +25,17 @@ sondes à marqueurs, sources de découverte et recontrôle. Les constats sont
 issus de cet oracle vérifié, jamais du seul statut HTTP ou du modèle.
 Le [worker navigateur W4.1](../product/WEB_BROWSER_WORKER.md) exécute du
 JavaScript dans un navigateur sans réseau direct ; son relais Unix borne les
-ressources et refuse les autres origines. Il est qualifié sur fixtures, sans
-raccordement aux missions CLI. W4.2 doit le lier aux tickets et aux captures
-persistantes. Les sessions multi-rôles et services de mission restent à construire. Le contrôle
-IP/port livré ne suffit pas à isoler des origines web partageant une IP.
+ressources et refuse les autres origines. Le
+[relais de mission W4.2b](../product/WEB_BROWSER_RUNTIME.md#bilan-dimplémentation-w42b)
+le raccorde au runtime HTTP signé : ressource et reçu liés atomiquement,
+réponse remise après commit, limites v3, capture DOM persistante et récupération
+sans replay. L'entrée `BrowserNavigation` exige une route HTML déjà vérifiée.
+Les échanges HTTP/TLS locaux et le nettoyage navigateur/HTTP après crash sont
+qualifiés ; la commande `browse` et la frontière DOM/API restent à W4.2c.
+Les sessions multi-rôles et services de mission restent à construire. Le
+contrôle IP/port est complété par les contrôles d'origine, URL et méthodes du
+médiateur et de la politique HTTP, même lorsque plusieurs origines partagent
+une adresse IP.
 
 ## Architecture actuelle
 
@@ -40,7 +47,7 @@ argos/
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
-│   └── attack/web/          Runtime HTTP, CLI, frontière, oracle et primitive navigateur interne
+│   └── attack/web/          Runtime HTTP, CLI, frontière, oracle et missions navigateur internes
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
 ```

@@ -23,9 +23,17 @@ from argos.backend.attack.pentest.runtime_lock import RuntimeLock
 from argos.backend.core.approvals import ApprovalVerifier
 from argos.backend.core.isolated_worker import IsolationError
 
+from .browser_response import (
+    ResourceContext,
+    ResponseHandoff,
+    relay_response,
+    response_binding,
+)
 from .contracts import WebBudgetUsage, WebErrorCode, WebRequest
 from .discovery import inspect_response
 from .frontier import Frontier
+from .navigation_evidence import NavigationEvidence
+from .navigation_store import NavigationStore
 from .policy import PreparedWebRequest, WebPolicy, WebPolicyError
 from .receipts import (
     ERRORS,
@@ -104,6 +112,7 @@ class WebRuntime:
             self.stop = stop or threading.Event()
             self._condition = threading.Condition(threading.RLock())
             self._running: dict[UUID, threading.Event] = {}
+            self._resources: dict[UUID, ResourceContext] = {}
             self._chains = 0
             self._closed = False
             self._closing = False
@@ -115,6 +124,7 @@ class WebRuntime:
                 self.recovered = store.reconcile()
                 Frontier(store.db).reconcile()
                 RedirectChecks(store.db).reconcile()
+                NavigationStore(store).reconcile()
         except BaseException:
             self._ownership.close()
             raise
@@ -146,24 +156,38 @@ class WebRuntime:
     def _failed_storage(self, error: BaseException) -> WebPersistenceError:
         with self._condition:
             self._broken = True
+            self.stop.set()
             for event in self._running.values():
                 event.set()
         return WebPersistenceError("HTTP runtime storage failed")
 
-    def submit(self, request: WebRequest, *, _route_id: UUID | None = None) -> UUID:
+    def submit(
+        self,
+        request: WebRequest,
+        *,
+        _route_id: UUID | None = None,
+        _resource: ResourceContext | None = None,
+    ) -> UUID:
         with self._condition:
             self._admit()
             try:
                 config = self.policy.configuration(request.mission_id)
                 with WebStore(self.database) as store:
                     usage = store.usage(request.mission_id, config, self._now())
-                    preflight = self.policy.preflight(request, usage=usage)
+                    preflight = self._bound_resource(
+                        self.policy.preflight(request, usage=usage)
+                    )
                     store.create(
                         preflight,
                         self.owner,
                         max_pending=self.max_pending,
                         route_id=_route_id,
+                        browser_resource=(_resource.navigation_id, _resource.sequence)
+                        if _resource
+                        else None,
                     )
+                if _resource is not None:
+                    self._resources[request.request_id] = _resource
                 return request.request_id
             except WebPolicyError as error:
                 self._deny(request, error)
@@ -208,6 +232,10 @@ class WebRuntime:
                         request,
                         usage=store.usage(request.mission_id, config, self._now()),
                     )
+                    if NavigationEvidence(NavigationStore(store)).for_request(
+                        request_id
+                    ):
+                        raise ValueError("Browser resources cannot be replayed")
                     store.claim(request_id, self.owner)
                     return store.snapshot(request_id)
             except WebPolicyError as error:
@@ -233,8 +261,11 @@ class WebRuntime:
         event: threading.Event,
         deadline: float | None = None,
     ) -> bool:
+        context = self._resources.get(request.request_id)
         if (
-            self._broken
+            context is not None
+            and (self._now() >= context.deadline or not context.active())
+            or self._broken
             or event.is_set()
             or self.stop.is_set()
             or deadline is not None
@@ -259,8 +290,11 @@ class WebRuntime:
         expected: str,
         event: threading.Event,
     ) -> bool:
+        context = self._resources.get(request.request_id)
         if (
-            self._broken
+            context is not None
+            and (self._now() >= context.deadline or not context.active())
+            or self._broken
             or event.is_set()
             or self.stop.is_set()
             or Frontier(connection).stop_for(request.request_id)
@@ -285,6 +319,16 @@ class WebRuntime:
             try:
                 with WebStore(self.database) as store:
                     request, row = store.private_request(request_id)
+                    resource = NavigationEvidence(NavigationStore(store)).for_request(
+                        request_id
+                    )
+                    context = self._resources.get(request_id)
+                    if resource and (
+                        context is None
+                        or resource["navigation_id"] != str(context.navigation_id)
+                        or resource["sequence"] != context.sequence
+                    ):
+                        raise ValueError("Browser resource requires its live parent")
                     if row["owner_id"] != str(self.owner) or row["state"] != "pending":
                         raise ValueError(
                             "HTTP request requires explicit pending ownership"
@@ -301,7 +345,16 @@ class WebRuntime:
                     stopped = Frontier(store.db).stop_for(request_id) or RedirectChecks(
                         store.db
                     ).stopped(request_id)
-                if event.is_set() or self.stop.is_set() or stopped:
+                context = self._resources.get(request_id)
+                if (
+                    event.is_set()
+                    or self.stop.is_set()
+                    or stopped
+                    or (
+                        context is not None
+                        and (self._now() >= context.deadline or not context.active())
+                    )
+                ):
                     return self._finish(
                         request, event, error="cancelled", state="cancelled"
                     )
@@ -313,7 +366,9 @@ class WebRuntime:
                 ):
                     event.wait(0.05)
                     continue
-                preflight = self.policy.preflight(request, usage=usage)
+                preflight = self._bound_resource(
+                    self.policy.preflight(request, usage=usage)
+                )
                 try:
                     with WebStore(self.database) as store:
                         deadline = store.reserve(
@@ -348,6 +403,9 @@ class WebRuntime:
                 config = self.policy.configuration(request.mission_id)
                 prepared = self.policy.prepare(
                     request, resolution, usage=self._usage(request, exclude=True)
+                )
+                prepared = replace(
+                    prepared, preflight=self._bound_resource(prepared.preflight)
                 )
                 remaining = int((deadline - self._now()) * 1000)
                 if remaining < 1000:
@@ -458,7 +516,29 @@ class WebRuntime:
         finally:
             with self._condition:
                 self._running.pop(request_id, None)
+                self._resources.pop(request_id, None)
                 self._condition.notify_all()
+
+    def _bound_resource(self, preflight):
+        context = self._resources.get(preflight.request.request_id)
+        if context is None:
+            return preflight
+        remaining = int((context.deadline - self._now()) * 1000)
+        if remaining < 1000 or context.body_limit < 1 or not context.active():
+            raise WebPolicyError(WebErrorCode.REQUEST_TIMEOUT)
+        return replace(
+            preflight,
+            timeout_ms=min(preflight.timeout_ms, remaining),
+            effective_body_bytes=min(
+                preflight.effective_body_bytes, context.body_limit
+            ),
+            worker_limits=replace(
+                preflight.worker_limits,
+                wall_seconds=min(
+                    preflight.worker_limits.wall_seconds, remaining // 1000
+                ),
+            ),
+        )
 
     def _finish(
         self,
@@ -548,6 +628,19 @@ class WebRuntime:
                         )
                         if observation is not None:
                             payload["redirect_check"] = observation
+                    context = self._resources.get(request.request_id)
+                    offered = (
+                        relay_response(exchange, context.body_limit)
+                        if context and exchange and payload["state"] == "completed"
+                        else None
+                    )
+                    if context is not None:
+                        payload["browser_resource"] = dict(
+                            version=1,
+                            navigation_id=str(context.navigation_id),
+                            sequence=context.sequence,
+                            response=response_binding(offered) if offered else None,
+                        )
                     store.finish(
                         request.request_id,
                         self.owner,
@@ -560,7 +653,18 @@ class WebRuntime:
                             connection, request, row["configuration_sha256"], event
                         ),
                     )
-                    return store.snapshot(request.request_id)
+                    result = store.snapshot(request.request_id)
+                    if (
+                        context is not None
+                        and offered is not None
+                        and result.state == "completed"
+                        and self._active(request, row["configuration_sha256"], event)
+                    ):
+                        assert result.evidence_sha256 is not None
+                        context.handoff = ResponseHandoff(
+                            offered, result.evidence_sha256
+                        )
+                    return result
         except (sqlite3.Error, OSError, WebIntegrityError) as failure:
             raise self._failed_storage(failure) from failure
 
