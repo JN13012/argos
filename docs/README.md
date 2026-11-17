@@ -13,7 +13,7 @@ réelles, les travaux à réaliser et les documents historiques.
 | Que doit couvrir la première offre web ? | [Scope](product/SCOPE.md) : périmètre et limites produit |
 | Comment passer du socle au pentest autonome ? | [Plan web](product/WEB_PENTEST_PLAN.md) : démarche, dépendances et qualification |
 | Quels tests web faut-il construire ? | [Catalogue de capacités](product/WEB_CAPABILITIES.md) : familles, preuves et critères de livraison |
-| Quel est le prochain lot détaillé ? | [W4.2](product/WEB_BROWSER_RUNTIME.md) : contrats v3, relais durable et CLI SPA/API |
+| Quel est le prochain lot détaillé ? | [W4.2b](product/WEB_BROWSER_RUNTIME.md#plan-exécutable-de-w42b) : relais HTTP durable, ordre de réalisation et critères de fin ; CLI SPA/API en W4.2c |
 | Comment est construit le logiciel actuel ? | [Architecture](architecture/ARCHITECTURE.md) |
 | Comment fonctionnera l’agent autonome ? | [Architecture agent cible](architecture/AGENTIC_CORE.md), conception distincte de l’implémentation |
 | Pourquoi une décision d’architecture ? | [ADR du monolithe](architecture/adr/0001-modular-monolith.md), puis nouveaux ADR si nécessaire |

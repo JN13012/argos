@@ -15,9 +15,11 @@ explorer, choisir ses hypothèses, exécuter, vérifier et produire rapport/reco
 sans validation humaine entre les actions comprises dans sa configuration.
 
 **Prochaine implémentation : W4.2b, relais HTTP durable du navigateur.**
-Les contrats v3 et états de navigation W4.2a sont livrés et validés localement. Le [lot W4.2](WEB_BROWSER_RUNTIME.md) détaille la suite :
-raccorder les ressources aux tickets et reçus HTTP, puis exposer la découverte
-SPA/API au CLI en W4.2c. Aucun autre grand chantier n’est requis avant ce relais.
+Les contrats v3 et états de navigation W4.2a sont livrés et validés localement.
+Le [plan exécutable W4.2b](WEB_BROWSER_RUNTIME.md#plan-exécutable-de-w42b)
+précise contrats, étapes, limites, pannes et essais hôte à réaliser. Le relais
+sera raccordé par une entrée interne ; la découverte SPA/API et la commande
+`browse` viendront en W4.2c. W4.2b reste préparé, non implémenté.
 
 ## Capacités disponibles et limites
 

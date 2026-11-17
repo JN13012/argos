@@ -241,18 +241,126 @@ Ces résultats vérifient les contrats et les régressions des workers existants
 Aucune navigation de mission nouvelle ni évaluation de détection de failles
 n'a été exécutée. L'acceptation finale W4.2 reste ouverte ; elle exige W4.2b/c.
 
-## Point de départ de W4.2b
+## Plan exécutable de W4.2b
 
-1. Ajouter le contrat ressource/ticket et sa validation, puis lier ce contrat
-   atomiquement dans `WebStore.create/finish`, avec son quota de preuves.
-2. Ajouter un passage interne à usage unique du `HTTPExchange` après commit ;
-   conserver le retour public de `WebRuntime.run` sans corps ni headers privés.
-3. Construire le médiateur sur le thread propriétaire, sous `operation()`,
-   avec contrôles d'activité parent/enfant et deadline minimale propagée dans
-   attente de débit, résolution et worker ; ne pas ouvrir de transaction réseau.
-4. Raccorder arrêt/récupération et transitions vérifiées. Démontrer concurrence
-   HTTP égale à un, refus de remise après panne/arrêt/deadline et absence de
-   relance implicite avant de préparer l'exposition CLI W4.2c.
+Statut : **préparé, non implémenté**. Base inspectée : commit `b1ac7f4`.
+Ce sous-lot raccordera le navigateur au runtime depuis une entrée interne liée
+à un run et une route. Il livrera une navigation avec ressources HTTP tracées,
+une capture bornée et un résultat vérifiable. La commande `browse`, la sélection
+et l'expansion des routes DOM/API et les vues CLI restent à W4.2c.
+
+### Points vérifiés dans le code
+
+| Point actuel | Modification à réaliser |
+| --- | --- |
+| `WebRuntime.run/_finish` conservent le `HTTPExchange` localement et retournent un snapshot | Passage privé à usage unique après `WebStore.finish` et vérification du reçu ; aucun corps ajouté au retour public |
+| `WebStore.create/finish` n'ont pas de liaison navigateur | Création de ressource liée à la requête, puis empreinte du reçu et résultat HTTP dans les mêmes transactions que leurs écritures HTTP respectives |
+| Le reçu HTTP conserve taille/statut, sans empreinte durable du corps | Ajouter pour les ressources navigateur une liaison au corps et aux headers effectivement proposés ; ne pas confondre hash du reçu et hash du contenu |
+| `NavigationStore.private` refuse toute ligne de ressource et tout succès | Contrats typés, lecture vérifiée et états d'exécution ; garder lisibles les réservations W4.2a et leurs interruptions |
+| `_usage` ne compte que les preuves HTTP | Inclure réservations et preuves navigateur dans le même quota de mission, sans compter deux fois le même reçu |
+| `BrowserRelay`, l'entrée du pilote et l'export DOM utilisent les plafonds W4.1 fixes | Appliquer aussi toutes les limites v3 abaissées, aux tentatives/refus comme aux ressources acceptées |
+| Le pilote attend le relais 12 s, le HTTP peut durer 15 s | Borne enfant au temps disponible côté navigateur et propagation de la fermeture IPC ; aucune remise tardive après abandon de la requête |
+| `_active/_commit_active` et le démarrage runtime ignorent les navigations | Contrôle parent dans toutes les phases, récupération sans relecture et arrêt coordonné des descendants |
+
+### Ordre de réalisation
+
+1. **Liaisons et états persistants.** Étendre `navigation.py` et
+   `navigation_store.py` avec des contrats internes fermés. Chaque ressource
+   possède navigation, séquence, type, URL privée/empreinte, méthode, origine,
+   requête HTTP éventuelle, reçu éventuel et raison stable. Refus avant ticket,
+   requête réservée/exécutée et offre au navigateur sont des faits distincts.
+   Une ressource refusée par le relais avant médiation doit aussi être comptée
+   et observable ; borner la collecte même face à une page produisant des
+   milliers de requêtes. Versionner l'évolution du schéma et migrer uniquement
+   en écriture, dans une transaction ; conserver les enregistrements W4.2a.
+2. **Profil et admission navigateur.** Sous `runtime.operation()`, vérifier
+   configuration signée, URL de route et préconditions de navigation ; figer le
+   profil réel de `BrowserWorker.profile()` avant lancement et le revérifier
+   après. Réserver slot navigateur, tentative, durée et capacité de preuves
+   avant lancement. Recalculer les budgets réels en transaction ; ne pas
+   réutiliser les compteurs d'admission par défaut de la simple planification.
+   Le profil et les limites effectives doivent inclure les plafonds signés
+   abaissés ; aucun argument venant de la cible ne choisit l'installation.
+3. **Relais HTTP durable.** Ajouter un contexte interne de ressource à
+   `WebRuntime.submit/run`, inaccessible aux DTO d'agent. Créer la liaison
+   ressource/requête avant DNS et lier le ticket à cette requête avant connexion.
+   Garder une transaction courte par étape ; aucun appel réseau dans SQLite.
+   Chaque ressource utilise un échange HTTP unique, jamais `run_chain` ni une
+   redirection suivie en secret. Un 3xx reste tracé mais non fourni au rendu.
+4. **Remise privée.** À la fin HTTP, lier atomiquement résultat, reçu et ressource.
+   Lier aussi taille/empreinte du corps et des headers expurgés proposés au
+   navigateur ; conserver les octets uniquement en mémoire. Après commit,
+   relire les liaisons, vérifier les empreintes puis activité, délai et budget
+   avant consommation unique du passage privé. Une panne ou une incohérence
+   invalide le passage, empoisonne le runtime et arrête les actions en cours.
+   Un objet `HTTPExchange` seul n'est pas une preuve de permission de remise.
+5. **Durées et budgets de bout en bout.** Propager le minimum mission,
+   navigation, requête et attente IPC dans l'admission, le débit, Retry-After,
+   DNS et le worker. Le début de durée couvre aussi préparation du profil et
+   démarrage ; aucune phase ne crée une nouvelle durée de navigation complète.
+   Relier durée monotone en cours et échéance persistée sans prolongation.
+   Avant téléchargement, borner le corps par le minimum du plafond HTTP,
+   de `resource_body_bytes` et du transfert restant ; ne pas télécharger au-delà
+   du budget puis seulement refuser la remise. Appliquer aussi ressources et
+   liens au relais/export, sans augmenter le profil système W4.1. Le slot
+   navigateur ne consomme pas un slot HTTP.
+6. **Fin, arrêt et récupération.** Ajouter les états `running`, `completed`,
+   `partial`, `failed` avec raisons fermées aux états W4.2a existants. Un rendu
+   partiel reste partiel malgré des échanges réussis ; annulation/interruption
+   ne publient pas des liens comme capture achevée. La fin lie atomiquement
+   capture, couverture et ressources vérifiées. Garder cette capture disponible
+   pour W4.2c, sans encore modifier la frontière ni déclarer une API testée.
+   Au redémarrage, réconcilier d'abord les tickets HTTP puis les navigations ;
+   conserver les échanges exécutés sans rejouer la page. Une reprise ne peut
+   adopter que les travaux jamais commencés ; une nouvelle tentative prend un
+   nouvel identifiant et consomme les budgets restants.
+
+Le navigateur et le médiateur restent sur le thread propriétaire ; le verrou
+runtime est conservé jusqu'au nettoyage des descendants. Les contrôles de
+mission, de run et de navigation s'appliquent avant DNS, pendant les attentes,
+au commit et avant remise. Une fermeture de runtime ou un échec de preuve doit
+également arrêter le navigateur lorsqu'aucune requête HTTP n'est en cours.
+
+L'état durable peut prouver qu'une réponse était autorisée et qu'une remise
+a été tentée. Sans accusé de réception adéquat, il ne doit pas prétendre que
+Chromium l'a reçue ou exécutée. Un crash après commit et avant remise reste
+un échange exécuté, avec remise inconnue et navigation interrompue.
+
+Le HTTP anonyme existant conserve ses contrats, reçus historiques et chemins
+d'exécution. Les nouveaux champs de preuve navigateur sont versionnés et
+conditionnels aux nouvelles ressources ; aucun reçu historique n'est réécrit.
+Les sorties publiques ne contiennent ni corps, headers privés, chemin complet,
+valeurs de query, données de capture brutes ou chemins d'installation.
+
+### Vérifications et critères de fin
+
+| Essai requis | Preuve attendue |
+| --- | --- |
+| HTML → script → fetch JSON → lien DOM via l'entrée interne | Capture liée à la navigation et à tous les tickets/reçus utiles, sans publication CLI |
+| Concurrence HTTP signée égale à un | Navigation terminée sans blocage ; slot navigateur indépendant |
+| Anciennes missions v1/v2 et v3 modifiée/révoquée/expirée | Refus avant lancement ou arrêt coordonné ; aucune extension implicite des droits |
+| Autre origine, méthode interdite, chemin exclu, DNS interdit, TLS incorrect, 3xx | Sortie interdite non contactée ; échange 3xx enregistré sans suivre sa destination ; raisons conservées |
+| Limites v3 abaissées séparément | Ressources/tentatives, corps téléchargé, transfert, durée et liens réellement bornés ; pas uniquement un tronquage du rapport |
+| Quota de preuves presque épuisé et panne lors de l'admission | Réservation atomique, aucun dépassement ni ticket/liaison orphelin |
+| Panne dans le commit HTTP/ressource ou lecture du reçu | Aucune réponse fournie, runtime indisponible et autres actions arrêtées |
+| Corps, headers, ticket ou reçu substitués ; seconde consommation | Liaison ou usage invalide refusé avant remise |
+| Arrêt pendant profil/démarrage/débit/DNS/connexion/réponse/commit/remise | Durée bornée, nettoyage, aucune remise après refus d'activité observé |
+| Réponse plus lente que l'attente IPC ou fermeture de celle-ci | Enfant annulé, remise abandonnée et historique conservé ; pas de travail HTTP poursuivi jusqu'à sa seule limite de 15 s |
+| Crash après réservation, après reçu et pendant capture | Aucun replay ; HTTP exécuté conservé, navigation interrompue et remise incertaine explicite |
+| Réouverture en lecture seule de bases anciennes et nouvelles | Aucune DDL, récupération, relance ni modification des octets du fichier |
+| Marqueurs privés dans URL/corps/headers/DOM | Absents des sorties, logs ordinaires, erreurs, repr et snapshots publics |
+
+Exécuter les tests de contrats/pannes pendant le développement, puis Ruff,
+formatage, Pyright et suites complètes Python 3.12/3.14. Ajouter des essais
+hôte Chromium + HTTP/TLS locaux qui vérifient les requêtes effectivement reçues,
+les cas d'arrêt et les descendants après crash ; une simulation seule ne clôt
+pas ce sous-lot. Refaire wheel/sdist et une exécution depuis la wheel hors
+checkout pour le nouveau chemin navigateur → HTTP. Reprendre les variables
+hôte du bilan W4.2a, sans les présenter comme un nouvel essai déjà passé.
+
+Livraison prévue : `feat(web): connect browser relay`, avec bilan des commandes,
+résultats, limites et mise à jour de la ligne W4.2b dans la roadmap. Cette
+préparation documentaire ne lance aucun de ces essais et ne valide pas W4.2b.
 
 ## Ordre des commits et critères d'acceptation
 
