@@ -31,15 +31,17 @@ class WorkerLimits:
     wall_seconds: int = 10
     scratch_bytes: int = 8 * 1024 * 1024
     output_bytes: int = 1024 * 1024
+    file_descriptors: int = 64
 
     def __post_init__(self) -> None:
         bounds = {
             "memory_bytes": (64 * 1024 * 1024, 1024 * 1024 * 1024),
-            "tasks": (8, 64),
+            "tasks": (8, 256),
             "cpu_percent": (1, 100),
             "wall_seconds": (1, 120),
             "scratch_bytes": (1024 * 1024, 64 * 1024 * 1024),
             "output_bytes": (1024, 2 * 1024 * 1024),
+            "file_descriptors": (64, 1024),
         }
         for name, (minimum, maximum) in bounds.items():
             value = getattr(self, name)
@@ -77,6 +79,7 @@ class OfflineWorker:
         cancel: threading.Event | None = None,
         active: Callable[[], bool] | None = None,
         network: dict[str, object] | None = None,
+        browser: dict[str, object] | None = None,
     ) -> WorkerResult:
         if sys.platform != "linux":
             raise IsolationError("Offline workers require Linux")
@@ -103,7 +106,7 @@ class OfflineWorker:
             f"RuntimeMaxSec={self.limits.wall_seconds + 2}",
             f"LimitFSIZE={self.limits.output_bytes}",
             "LimitCORE=0",
-            "LimitNOFILE=64",
+            f"LimitNOFILE={self.limits.file_descriptors}",
             "KillMode=control-group",
             "TimeoutStopSec=1",
             "SendSIGKILL=yes",
@@ -112,6 +115,10 @@ class OfflineWorker:
             "UMask=0077",
         )
         configuration: dict[str, object] = asdict(self.limits)
+        if browser is not None:
+            if network is not None:
+                raise IsolationError("Browser workers cannot enable network access")
+            configuration["browser"] = browser
         guardian = "worker_guardian.py"
         if network is not None:
             configuration["network"] = network

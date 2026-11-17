@@ -27,7 +27,8 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = ""
-source-exclude = ["/argos/frontend"]
+source-exclude = ["frontend"]
+wheel-exclude = ["frontend"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "argos/backend/tests"]

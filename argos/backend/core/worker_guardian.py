@@ -38,7 +38,7 @@ def verify_controls(limits: dict[str, int]) -> None:
     for kind, maximum in (
         (resource.RLIMIT_FSIZE, limits["output_bytes"]),
         (resource.RLIMIT_CORE, 0),
-        (resource.RLIMIT_NOFILE, 64),
+        (resource.RLIMIT_NOFILE, limits["file_descriptors"]),
     ):
         if resource.getrlimit(kind)[1] != maximum:
             raise RuntimeError("Required process limit is not active")
@@ -96,12 +96,23 @@ def main() -> int:
         readable, _, _ = select.select([0], [], [], 0)
         if readable and not os.read(0, 1):
             return 125
-        child = subprocess.Popen(
-            sandbox_command(limits, sys.argv[2:]),
-            stdin=subprocess.DEVNULL,
-            close_fds=True,
-            shell=False,
-        )
+        command = sandbox_command(limits, sys.argv[2:])
+        input_fd = None
+        if "browser" in limits:
+            # Import only for this fixed entry point; ordinary workers stay unchanged.
+            from browser_sandbox import browser_command
+
+            command, input_fd = browser_command(command, limits["browser"])
+        try:
+            child = subprocess.Popen(
+                command,
+                stdin=input_fd if input_fd is not None else subprocess.DEVNULL,
+                close_fds=True,
+                shell=False,
+            )
+        finally:
+            if input_fd is not None:
+                os.close(input_fd)
         try:
             while child.poll() is None:
                 readable, _, _ = select.select([0], [], [], 0.02)

@@ -1,0 +1,12 @@
+{
+  "name": "argos-browser-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Administrator-provisioned browser dependency for isolated workers",
+  "dependencies": {
+    "playwright-core": "1.65.1"
+  },
+  "engines": {
+    "node": ">=22 <25"
+  }
+}

@@ -161,14 +161,17 @@ tickets, quotas, redacted receipts, audit and explicit recovery.
 frontier, redacted status/report, stop and explicit resume.
 [W3.2 open-redirect verification](docs/product/WEB_OPEN_REDIRECT.md) now links a
 baseline and two marker probes, retains evidence and supports explicit retest.
-Next: W4.1, confined anonymous browser navigation for SPA discovery.
+[W4.1 browser worker](docs/product/WEB_BROWSER_WORKER.md) adds isolated anonymous
+JavaScript rendering and a bounded Unix relay, qualified on owned fixtures.
+Next: W4.2, connect this primitive to signed missions, durable HTTP tickets and
+SPA/API discovery. The browser is not exposed through the mission CLI yet.
 
 | Stage | Status | Content |
 | --- | --- | --- |
 | Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
 | P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
 | P1 — Durable execution | P1.1–P1.4 validated locally | Isolated mission network integrated; real Nmap lab qualification and focused review remain |
-| W0–W9 — Web pentesting | W3.2 validated locally; W4.1 implementation next | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
+| W0–W9 — Web pentesting | W4.1 worker qualified locally; W4.2 mission integration next | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
 | P2 — Product workflow | After the web CLI workflow | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
 | Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
 | Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |

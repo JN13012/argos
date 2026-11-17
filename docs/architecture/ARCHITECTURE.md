@@ -23,8 +23,11 @@ anonyme avec frontière persistante, capture atomique et arrêt/reprise.
 Le [vérificateur W3.2](../product/WEB_OPEN_REDIRECT.md) lie référence, deux
 sondes à marqueurs, sources de découverte et recontrôle. Les constats sont
 issus de cet oracle vérifié, jamais du seul statut HTTP ou du modèle.
-Les adaptateurs navigateur, les sessions
-multi-rôles et les services de mission sont une cible à construire. Le contrôle
+Le [worker navigateur W4.1](../product/WEB_BROWSER_WORKER.md) exécute du
+JavaScript dans un navigateur sans réseau direct ; son relais Unix borne les
+ressources et refuse les autres origines. Il est qualifié sur fixtures, sans
+raccordement aux missions CLI. W4.2 doit le lier aux tickets et aux captures
+persistantes. Les sessions multi-rôles et services de mission restent à construire. Le contrôle
 IP/port livré ne suffit pas à isoler des origines web partageant une IP.
 
 ## Architecture actuelle
@@ -37,7 +40,7 @@ argos/
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
-│   └── attack/web/          Runtime HTTP, CLI, frontière, oracle de redirection et recontrôle
+│   └── attack/web/          Runtime HTTP, CLI, frontière, oracle et primitive navigateur interne
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
 ```

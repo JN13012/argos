@@ -161,8 +161,8 @@ le contrôle hors ligne du manifest W1.2 reste valide.
 Tous les appels HTTP restent vers l’IP de la cible locale ; les marqueurs ne
 sont ni résolus ni contactés par Argos. Le corpus W1.2 n'est pas évalué par ce lot.
 
-**Suite : W4.1**, préparer et qualifier la navigation anonyme dans un navigateur
-confiné : origine/egress, budgets et arrêt, preuves expurgées, découverte de SPA
-et APIs observées. Garder le transport HTTP déterministe et ce premier oracle
+**Suite : [W4.1 livré](WEB_BROWSER_WORKER.md)**, socle navigateur anonyme
+confiné qualifié sur fixtures. W4.2 doit le raccorder aux missions signées,
+tickets et preuves persistantes pour la découverte SPA/API depuis le CLI. Garder le transport HTTP déterministe et ce premier oracle
 comme référence ; comptes et comparaisons d'identités resteront des extensions.
 L'agent LLM et les autres familles de tests restent au plan W5–W7.

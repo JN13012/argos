@@ -29,9 +29,12 @@ niveau senior sera évalué ; il n'est pas une capacité actuelle du dépôt.
   paramètres observés, sorties expurgées, arrêt et reprise explicite.
 - [W3.2 livré](WEB_OPEN_REDIRECT.md) : redirection externe pilotée par un
   paramètre découvert, trois preuves, témoin corrigé et recontrôle explicite.
-- **Prochain lot : W4.1**, navigation anonyme dans un navigateur confiné,
-  budgets/arrêt et preuves ; découverte SPA et API observées ensuite.
-- Ajouter ensuite navigation anonyme et SPA, tests approfondis et boucle agent ;
+- [W4.1 livré](WEB_BROWSER_WORKER.md) : primitive navigateur anonyme isolée,
+  rendu JavaScript, relais borné, arrêt et nettoyage qualifiés sur fixtures.
+  Aucun navigateur exposé aux missions CLI à ce stade.
+- **Prochain lot : W4.2**, raccordement aux missions signées, tickets HTTP,
+  preuves persistantes et découverte SPA/API depuis le CLI.
+- Ajouter ensuite parcours SPA approfondis, tests web et boucle agent ;
   enrichir avec des comptes selon les accès disponibles.
 - Évaluer les capacités démontrées sur les applications client, avec comparaison
   humaine et résultats reproduits. Les failles n'ont pas à être connues avant

@@ -46,3 +46,6 @@ Thumbs.db
 /argos/frontend/node_modules/
 /argos/frontend/dist/
 /argos/frontend/.vite/
+
+# Browser worker dependencies
+/tools/browser/node_modules/
