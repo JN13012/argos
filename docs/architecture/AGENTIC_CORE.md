@@ -1,8 +1,9 @@
 # Agentic architecture
 
-**This is a design document.** No agent runs in Argos today. The implemented
-bricks are the OSINT foundation and the ATTACK P1 library: signed missions,
-bounded Nmap execution, audit and evidence. The HTTP API exposes health only.
+**This is a target design, not proof of an implemented agent.** Consult the
+[roadmap](../product/ROADMAP.md) for delivered capabilities and the
+[current architecture](ARCHITECTURE.md) for actual module boundaries.
+The existing deterministic services are foundations for the future mission loop.
 
 The product target is complete mission autonomy within a previously authorized
 scope: planning, action selection, execution, verification, replanning and

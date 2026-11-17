@@ -138,6 +138,23 @@ jamais de la cible ou du modèle. La sortie conserve UUID, compteurs, hashes,
 états et raisons stables ; chemins et valeurs de query restent privés.
 Une mission v2 demandant `browse` sera refusée clairement avant lancement.
 
+## Point de départ de W4.2a
+
+Première tâche d’implémentation, sans lancer Chromium ni ajouter de trafic :
+
+1. Définir les contrats de navigation et la section navigateur v3, sans élargir
+   `HTTP_CAPABILITIES` ni permettre une requête navigateur dans `WebRequest`.
+2. Mettre à jour ensemble chargement de configuration, signature et politique ;
+   garder les représentations v1/v2 et les signatures existantes inchangées.
+3. Ajouter le schéma de navigation/ressources et ses vérifications d’intégrité,
+   avec lecture des bases anciennes sans exécution ni migration implicite en
+   mode rapport.
+4. Tester refus de champs/budgets invalides, capacité absente, signature
+   différente, v2 utilisée pour naviguer et états incohérents ; vérifier qu’aucun
+   résolveur ou worker n’est appelé par cette tranche de contrats.
+5. Consigner le bilan du sous-lot et mettre à jour sa ligne de roadmap avant
+   de raccorder le relais W4.2b.
+
 ## Ordre des commits et critères d'acceptation
 
 - [ ] **W4.2a — Contrats et configuration** : v3, budgets, modèles de navigation,
@@ -175,6 +192,8 @@ Acceptation finale de W4.2 :
 
 ## Suite vers le pentest professionnel
 
+Le [catalogue de capacités](WEB_CAPABILITIES.md) définit les familles W5 et
+leurs preuves ; la [roadmap](ROADMAP.md) porte leur ordre et leur état.
 Après W4.2 : W4.3 ajoute redirections, interactions, sessions anonymes et comptes
 optionnels séparés. En parallèle au sens du planning, les premières capacités
 W5/W6 apportent tests méthodologiques, preuves et restitution ; il n'est pas

@@ -123,7 +123,7 @@ flowchart TB
 
 ### The agentic core (designed)
 
-A reliable agent for long security missions needs more than a prompt. The [agentic architecture](docs/architecture/AGENTIC_CORE.md) defines ten subsystems — agent loop, planning, context engine, state management, memory, tool runtime, multi-agent orchestration, multi-surface execution, learning engine, safety and evaluation. Agent V0 has a proposal on `origin/feat/agent-foundation`; that branch contains a plan, not an implemented agent. [Candidate components](docs/product/REFERENCES.md), including Hermes, remain under evaluation.
+A reliable agent for long security missions needs more than a prompt. The [agentic architecture](docs/architecture/AGENTIC_CORE.md) defines ten subsystems — agent loop, planning, context engine, state management, memory, tool runtime, multi-agent orchestration, multi-surface execution, learning engine, safety and evaluation. The document describes a target architecture; current delivery status belongs to the [roadmap](docs/product/ROADMAP.md). [Candidate components](docs/product/REFERENCES.md), including Hermes, remain under evaluation.
 
 <p align="center">
   <img src="docs/presentation/slides/06.jpg" alt="Slide: the ten subsystems of the agentic design" width="49%">
@@ -136,45 +136,22 @@ A reliable agent for long security missions needs more than a prompt. The [agent
   <img src="docs/presentation/slides/08.jpg" alt="Earlier roadmap presentation snapshot; see the current roadmap below" width="80%">
 </p>
 
-The [canonical roadmap](docs/product/ROADMAP.md) defines statuses, dependencies
-and acceptance criteria. The slide above is an earlier presentation snapshot.
+The [canonical roadmap](docs/product/ROADMAP.md) owns delivery status,
+dependencies and the next task. The slide above is an earlier presentation
+snapshot, not the active backlog.
 
-**First commercial target: autonomous external black-box web and API
-pentesting**, starting from a URL or domain without credentials, source code
-or documentation. Optional accounts extend coverage. Verified findings,
-reports and retesting start with the CLI. This is planned work, not a current product
-capability. The [web mission configuration](docs/product/WEB_CONFIG.md) is
-implemented with signed persistence. The web CLI now performs bounded anonymous
-HTML discovery from a URL, followed by a verified open-redirect behavior check
-and explicit retesting. Other vulnerability families remain to be built. The [web delivery plan](docs/product/WEB_PENTEST_PLAN.md) defines
-W0–W9, dependencies, evaluation gates and the first pilot criteria. The
-[W1.2 evaluation corpus](benchmarks/web/README.md) now pins 12 candidate cases;
-it has not been executed against an agent. The
-[W1.3 HTTP execution specification](docs/product/WEB_HTTP_EXECUTION.md) now defines
-the worker, DNS/TLS controls, evidence and first verified web test.
-[W2.1 contracts and offline policy](docs/product/WEB_HTTP_POLICY.md) are implemented
-with signed v2 configuration. [W2.2 isolated HTTP transport](docs/product/WEB_HTTP_TRANSPORT.md)
-and supervised DNS are implemented and qualified on owned local endpoints.
-[W2.3 persistent HTTP runtime](docs/product/WEB_HTTP_RUNTIME.md) now adds durable
-tickets, quotas, redacted receipts, audit and explicit recovery.
-[W3.1 web CLI and discovery](docs/product/WEB_CLI_DISCOVERY.md) now add a persistent
-frontier, redacted status/report, stop and explicit resume.
-[W3.2 open-redirect verification](docs/product/WEB_OPEN_REDIRECT.md) now links a
-baseline and two marker probes, retains evidence and supports explicit retest.
-[W4.1 browser worker](docs/product/WEB_BROWSER_WORKER.md) adds isolated anonymous
-JavaScript rendering and a bounded Unix relay, qualified on owned fixtures.
-Next: [W4.2 implementation plan](docs/product/WEB_BROWSER_RUNTIME.md), prepared
-for signed missions, durable HTTP tickets and SPA/API discovery. The browser is not exposed through the mission CLI yet.
+The first commercial target is **autonomous external black-box web and API
+pentesting**, starting from a URL or domain. The current CLI supports bounded
+HTML discovery, controlled HTTP, evidence and a first open-redirect check with
+retesting. Chromium rendering is an isolated internal primitive awaiting
+mission integration. A complete autonomous pentest and an LLM mission loop
+remain to be built.
 
-| Stage | Status | Content |
-| --- | --- | --- |
-| Foundations and ATTACK P1 | Implemented | Traceable SIRENE CLI and controlled Nmap library; production qualification incomplete |
-| P0 — Repository reliability | Validated locally | Python types, lint, formatting, clean installation, backend/frontend tests and expanded CI configuration |
-| P1 — Durable execution | P1.1–P1.4 validated locally | Isolated mission network integrated; real Nmap lab qualification and focused review remain |
-| W0–W9 — Web pentesting | W4.1 worker qualified locally; W4.2 mission integration next | Real-tool qualification, web scope, HTTP/browser capabilities, CLI, verified findings, autonomous agent and measured pilots |
-| P2 — Product workflow | After the web CLI workflow | Identity, mission API/UI, authorization, jobs, evidence, reports and retesting |
-| Autonomous Agent V0 | Designed | Knowledge, typed tools, persistent state and a measured mission loop |
-| Extended platform | Future | Web/API, infrastructure, AD and LLM security; advanced OSINT, DEFEND/GRC and evaluated delegation |
+See the [web delivery plan](docs/product/WEB_PENTEST_PLAN.md),
+[capability catalogue](docs/product/WEB_CAPABILITIES.md) and
+[next implementation slice](docs/product/WEB_BROWSER_RUNTIME.md).
+Evaluation uses benchmarks and client comparisons; a passing software test
+suite does not demonstrate senior-level vulnerability discovery.
 
 ## The presentation
 
@@ -277,11 +254,13 @@ tests/             pytest suite
 
 ## Documentation
 
-- Product: [Vision](docs/product/VISION.md) · [Scope](docs/product/SCOPE.md) · [Project framework](docs/product/CADRE.md) · [Roadmap](docs/product/ROADMAP.md) · [References](docs/product/REFERENCES.md)
-- OSINT: [OSINT design](docs/product/OSINT.md)
-- Pentest: [MVP plan](docs/product/PENTEST_MVP.md) · [Signed approvals](docs/product/PENTEST_P131_ED25519.md) · [Execution](docs/product/PENTEST_P132_EXECUTION.md) · [Evidence](docs/product/PENTEST_P133_EVIDENCE.md) · [Adaptive recon](docs/product/PENTEST_P134_ADAPTIVE.md) · [Hardening and limits](docs/product/PENTEST_P135_HARDENING.md)
-- Architecture: [Architecture](docs/architecture/ARCHITECTURE.md) · [Agentic architecture](docs/architecture/AGENTIC_CORE.md) · [Repository architecture](docs/architecture/README.md)
-- Frontend: [Frontend plan](docs/development/frontend/PLAN_FRONTEND.md)
+Start with the [documentation index](docs/README.md). It distinguishes current
+behavior, delivery plans, technical contracts and historical material.
+
+- Development: [repository instructions](AGENTS.md).
+- Product: [roadmap and current status](docs/product/ROADMAP.md), [scope](docs/product/SCOPE.md), [web delivery plan](docs/product/WEB_PENTEST_PLAN.md).
+- Web capabilities: [coverage catalogue](docs/product/WEB_CAPABILITIES.md), [next implementation slice](docs/product/WEB_BROWSER_RUNTIME.md).
+- Architecture: [implemented system](docs/architecture/ARCHITECTURE.md), [agent design](docs/architecture/AGENTIC_CORE.md).
 
 ## Responsible use
 

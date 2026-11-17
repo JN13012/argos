@@ -1,8 +1,11 @@
 # ADR 0001: Start ARGOS as a modular monolith
 
-- **Status:** Implemented as repository structure; product scope still pending
-  governance validation
+- **Status:** Implemented as repository structure
 - **Date:** 2026-10-31
+
+Update, 17 November 2026: product priority is now autonomous web/API pentesting;
+see the [roadmap](../../product/ROADMAP.md). The original context below is retained
+as the rationale at the time of this decision, not the current product backlog.
 
 ## Context
 

@@ -1,81 +1,105 @@
 # Argos — Roadmap de référence
 
-Mise à jour : 16 novembre 2026. Cette page porte les priorités actives et les
-critères de livraison. Les plans spécialisés détaillent les lots ; ils ne
-constituent pas une preuve d’implémentation.
+État du dépôt vérifié le 17 novembre 2026. Cette page porte les statuts et la
+priorité active. Le [scope](SCOPE.md) décrit le périmètre produit ; le
+[plan web](WEB_PENTEST_PLAN.md) organise la réalisation ; le
+[catalogue](WEB_CAPABILITIES.md) définit les capacités et preuves à construire.
+Les documents des lots portent leurs tâches et bilans détaillés.
 
-## Cible produit
+## Objectif et prochaine tâche
 
-Argos doit pouvoir **mener une mission de cybersécurité en autonomie complète** :
-planifier, choisir et exécuter les capacités autorisées, interpréter les
-observations, adapter son parcours, vérifier ses constats et produire le rapport.
-Un mode assisté reste utile pour les experts, sans limiter la cible à un copilote.
+Première offre : **pentest web/API autonome, boîte noire externe depuis le CLI**.
+La mission commence avec une URL ou un domaine, sans compte ni documentation.
+Les comptes accessibles ou fournis enrichissent les tests. L’agent devra
+explorer, choisir ses hypothèses, exécuter, vérifier et produire rapport/recontrôle
+sans validation humaine entre les actions comprises dans sa configuration.
 
-**Première valeur commerciale : le pentest web et API autonome en boîte noire externe**,
-depuis le CLI, sans compte ni documentation au démarrage, avec preuves, rapport et recontrôle. Le
-[plan web W0–W9](WEB_PENTEST_PLAN.md) organise les livraisons et la qualification.
-Le niveau senior est une cible à mesurer, pas une capacité actuelle annoncée.
-OSINT élargi, AD, cloud, DEFEND/GRC et sécurité des LLM passent après ce parcours.
+**Prochaine implémentation : W4.2a, contrats et configuration navigateur.**
+Le [lot W4.2](WEB_BROWSER_RUNTIME.md) est préparé, non implémenté. Commencer par
+la configuration v3 et les états de navigation ; raccorder ensuite le relais
+HTTP durable, puis exposer la découverte SPA/API au CLI. Aucun autre grand
+chantier n’est requis avant cette tranche.
 
-L’autorisation initiale fixe les cibles, les actions permises, la période et les
-budgets. Les étapes déjà autorisées doivent pouvoir s’enchaîner sans validation
-humaine répétitive. Une extension du périmètre ou des permissions exige une
-nouvelle autorisation ; révocation, dépassement de budget et conditions d’arrêt
-s’imposent au moteur indépendamment du modèle.
+## Capacités disponibles et limites
 
-## État constaté
-
-| Capacité | État au 16 novembre 2026 |
+| Capacité | État réel |
 | --- | --- |
-| OSINT SIRENE | Implémenté en CLI : découverte bornée, SQLite, provenance et rapports |
-| ATTACK P1 | Implémenté en bibliothèque : missions signées, Nmap, preuves et reconnaissance en deux phases ; qualification de production incomplète |
-| API | Intégrée au frontend uniquement pour `GET /api/v1/health` |
-| Interface métier | Absente de l’application montée ; composants historiques conservés |
-| Agent / LLM | Conçu, aucun moteur connecté ; A1–A4 proposés sur `origin/feat/agent-foundation` |
-| Enum2Root / PromptLab | Références étudiées, pas d’intégration fonctionnelle complète |
-| DEFEND / GRC | Direction future, aucune capacité métier opérationnelle |
+| CLI web | Configuration, activation, découverte HTML, arrêt/reprise, status/report JSON, vérification et recontrôle du premier oracle |
+| Runtime HTTP | GET/HEAD, missions signées, DNS/TLS, contrôle de scope et d’effets, tickets, quotas, audit et preuves ; pas encore de sessions ni de corps POST |
+| Découverte HTML | Liens et paramètres observés, frontière persistante, raisons de refus et états partiels |
+| Premier oracle web | Redirection externe pilotée par un paramètre découvert : référence, deux marqueurs et recontrôle ; impact métier à qualifier |
+| Navigateur | Worker Chromium isolé et JavaScript qualifiés sur réponses de test en mémoire ; pas encore de navigation de mission CLI |
+| Autres outils web | ZAP, Nuclei, SQLmap, ffuf et Katana sont des candidats ; aucun de leurs adaptateurs de mission n’est livré |
+| Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
+| Restitution client complète | À construire ; les preuves JSON et le premier recontrôle ne sont pas un rapport de pentest complet |
+| OSINT / Nmap | CLI SIRENE livré ; Nmap en bibliothèque avec exécution contrôlée, qualification réelle encore ouverte |
+| API et interface | Santé HTTP reliée au frontend ; aucune interface métier de mission active |
+| Enum2Root / PromptLab | Références étudiées, sans intégration fonctionnelle complète |
 
-## Lots et critères de sortie
+**Argos n’effectue pas encore un pentest web complet.** Le dernier bilan W4.1
+compte 760 tests locaux sous Python 3.12 et 3.14, dont 53 essais hôte activés.
+Ce bilan est une preuve de régression/isolation datée, pas une mesure du taux
+de failles détectées. Le corpus de 12 cas W1.2 est préparé, non exécuté.
+Les résultats de CI distante ne sont pas revérifiés par cette mise à jour.
 
-| Lot | Statut | Livrable et critère de sortie |
+## Lots livrés et références
+
+| Lot | Statut et référence |
+| --- | --- |
+| P0 | Validé localement ; [bilan de fiabilisation](FIABILISATION_P0.md) |
+| P1.1–P1.4 | Livrés et qualifiés localement ; [exécution](EXECUTION_P1.md), [worker](WORKER_ISOLATION.md), [réseau](MISSION_NETWORK.md) |
+| W1.1 / W1.3 | [Configuration](WEB_CONFIG.md) livrée ; [spécification HTTP](WEB_HTTP_EXECUTION.md) de référence |
+| W1.2 | [Corpus préparé](../../benchmarks/web/README.md) ; images, témoins et notation encore à qualifier |
+| W2.1–W2.3 | [Politique](WEB_HTTP_POLICY.md), [transport](WEB_HTTP_TRANSPORT.md) et [runtime HTTP](WEB_HTTP_RUNTIME.md) livrés et validés localement |
+| W3.1–W3.2 | [CLI/découverte](WEB_CLI_DISCOVERY.md) et [oracle/recontrôle](WEB_OPEN_REDIRECT.md) livrés et validés localement |
+| W4.1 | [Navigateur isolé](WEB_BROWSER_WORKER.md) livré et qualifié sur les fixtures décrites, sans ouverture aux missions CLI |
+
+## Ordre de réalisation restant
+
+| Lot | Statut | Livrable observable et critère de sortie |
 | --- | --- | --- |
-| P0 — Fiabilisation | Validé localement ; exécution distante de CI à confirmer après publication | Typage et lint globaux propres, installation verrouillée reproductible, tests Python 3.12/3.14, frontend et navigateur ; documents cohérents. Voir le [bilan P0](FIABILISATION_P0.md). |
-| P1 — Exécution durable et isolée | P1.1–P1.4 livrés et qualifiés localement ; P1.5 à faire | Réseau rootless à refus par défaut, quotas, nettoyage et profil lié aux preuves. Suite : Nmap réel en labo autorisé et revue ciblée. Voir le [découpage P1](EXECUTION_P1.md) et la [qualification réseau](MISSION_NETWORK.md). |
-| W0–W9 — Pentest web autonome | W4.1 qualifié localement ; [W4.2 préparé](WEB_BROWSER_RUNTIME.md), à implémenter | W1.1 livre la [configuration boîte noire](WEB_CONFIG.md), sans réseau ; [corpus W1.2 préparé](../../benchmarks/web/README.md) ; [transport W1.3 spécifié](WEB_HTTP_EXECUTION.md) ; [contrats/politique W2.1 livrés](WEB_HTTP_POLICY.md) ; [transport W2.2 livré](WEB_HTTP_TRANSPORT.md) ; [runtime W2.3 livré](WEB_HTTP_RUNTIME.md) ; [CLI/découverte W3.1 livrés](WEB_CLI_DISCOVERY.md) ; [redirection ouverte et recontrôle W3.2 livrés](WEB_OPEN_REDIRECT.md) ; [socle navigateur confiné W4.1 livré](WEB_BROWSER_WORKER.md), sans ouverture CLI ; suite W4.2 : missions signées, tickets et découverte SPA/API, puis tests et restitution ; W0 poursuit P1.5 ; W7 ajoute l'agent ; W8 mesure et W9 prépare les pilotes. Voir le [plan détaillé](WEB_PENTEST_PLAN.md). |
-| P2 — API et interface métier | Après validation du parcours CLI web | Identités et droits par mission ; API et UI mission → autorisation → job → preuves → rapport → recontrôle. Réutiliser les services CLI ; accès croisés refusés. Requis avant le libre-service multi-utilisateur. |
-| A1–A3 — Connaissance, outils et état | Conçus | Catalogue original versionné, prérequis et preuves explicites, registre de capacités typées, état de mission persistant. Recommandations bloquées expliquées, provenance conservée, reprise testée. |
-| A4 — Mission autonome V0 | À construire, dépend de P1 et A1–A3 | Boucle objectif → plan → action → observation → vérification → replanification → rapport ; modèle interchangeable, budgets et arrêts. Une mission de référence se termine sans intervention entre les actions préautorisées ; chaque conclusion renvoie à ses preuves. |
-| A5 — Évaluation de l’autonomie | À construire avec A4 | Comparaison aux workflows déterministes et manuels : réussite de mission, précision, omissions, coût, temps et interventions. Tests d’injection indirecte, panne et reprise ; seuils fixés avant mesure. |
-| LLM Security | À construire | Cibles, campagnes, tests versionnés, connecteurs, chaînes bornées, oracles et revue. Parité sur un périmètre explicite avec le besoin couvert par PromptLab ; aucun succès déclaré sur un simple HTTP 200. |
-| Bêta professionnelle | À qualifier | Restauration des sauvegardes, migrations, observabilité, rétention, gestion de secrets, revue indépendante et pilote. Exigences de disponibilité et support définies puis mesurées. |
+| W4.2a | Préparé | Configuration v3, budgets et états navigateur ; anciennes configurations et signatures inchangées, aucun trafic ajouté |
+| W4.2b | Préparé | Relais vers le runtime HTTP, ticket par ressource, remise après commit et deadlines ; panne de preuve = aucune remise au navigateur |
+| W4.2c | Préparé | Commande `browse`, frontière DOM/API, provenance et vues ; chaîne HTML → JS → API → lien dynamique sur HTTP/TLS réel, avec arrêt/reprise testés |
+| W4.3 | À détailler | Requêtes structurées avec méthodes/corps/headers nécessaires, redirections validées, formulaires, sessions anonymes et identités optionnelles séparées ; parcours et nettoyage sans fuite entre identités |
+| W5.1 + W6 initial | À détailler | Registre de cas et couverture, modèle de constat/rapport ; reprendre l’oracle existant sans perdre preuves et historique |
+| W5.2–W5.3 + W6 | À détailler | Premier ensemble anonyme multi-familles puis accès/sessions/API selon les identités disponibles ; témoins corrigés, effet reproduit et rapport utile |
+| W7 V0 | À détailler après les premiers cas W5/W6 | Boucle autonome sur un petit ensemble déjà vérifié ; hypothèses, choix, observation, validation, reprise et rapport sans intervention intermédiaire |
+| W5.4–W5.6 + W6/W7 | À détailler | Fichiers, traitements serveur, SSRF/XXE, logique métier et approfondissements ; enrichir le catalogue et l’agent avec mesures par famille |
+| W8 | Protocole au plan ; exécution à faire | Corpus versionné, témoins corrigés, jeux réservés et comparaison experte ; publier précision, omissions, autonomie, coûts et limites |
+| W9 | À faire après W8 | Livraison opérable, installation/secrets, rétention, sauvegarde/restauration, support et pilotes clients ; périmètre annoncé conforme aux capacités démontrées |
 
-A1 peut avancer indépendamment des écrans ; l’exposition d’actions actives
-dépend de P1. La délégation entre agents vient après une mission autonome V0
-mesurée ; elle doit apporter un bénéfice vérifié.
+W6 et l’évaluation accompagnent chaque capacité. W7 n’attend pas un catalogue
+exhaustif ; son premier périmètre reste limité aux capacités réellement
+vérifiées. Préparer un lot dépendant ne le déclare pas exécutable. Une nouvelle
+intégration d’outil s’inscrit dans le cas W5 concerné, avec sa qualification,
+sans créer un programme concurrent.
 
-Pour la première offre, A1–A3 sont concrétisés par W1–W6, A4 par W7 et A5 par
-le protocole défini dès W1 puis exécuté en W8. Ces identifiants désignent des
-responsabilités existantes, pas deux programmes de développement concurrents.
-Ordre actif : **W1 → W2/W3 → W4/W5/W6 → W7 → W8 → W9** ;
-W0/P1.5 continue sur le socle, sans bloquer le web sur la qualification Nmap.
-Les capacités démontrées peuvent être évaluées sur des applications client
-avec revue des résultats avant l’offre généralisée ;
-les dépendances précises et les travaux préparatoires figurent dans le plan.
+## Travaux complémentaires et extensions
 
-## Sources et réutilisation
+- **W0/P1.5** : qualification Nmap réelle, installation et revue du socle.
+  Les contrôles nécessaires à une capacité web restent obligatoires ; le
+  complément Nmap ne bloque pas une tranche HTTP indépendante.
+- **P2 API/UI** : après le parcours CLI validé. Réutiliser les mêmes services,
+  ajouter identités, accès aux missions et séparation des données ; requis
+  avant une offre en libre-service multi-utilisateur.
+- **A1–A5** : noms historiques des fonctions agent. Connaissance/outils/état
+  correspondent à W1–W6, autonomie à W7 et mesure à W8. Aucun second backlog.
+- **Extensions produit** : OSINT élargi, infrastructure/AD, cloud, DEFEND/GRC,
+  sécurité des LLM et délégation multi-agent après la première mission web
+  autonome mesurée. Les fondations existantes restent conservées.
 
-Une brique publique peut être adoptée, adaptée ou simplement servir de référence.
-Le choix Hermes / moteur propre reste ouvert jusqu’à un essai comparatif. Voir
-le [dossier de sélection](REFERENCES.md) : agent, workflow, méthodologie,
-ATT&CK, CVE/KEV, reconnaissance, OSINT et gestion des constats.
+## Sens des statuts
 
-Toute adoption documente version ou commit, licence applicable, dépendances,
-frontière d’exécution, provenance des résultats et tests d’acceptation. Le modèle
-propose les actions ; le runtime Argos possède les permissions et les preuves.
+- `Préparé` : résultat, dépendances et critères écrits ; pas une implémentation.
+- `En cours` : travail d’implémentation effectivement commencé.
+- `Validé localement` : code et essais indiqués dans le lot ; limites déclarées.
+- `Qualifié sur ...` : environnement et protocole précisément nommés, jamais
+  qualification universelle déduite d’une fixture.
+- `Bloqué` : raison et dépendance explicites ; ne signifie pas « sûr » ou « terminé ».
 
-## Trajectoire OSINT conservée
-
-La fondation existante reste réutilisable sans agent. Les extensions prévues
-sont la résolution des sites, l’enrichissement et les analyses d’opportunité,
-avec couverture et limites explicites. Elles n’imposent plus à elles seules
-l’ordre de livraison de toute la plateforme.
+À chaque livraison : mettre à jour la ligne concernée, le bilan du lot et les
+contrats ou références affectés. Les critères professionnels et métriques
+restent au [plan web](WEB_PENTEST_PLAN.md), les tâches immédiates au
+[lot W4.2](WEB_BROWSER_RUNTIME.md). Les seuils proposés ne constituent pas
+une certification de niveau senior ni une promesse commerciale déjà tenue.

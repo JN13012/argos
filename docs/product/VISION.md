@@ -30,9 +30,9 @@ pas à confirmer chaque étape comprise dans cette autorisation.
 - **Local lorsque pertinent** : ne pas imposer une infrastructure distribuée
   ou distante avant qu’un usage ne la justifie.
 
-## Situation actuelle
+## Références de réalisation
 
-Le dépôt contient un CLI OSINT SIRENE, une bibliothèque de reconnaissance Nmap
-contrôlée et une application web minimale. Aucun agent ou modèle n’est encore
-connecté. La [roadmap](ROADMAP.md) distingue cette réalité de la cible produit ;
-le [scope](SCOPE.md) fixe le travail immédiat et le [cadre](CADRE.md) l’usage.
+La [roadmap](ROADMAP.md) distingue les capacités présentes de la cible produit.
+Le [scope](SCOPE.md) fixe le périmètre de l’offre ; le [plan web](WEB_PENTEST_PLAN.md)
+organise son développement et le [cadre](CADRE.md) son usage. Les preuves et
+limites détaillées restent dans les documents des lots.

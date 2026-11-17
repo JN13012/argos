@@ -2,15 +2,16 @@
 
 ## Projet
 
-Argos est un projet de fin d'études Epitech, en quatrième année, spécialité
-cybersécurité, encadré et évalué par l'équipe pédagogique d'Epitech Marseille.
-Sa finalité est pédagogique et démonstrative, avec périmètre explicite et
-traçabilité des observations.
+Argos est né dans le cadre d’un projet de fin d’études Epitech, spécialité
+cybersécurité. Cette origine est conservée pour la provenance du projet.
+La priorité produit est une plateforme capable de mener des pentests web/API
+chez de vrais clients, avec autonomie de mission, preuves et restitution.
 
-Une première offre commerciale de pentest web autonome est désormais visée.
 Cette orientation ne vaut ni disponibilité commerciale actuelle ni qualification
-professionnelle : le [plan web](WEB_PENTEST_PLAN.md) exige une évaluation,
-une revue experte et des pilotes explicitement autorisés avant généralisation.
+professionnelle. Le [scope](SCOPE.md) définit l’offre visée et la
+[roadmap](ROADMAP.md) son état ; le [plan web](WEB_PENTEST_PLAN.md) organise
+évaluation, revue experte et pilotes avant généralisation. Les environnements
+de test servent à vérifier les capacités, sans définir leur mode d’usage client.
 
 ## OSINT
 
