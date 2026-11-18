@@ -44,6 +44,29 @@ les parcours auxquels une mission anonyme n’a pas accès.
 Un [exemple synthétique](../development/examples/web-client-report.md) montre
 un constat confirmé à l’origine puis non reproduit au recontrôle.
 
+## Matrice de couverture W5.1
+
+Le rapport Markdown présente les 20 familles `WEB-*` du
+[catalogue Argos](WEB_CAPABILITIES.md), toujours dans le même ordre. Le rendu
+repose sur les projections existantes. Il n’ajoute ni requête, ni données à la
+base, ni champ au JSON historique.
+
+| Famille | Règle d’attribution |
+| --- | --- |
+| `WEB-01` | Observé dès qu’un échange de découverte aboutit sur une page. Les requêtes témoins ne comptent pas comme pages observées. |
+| `WEB-02` | Observé dès qu’un appel API ou un lien DOM est relevé. Une observation ne détermine pas la sécurité de l’API. |
+| `WEB-04` | Compter séparément les contrôles et recontrôles confirmés, non reproduits, inconclusifs et sans résultat. Le statut « Contrôle ciblé effectué » concerne la redirection externe enregistrée. « Partiel » combine des résultats conclusifs et des cas encore incertains. |
+| Autres familles | Non testé en l’absence de contrôle pris en charge par cette projection. L’applicabilité n’est pas déduite du silence des données. |
+
+Cette matrice rend visibles les lacunes de la mission. Elle ne calcule aucun
+pourcentage OWASP et ne constitue pas une attestation de conformité.
+
+Validation W5.1 : huit tests de rapport, 966 tests réussis sous chacun des
+interpréteurs Python 3.12 et 3.14 avec `python -m pytest -q -o
+faulthandler_timeout=30`. Les 86 essais hôte restent hors de cette suite
+régulière. Ruff, le formatage Ruff et Pyright passent. Les 20 identifiants de
+l’exemple ont été comparés au catalogue.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de

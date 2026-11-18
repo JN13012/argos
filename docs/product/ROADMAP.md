@@ -15,7 +15,8 @@ explorer, choisir ses hypothèses, exécuter, vérifier et produire rapport/reco
 sans validation humaine entre les actions comprises dans sa configuration.
 
 Le [premier rapport client W6](WEB_CLIENT_REPORT.md) est disponible en Markdown
-à partir d’une exécution enregistrée, avec couverture, preuves et recontrôle.
+à partir d’une exécution enregistrée, avec preuves, recontrôle et matrice de
+couverture des 20 familles du catalogue Argos.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -74,7 +75,7 @@ Les résultats de CI distante ne sont pas revérifiés par cette mise à jour.
 | W4.3a | Validé localement | Requêtes structurées anonymes, v4 signée, limites et écritures explicites, preuves et consultation CLI ; HTTP/TLS, arrêt et récupération sans replay |
 | W4.3b | Validé localement | Interception de chaque redirection navigateur, URL visible exacte, périmètre, cycles, budgets et preuve par saut |
 | W4.3c | À détailler | Actions de formulaire et sessions anonymes puis identités optionnelles séparées ; parcours, reprise et nettoyage sans fuite |
-| W5.1 + W6 initial | [Premier rapport validé localement](WEB_CLIENT_REPORT.md) ; registre à détailler | Étendre le registre de cas et la couverture sans perdre l’historique |
+| W5.1 + W6 initial | [Rapport et matrice par famille validés localement](WEB_CLIENT_REPORT.md#matrice-de-couverture-w51) | Restituer les observations, les contrôles et les lacunes par famille. Le registre détaillé des cas reste à étendre. |
 | W5.2–W5.3 + W6 | À détailler | Premier ensemble anonyme multi-familles puis accès/sessions/API selon les identités disponibles ; témoins corrigés, effet reproduit et rapport utile |
 | W7 V0 | À détailler après les premiers cas W5/W6 | Boucle autonome sur un petit ensemble déjà vérifié ; hypothèses, choix, observation, validation, reprise et rapport sans intervention intermédiaire |
 | W5.4–W5.6 + W6/W7 | À détailler | Fichiers, traitements serveur, SSRF/XXE, logique métier et approfondissements ; enrichir le catalogue et l’agent avec mesures par famille |

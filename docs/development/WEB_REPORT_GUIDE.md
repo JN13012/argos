@@ -16,6 +16,9 @@ relire. Les identifiants et empreintes y sont fictifs.
    distinguer les compléments du réviseur des données issues d’Argos.
 2. **Expliquer la couverture.** Traduire les blocages utiles pour le lecteur.
    Par exemple, « API observée, contrôle d’accès non testé faute de compte ».
+   La matrice par famille indique ce qui est enregistré. Pour une ligne
+   « Non testé », préciser si le contrôle était applicable quand le contexte
+   permet de l’établir.
    Un résultat sans constat confirmé ne permet pas de conclure à l’absence de
    vulnérabilités.
 3. **Relire chaque constat.** Vérifier que les références correspondent aux

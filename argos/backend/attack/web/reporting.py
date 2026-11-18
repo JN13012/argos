@@ -8,6 +8,7 @@ from uuid import UUID
 from .contracts import WebErrorCode
 from .frontier import BLOCKED, GAPS
 from .navigation_evidence import REASONS as RESOURCE_REASONS
+from .report_coverage import coverage_rows
 
 RUN_STATES = {"running", "completed", "partial", "stopped", "interrupted"}
 ROUTE_STATES = {"queued", "visited", "excluded", "blocked", "interrupted"}
@@ -152,6 +153,18 @@ def render_markdown(report: dict) -> str:
         "L’observation ne valide aucun contrôle de sécurité de ces API.",
         f"- Contrôle de redirection : {redirect_state}.",
         f"- Motifs des contrôles inconclusifs : {_counts(inconclusive, REASONS)}.",
+        "",
+        "### Couverture par famille",
+        "",
+        "Les identifiants renvoient au catalogue Argos. Chaque ligne décrit les "
+        "éléments enregistrés pour cette exécution.",
+        "",
+        "| ID | Famille | État | Éléments enregistrés |",
+        "| --- | --- | --- | --- |",
+        *(
+            f"| {code} | {family} | {status} | {detail} |"
+            for code, family, status, detail in coverage_rows(report)
+        ),
         "",
         "## Constats et preuves",
         "",

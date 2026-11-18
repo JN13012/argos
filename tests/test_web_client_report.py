@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pytest
 from argos.backend.attack.web.redirect_verification import RedirectVerification
+from argos.backend.attack.web.report_coverage import coverage_rows
 from argos.backend.attack.web.reporting import render_markdown
 from argos.cli import main
 
@@ -32,6 +33,8 @@ def test_report_keeps_confirmation_and_retest_after_runtime_closed(setup, capsys
     result = capsys.readouterr().out
     assert "Non reproduit au dernier recontrôle" in result
     assert "Première confirmation" in result
+    assert "| WEB-04 | Redirections et navigation | Contrôle ciblé effectué |" in result
+    assert "1 confirmé(s), 1 non reproduit(s)" in result
     for check in saved["redirect_checks"]:
         assert check["id"] in result
         for step in check["steps"]:
@@ -69,6 +72,31 @@ def test_partial_report_keeps_api_observation_distinct_from_testing(mission, cap
     assert "L’observation ne valide aucun contrôle" in result
     assert "Aucun constat confirmé" in result
     assert "private-canary" not in result
+    assert "| WEB-02 | SPA et API observées dans le navigateur | Observé |" in result
+    assert "| WEB-07 | Contrôle d’accès | Non testé |" in result
+    assert "| WEB-15 | Contrôles de sécurité des API REST | Non testé |" in result
+
+
+@pytest.mark.parametrize(
+    ("verdicts", "expected"),
+    [
+        ([], "Non testé"),
+        (["not_tested"], "Non testé"),
+        (["inconclusive"], "Inconclusif"),
+        (["not_confirmed", "inconclusive"], "Partiel"),
+    ],
+)
+def test_coverage_distinguishes_missing_and_incomplete_checks(verdicts, expected):
+    rows = coverage_rows(
+        {
+            "surface": [{"kind": "probe", "request_state": "completed"}],
+            "browser": {"observed_apis": [], "observed_links": []},
+            "redirect_checks": [{"verdict": verdict} for verdict in verdicts],
+        }
+    )
+    assert len(rows) == 20
+    assert rows[0][2] == "Non observé"  # A control request alone isn't a page.
+    assert rows[3][2] == expected
 
 
 def test_report_discards_unknown_text_including_markdown_and_html(mission):

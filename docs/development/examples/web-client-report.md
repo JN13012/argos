@@ -24,6 +24,33 @@ Ce rapport restitue la découverte anonyme et le contrôle de redirection dispon
 - Contrôle de redirection : `executed`.
 - Motifs des contrôles inconclusifs : Aucun.
 
+### Couverture par famille
+
+Les identifiants renvoient au catalogue Argos. Chaque ligne décrit les éléments enregistrés pour cette exécution.
+
+| ID | Famille | État | Éléments enregistrés |
+| --- | --- | --- | --- |
+| WEB-01 | Surface externe | Observé | 2 échange(s) de découverte terminé(s) sur des pages. |
+| WEB-02 | SPA et API observées dans le navigateur | Non observé | Aucun appel API ni lien DOM relevé. |
+| WEB-03 | TLS, configuration et exposition | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-04 | Redirections et navigation | Contrôle ciblé effectué | Redirection externe uniquement. Contrôles et recontrôles : 1 confirmé(s), 1 non reproduit(s), 0 inconclusif(s), 0 sans résultat. |
+| WEB-05 | Identités et authentification | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-06 | Sessions et jetons | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-07 | Contrôle d’accès | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-08 | Injections dans les langages de requête | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-09 | XSS et injection HTML | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-10 | Injections côté serveur | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-11 | Chemins et lecture de fichiers | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-12 | Téléversement et traitement de fichiers | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-13 | Interactions serveur et parseurs XML | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-14 | CSRF, CORS et confiance interorigine | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-15 | Contrôles de sécurité des API REST | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-16 | Logique métier | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-17 | Erreurs, données sensibles et cache | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-18 | Concurrence et idempotence | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-19 | GraphQL et WebSocket | Non testé | Aucun contrôle de sécurité enregistré. |
+| WEB-20 | SSO et chaînes avancées | Non testé | Aucun contrôle de sécurité enregistré. |
+
 ## Constats et preuves
 
 ### Redirection externe · `00000000-0000-0000-0000-000000000004`
