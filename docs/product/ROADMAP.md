@@ -16,7 +16,8 @@ sans validation humaine entre les actions comprises dans sa configuration.
 
 Le [premier rapport client W6](WEB_CLIENT_REPORT.md) est disponible en Markdown
 à partir d’une exécution enregistrée, avec preuves, recontrôle et matrice de
-couverture des 20 familles du catalogue Argos.
+couverture des 20 familles du catalogue Argos. La même matrice est disponible
+en [JSON versionné](WEB_CLIENT_REPORT.md#export-json-de-la-couverture).
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :

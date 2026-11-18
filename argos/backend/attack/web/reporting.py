@@ -8,7 +8,7 @@ from uuid import UUID
 from .contracts import WebErrorCode
 from .frontier import BLOCKED, GAPS
 from .navigation_evidence import REASONS as RESOURCE_REASONS
-from .report_coverage import coverage_rows
+from .report_coverage import STATUS_LABELS, coverage_rows
 
 RUN_STATES = {"running", "completed", "partial", "stopped", "interrupted"}
 ROUTE_STATES = {"queued", "visited", "excluded", "blocked", "interrupted"}
@@ -162,8 +162,9 @@ def render_markdown(report: dict) -> str:
         "| ID | Famille | État | Éléments enregistrés |",
         "| --- | --- | --- | --- |",
         *(
-            f"| {code} | {family} | {status} | {detail} |"
-            for code, family, status, detail in coverage_rows(report)
+            f"| {row['family_id']} | {row['family']} | "
+            f"{STATUS_LABELS[row['status']]} | {row['detail']} |"
+            for row in coverage_rows(report)
         ),
         "",
         "## Constats et preuves",

@@ -76,7 +76,7 @@ def add_parser(commands):
         )
         if name == "report":
             output.add_argument(
-                "--format", choices=("markdown",), help="Client report format"
+                "--format", choices=("markdown", "coverage-json"), help="Report format"
             )
         if name == "init":
             parser.add_argument("target", nargs="?", help="URL or domain")
@@ -221,28 +221,29 @@ def emit(value: dict, structured: bool):
 
 
 def execute(args: argparse.Namespace) -> int:
+    structured = args.json or getattr(args, "format", None) == "coverage-json"
     try:
         return dispatch(args)
     except WebPolicyError as error:
-        emit(dict(error=error.code.value), args.json)
+        emit(dict(error=error.code.value), structured)
         return 2
     except RuntimeOwnershipError:
-        emit(dict(error="runtime_busy"), args.json)
+        emit(dict(error="runtime_busy"), structured)
         return 1
     except PermissionError:
-        emit(dict(error="approval_invalid"), args.json)
+        emit(dict(error="approval_invalid"), structured)
         return 2
     except (WebPersistenceError, WebIntegrityError, sqlite3.Error):
-        emit(dict(error="storage_failed"), args.json)
+        emit(dict(error="storage_failed"), structured)
         return 1
     except IsolationError:
-        emit(dict(error="isolation_unavailable"), args.json)
+        emit(dict(error="isolation_unavailable"), structured)
         return 1
     except (OSError, ValueError, TypeError, KeyError):
-        emit(dict(error="invalid_input"), args.json)
+        emit(dict(error="invalid_input"), structured)
         return 2
     except KeyboardInterrupt:
-        emit(dict(error="interrupted"), args.json)
+        emit(dict(error="interrupted"), structured)
         return 130
 
 
@@ -353,9 +354,9 @@ def dispatch(args: argparse.Namespace) -> int:
         emit(value, args.json)
         return 0
     if action in ("status", "report"):
-        markdown = action == "report" and getattr(args, "format", None) == "markdown"
-        if markdown and args.run_id is None:
-            raise ValueError("Markdown report requires a run ID")
+        report_format = getattr(args, "format", None) if action == "report" else None
+        if report_format and args.run_id is None:
+            raise ValueError("Explicit report format requires a run ID")
         with WebStore(path, readonly=True) as store:
             store.db.execute("BEGIN")
             run_id = args.run_id
@@ -389,10 +390,16 @@ def dispatch(args: argparse.Namespace) -> int:
                     return 0
                 run_id = UUID(row[0])
             value = summary(store, run_id, details=action == "report")
-        if markdown:
+        if report_format == "markdown":
             from .reporting import render_markdown
 
             print(render_markdown(value), end="")
+        elif report_format == "coverage-json":
+            from .report_coverage import coverage_export
+
+            print(
+                json.dumps(coverage_export(value), ensure_ascii=False, sort_keys=True)
+            )
         else:
             emit(value, args.json)
         return 0

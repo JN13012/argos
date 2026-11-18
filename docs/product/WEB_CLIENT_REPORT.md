@@ -67,6 +67,56 @@ faulthandler_timeout=30`. Les 86 essais hôte restent hors de cette suite
 régulière. Ruff, le formatage Ruff et Pyright passent. Les 20 identifiants de
 l’exemple ont été comparés au catalogue.
 
+## Export JSON de la couverture
+
+Un tableau de bord ou un outil de revue peut consommer la matrice sans
+analyser le Markdown. La commande lit une exécution locale enregistrée :
+
+```bash
+python -m argos web report --run-id UUID --format coverage-json
+```
+
+L’objet contient `schema_version` (actuellement `1`), `mission_id`, `run_id`,
+`configuration_sha256` et `families`. Les 20 familles apparaissent dans
+l’ordre du catalogue. Exemple d’une entrée de `families` :
+
+```json
+{
+  "family_id": "WEB-02",
+  "family": "SPA et API observées dans le navigateur",
+  "status": "observed",
+  "detail": "1 appel(s) API et 2 lien(s) DOM relevé(s).",
+  "counts": {"api_observations": 1, "dom_links": 2}
+}
+```
+
+Pour l’intégration, utiliser `family_id`, `status` et `counts`. `family` et
+`detail` sont des libellés français. Les états stables sont `observed`,
+`not_observed`, `not_tested`, `inconclusive`, `partial` et
+`targeted_check_completed`. Le dernier état ne qualifie que le contrôle
+nommé dans la ligne.
+
+- `WEB-01` expose `completed_page_exchanges`.
+- `WEB-02` expose `api_observations` et `dom_links`.
+- `WEB-04` expose `confirmed`, `not_reproduced`, `inconclusive` et `no_result`.
+  Ces valeurs comptent les enregistrements de contrôle ou de recontrôle.
+  Une confirmation et son recontrôle peuvent donc compter dans deux colonnes.
+- Les autres familles exposent `counts: {}` et restent `not_tested`.
+
+Une erreur de lecture ou un identifiant inconnu renvoie un code de sortie
+non nul et un objet `error`. `--format coverage-json` exige `--run-id` et
+s’utilise seul, sans `--json`. Les références de preuve détaillées restent
+dans le rapport existant. L’export de couverture contient des compteurs,
+des identifiants de mission et des libellés, sans URL, paramètre ou contenu
+récupéré auprès de la cible.
+
+Validation de l’export : les tests CLI couvrent la compatibilité du JSON
+historique, la stabilité de deux exports, le recontrôle, la distinction entre
+API observée et API testée, et l’intégrité de la base. La suite régulière
+`python -m pytest -q -o faulthandler_timeout=30` passe avec 966 tests sur
+Python 3.12 et 3.14. Les 86 essais hôte n’ont pas été activés. Ruff,
+le formatage Ruff et Pyright passent.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de

@@ -44,6 +44,27 @@ def test_report_keeps_confirmation_and_retest_after_runtime_closed(setup, capsys
     assert capsys.readouterr().out == result
     assert main([*args, "--json"]) == 0
     assert json.loads(capsys.readouterr().out) == saved
+    assert main([*args, "--format", "coverage-json"]) == 0
+    encoded = capsys.readouterr().out
+    coverage = json.loads(encoded)
+    assert coverage["schema_version"] == 1
+    assert coverage["mission_id"] == str(mid)
+    assert coverage["run_id"] == str(run_id)
+    assert coverage["configuration_sha256"] == saved["configuration_sha256"]
+    assert [row["family_id"] for row in coverage["families"]] == [
+        f"WEB-{number:02d}" for number in range(1, 21)
+    ]
+    redirects = coverage["families"][3]
+    assert redirects["status"] == "targeted_check_completed"
+    assert redirects["counts"] == {
+        "confirmed": 1,
+        "not_reproduced": 1,
+        "inconclusive": 0,
+        "no_result": 0,
+    }
+    assert "private-value" not in encoded and "redirect-proof.invalid" not in encoded
+    assert main([*args, "--format", "coverage-json"]) == 0
+    assert capsys.readouterr().out == encoded
     assert runtime.database.read_bytes() == original_db
     assert (len(worker.calls), len(resolver.calls)) == calls
 
@@ -75,15 +96,36 @@ def test_partial_report_keeps_api_observation_distinct_from_testing(mission, cap
     assert "| WEB-02 | SPA et API observées dans le navigateur | Observé |" in result
     assert "| WEB-07 | Contrôle d’accès | Non testé |" in result
     assert "| WEB-15 | Contrôles de sécurité des API REST | Non testé |" in result
+    assert (
+        main(
+            [
+                "web",
+                "report",
+                "--run-id",
+                str(m.run_id),
+                "--db",
+                str(m.path),
+                "--format",
+                "coverage-json",
+            ]
+        )
+        == 0
+    )
+    encoded = capsys.readouterr().out
+    rows = {row["family_id"]: row for row in json.loads(encoded)["families"]}
+    assert rows["WEB-02"]["status"] == "observed"
+    assert rows["WEB-02"]["counts"]["api_observations"] == 1
+    assert rows["WEB-15"]["status"] == "not_tested"
+    assert "private-canary" not in encoded
 
 
 @pytest.mark.parametrize(
     ("verdicts", "expected"),
     [
-        ([], "Non testé"),
-        (["not_tested"], "Non testé"),
-        (["inconclusive"], "Inconclusif"),
-        (["not_confirmed", "inconclusive"], "Partiel"),
+        ([], "not_tested"),
+        (["not_tested"], "not_tested"),
+        (["inconclusive"], "inconclusive"),
+        (["not_confirmed", "inconclusive"], "partial"),
     ],
 )
 def test_coverage_distinguishes_missing_and_incomplete_checks(verdicts, expected):
@@ -95,8 +137,8 @@ def test_coverage_distinguishes_missing_and_incomplete_checks(verdicts, expected
         }
     )
     assert len(rows) == 20
-    assert rows[0][2] == "Non observé"  # A control request alone isn't a page.
-    assert rows[3][2] == expected
+    assert rows[0]["status"] == "not_observed"  # A control request alone isn't a page.
+    assert rows[3]["status"] == expected
 
 
 def test_report_discards_unknown_text_including_markdown_and_html(mission):
@@ -120,6 +162,8 @@ def test_report_format_constraints(setup, capsys):
     args = ["web", "report", "--mission-id", str(mid), "--db", str(runtime.database)]
     assert main([*args, "--format", "markdown"]) == 2
     assert "invalid_input" in capsys.readouterr().out
+    assert main([*args, "--format", "coverage-json"]) == 2
+    assert json.loads(capsys.readouterr().out) == {"error": "invalid_input"}
     with pytest.raises(SystemExit) as error:
         main([*args, "--format", "markdown", "--json"])
     assert error.value.code == 2
