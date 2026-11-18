@@ -19,7 +19,8 @@ Le [premier rapport client W6](WEB_CLIENT_REPORT.md) est disponible en Markdown
 couverture des 20 familles du catalogue Argos. La même matrice est disponible
 en [JSON versionné](WEB_CLIENT_REPORT.md#export-json-de-la-couverture), avec
 [comparaison hors ligne](WEB_CLIENT_REPORT.md#comparer-deux-exports) de deux
-exports de la même exécution.
+exports de la même exécution. Un [index des preuves HTTP](WEB_CLIENT_REPORT.md#index-des-preuves-http)
+relie les reçus aux routes, navigations et contrôles enregistrés.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :

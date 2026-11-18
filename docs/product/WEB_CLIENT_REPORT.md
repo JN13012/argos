@@ -158,6 +158,47 @@ seule et les refus d’entrées. La suite régulière `python -m pytest -q -o
 faulthandler_timeout=30` donne 974 réussites sur Python 3.12 et 3.14, avec 86
 essais hôte hors de cette suite. Ruff, le formatage Ruff et Pyright passent.
 
+## Index des preuves HTTP
+
+L’index accompagne le rapport lors d’une revue. Il permet de rattacher les
+reçus HTTP enregistrés aux routes de découverte, navigations et contrôles de
+redirection, recontrôles compris.
+
+```bash
+python -m argos web report --run-id UUID --format evidence-json
+```
+
+L’objet exporté contient `schema_version: 1`, `mission_id`, `run_id`,
+`configuration_sha256` et `receipts`. Chaque reçu est référencé une fois par
+`request_id` et `sha256`. Le tableau `references` donne l’identifiant et le
+type de chaque élément qui le référence. Exemple d’une entrée de `receipts` :
+
+```json
+{
+  "request_id": "00000000-0000-0000-0000-000000000028",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000028",
+  "references": [{"kind": "redirect_check", "id": "00000000-0000-0000-0000-000000000004"}]
+}
+```
+
+Les types sont `route`, `navigation` et `redirect_check`. L’export utilise
+la projection en lecture seule du rapport, n’émet aucun trafic et reste
+stable si la base de mission ne change pas. Une requête sans reçu est omise.
+Deux empreintes incompatibles pour un même reçu provoquent une erreur au lieu
+de produire un index ambigu.
+
+L’index contient des références et des empreintes, sans requêtes, réponses,
+URL, corps, cookies ni secrets. Pour examiner le contenu expurgé d’un reçu
+ou interpréter son résultat, utiliser le dossier de mission correspondant.
+L’index seul n’authentifie pas les preuves et ne représente pas les requêtes
+structurées hors exécution enregistrées par `web request`.
+
+Validation locale : neuf tests de rapport, avec vérification des références,
+du recontrôle, de la stabilité, des doublons et des empreintes contradictoires.
+La suite régulière `python -m pytest -q -o faulthandler_timeout=30` passe avec
+975 réussites sur Python 3.12 et 3.14. Les 86 essais hôte n’ont pas été activés.
+Ruff, le formatage Ruff et Pyright passent.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de

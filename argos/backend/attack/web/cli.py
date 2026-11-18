@@ -82,7 +82,9 @@ def add_parser(commands):
         )
         if name == "report":
             output.add_argument(
-                "--format", choices=("markdown", "coverage-json"), help="Report format"
+                "--format",
+                choices=("markdown", "coverage-json", "evidence-json"),
+                help="Report format",
             )
         if name == "init":
             parser.add_argument("target", nargs="?", help="URL or domain")
@@ -227,7 +229,10 @@ def emit(value: dict, structured: bool):
 
 
 def execute(args: argparse.Namespace) -> int:
-    structured = args.json or getattr(args, "format", None) == "coverage-json"
+    structured = args.json or getattr(args, "format", None) in {
+        "coverage-json",
+        "evidence-json",
+    }
     try:
         return dispatch(args)
     except WebPolicyError as error:
@@ -411,6 +416,10 @@ def dispatch(args: argparse.Namespace) -> int:
             print(
                 json.dumps(coverage_export(value), ensure_ascii=False, sort_keys=True)
             )
+        elif report_format == "evidence-json":
+            from .evidence_index import evidence_index
+
+            emit(evidence_index(value), structured=True)
         else:
             emit(value, args.json)
         return 0

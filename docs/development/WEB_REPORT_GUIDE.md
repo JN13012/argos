@@ -26,6 +26,8 @@ relire. Les identifiants et empreintes y sont fictifs.
    contexte les établit. Compléter les consignes de correction pour le client
    avec les détails nécessaires et expurgés. Une empreinte référence un reçu,
    elle ne remplace pas la preuve conservée dans le dossier de mission.
+   Utiliser l’[index des preuves HTTP](../product/WEB_CLIENT_REPORT.md#index-des-preuves-http)
+   pour inventorier les références sans partager la base de mission.
 4. **Vérifier le recontrôle.** Conserver l’observation initiale et préciser ce
    que le nouveau résultat établit. « Non reproduit » décrit le résultat du
    contrôle, tandis qu’« inconclusif » laisse la correction à vérifier.

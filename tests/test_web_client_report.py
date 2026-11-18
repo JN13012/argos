@@ -4,6 +4,8 @@ import json
 from uuid import UUID
 
 import pytest
+from argos.backend.attack.web.evidence_index import evidence_index
+from argos.backend.attack.web.receipts import WebIntegrityError
 from argos.backend.attack.web.redirect_verification import RedirectVerification
 from argos.backend.attack.web.report_coverage import coverage_rows
 from argos.backend.attack.web.reporting import render_markdown
@@ -65,13 +67,36 @@ def test_report_keeps_confirmation_and_retest_after_runtime_closed(setup, capsys
     assert "private-value" not in encoded and "redirect-proof.invalid" not in encoded
     assert main([*args, "--format", "coverage-json"]) == 0
     assert capsys.readouterr().out == encoded
+    assert main([*args, "--format", "evidence-json"]) == 0
+    index_text = capsys.readouterr().out
+    index = json.loads(index_text)
+    assert index["schema_version"] == 1 and index["run_id"] == str(run_id)
+    assert index["mission_id"] == str(mid)
+    assert index["configuration_sha256"] == saved["configuration_sha256"]
+    receipts = {item["request_id"]: item for item in index["receipts"]}
+    for check in saved["redirect_checks"]:
+        for step in check["steps"]:
+            assert receipts[step["request_id"]]["sha256"] == step["receipt_sha256"]
+            assert receipts[step["request_id"]]["references"] == [
+                {"kind": "redirect_check", "id": check["id"]}
+            ]
+    assert any(
+        ref["kind"] == "route"
+        for item in receipts.values()
+        for ref in item["references"]
+    )
+    assert (
+        "private-value" not in index_text and "redirect-proof.invalid" not in index_text
+    )
+    assert main([*args, "--format", "evidence-json"]) == 0
+    assert capsys.readouterr().out == index_text
     assert runtime.database.read_bytes() == original_db
     assert (len(worker.calls), len(resolver.calls)) == calls
 
 
 def test_partial_report_keeps_api_observation_distinct_from_testing(mission, capsys):
     m = mission(browser={"max_navigations": 1})
-    browser_site(m).run(m.run_id)
+    saved = browser_site(m).run(m.run_id)
     assert (
         main(
             [
@@ -117,6 +142,46 @@ def test_partial_report_keeps_api_observation_distinct_from_testing(mission, cap
     assert rows["WEB-02"]["counts"]["api_observations"] == 1
     assert rows["WEB-15"]["status"] == "not_tested"
     assert "private-canary" not in encoded
+    index = evidence_index(saved)
+    api = saved["browser"]["observed_apis"][0]
+    receipt = next(
+        item for item in index["receipts"] if item["request_id"] == api["request_id"]
+    )
+    assert receipt["sha256"] == api["receipt_sha256"]
+    assert receipt["references"] == [{"kind": "navigation", "id": api["navigation_id"]}]
+
+
+def test_evidence_index_deduplicates_references_and_rejects_conflicts():
+    request = str(UUID(int=1))
+    route_id = str(UUID(int=2))
+    navigation_id = str(UUID(int=3))
+    route = dict(id=route_id, request_id=request, evidence_sha256="a" * 64)
+    resource = dict(request_id=request, receipt_sha256="a" * 64)
+    report = dict(
+        mission_id=str(UUID(int=4)),
+        run_id=str(UUID(int=5)),
+        configuration_sha256="b" * 64,
+        surface=[route, dict(id=str(UUID(int=6)), request_id=str(UUID(int=7)))],
+        browser=dict(
+            navigation_details=[
+                dict(navigation_id=navigation_id, resources=[resource, resource])
+            ]
+        ),
+        redirect_checks=[],
+    )
+    assert evidence_index(report)["receipts"] == [
+        dict(
+            request_id=request,
+            sha256="a" * 64,
+            references=[
+                {"kind": "navigation", "id": navigation_id},
+                {"kind": "route", "id": route_id},
+            ],
+        )
+    ]
+    resource["receipt_sha256"] = "c" * 64
+    with pytest.raises(WebIntegrityError, match="Conflicting receipt fingerprints"):
+        evidence_index(report)
 
 
 @pytest.mark.parametrize(
