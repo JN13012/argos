@@ -10,15 +10,20 @@ pas des identifiants OWASP ni des capacités déjà exécutables.
 ## Références et méthode
 
 Utiliser des références versionnées : [WSTG 4.2](https://wstg.owasp.org/v4.2/),
-[ASVS 5.0.0](https://asvs.owasp.org/) pour les exigences applicables et
+[ASVS 5.0.0](https://asvs.owasp.org/) pour les exigences applicables,
+[OWASP Top 10 2025](https://owasp.org/Top10/2025/) et
 [API Security Top 10 2023](https://api-security.owasp.org/editions/2023/en/0x11-t10/)
-pour compléter les risques API. Les Top 10 ne constituent pas une liste
-exhaustive de tests. Les correspondances exactes aux cas WSTG et exigences
-ASVS seront vérifiées dans chaque fiche exécutable ; ne pas inventer un ID
-ou annoncer la conformité à une exigence nécessitant du code source inaccessible.
-Les références sont consultées le 17 novembre 2026 ; aucun texte tiers complet
-n’est copié. MITRE ATT&CK peut décrire une chaîne d’actions, sans remplacer la
-méthode de test web.
+pour la lecture des risques. La couverture d’une mission s’exprime par
+contrôle applicable, avec le parcours ou l’API concerné, le rôle utilisé,
+le résultat et la référence de preuve ou la raison du blocage. Une exigence
+qui nécessite des éléments internes reste invérifiable en boîte noire tant
+que ces éléments manquent. Le catalogue Argos inclut aussi les règles métier
+propres à chaque application, avec leurs préconditions et limites.
+
+[MITRE ATT&CK Enterprise](https://attack.mitre.org/resources/) sert à relier
+les comportements observés aux techniques pertinentes lorsque les preuves le
+permettent. Cette annotation est distincte de la couverture OWASP. Un scénario
+hypothétique reste identifié comme tel dans le rapport.
 
 Le parcours de mission doit : cartographier, identifier les préconditions,
 choisir les tests applicables, exécuter, vérifier l’effet, qualifier l’impact,

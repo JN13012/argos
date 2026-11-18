@@ -106,10 +106,9 @@ erronément passée au paramètre ne peut pas être identifiée par W1.1 seule.
    tags mobiles : un commit source seul ne rend pas le build reproductible.
 2. Mesurer RAM, CPU, stockage et temps de démarrage sur amd64 ; aucune mesure
    de ressources n'a encore été faite. Définir les plafonds effectifs avant run.
-3. Ajouter le profil réseau privé explicite et le transport W2. La configuration W1.1 reste externe ; la v2 W2.1 fournit désormais un
-   profil privé signé et une politique hors ligne, sans transport. L’export
-   v1 ne contourne pas son refus des IP privées/nom interne `target` et ne
-   suffit pas à lancer ces suites.
+3. Relier le futur runner aux profils réseau privés signés et au transport W2
+   existants. L’export v1 reste externe. Le runner doit sélectionner un profil
+   compatible et vérifier l’isolation entre cible et services de notation.
 4. Adapter la notation : comparaison au flag injecté côté évaluateur pour
    XBOW ; état serveur du challenge Juice Shop ; grader CVE-Bench appelé par
    l'évaluateur, jamais par le modèle. Un simple HTTP 200 ne valide aucun cas.
@@ -129,7 +128,5 @@ spécifique : leur faisabilité doit être vérifiée avant exécution ; à déf
 ils restent bloqués, sans pouvoir élargir eux-mêmes la configuration.
 
 W1.2 livre la préparation et ses contrôles hors ligne. Images, oracles, témoins
-et exécution restent non qualifiés ; W1 n'est pas déclaré entièrement clos.
-La [spécification W1.3](../../docs/product/WEB_HTTP_EXECUTION.md) est désormais
-livrée, ainsi que les [contrats W2.1](../../docs/product/WEB_HTTP_POLICY.md).
-La prochaine implémentation est W2.2, le transport HTTP, avant stockage et CLI. Les critères réels seront mesurés avec W2–W7, puis W8.
+et exécution restent à qualifier. La [roadmap](../../docs/product/ROADMAP.md)
+porte l’état du runtime et les priorités avant l’évaluation W8.
