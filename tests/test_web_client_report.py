@@ -9,7 +9,7 @@ from argos.backend.attack.web.evidence_index import evidence_index
 from argos.backend.attack.web.receipts import WebIntegrityError
 from argos.backend.attack.web.redirect_verification import RedirectVerification
 from argos.backend.attack.web.report_coverage import coverage_rows
-from argos.backend.attack.web.reporting import render_markdown
+from argos.backend.attack.web.reporting import findings_export, render_markdown
 from argos.cli import main
 
 from test_web_browser_discovery import site as browser_site
@@ -47,6 +47,38 @@ def test_report_keeps_confirmation_and_retest_after_runtime_closed(setup, capsys
     assert capsys.readouterr().out == result
     assert main([*args, "--json"]) == 0
     assert json.loads(capsys.readouterr().out) == saved
+    assert main([*args, "--format", "findings-json"]) == 0
+    findings_text = capsys.readouterr().out
+    findings = json.loads(findings_text)
+    assert findings["schema_version"] == 1
+    assert findings["mission_id"] == str(mid)
+    assert findings["run_id"] == str(run_id)
+    assert findings["configuration_sha256"] == saved["configuration_sha256"]
+    [finding] = findings["findings"]
+    assert finding["finding_id"] == initial["findings"][0]["id"]
+    assert finding["family_id"] == "WEB-04"
+    assert finding["status"] == "not_reproduced"
+    assert finding["severity"] == "unrated"
+    assert finding["remediation"]
+    assert findings_export(initial)["findings"][0]["latest_retest"] is None
+    for key, check in zip(
+        ("first_confirmation", "latest_retest"), saved["redirect_checks"], strict=True
+    ):
+        assert finding[key] == {
+            "check_id": check["id"],
+            "recorded_at": check["recorded_at"],
+            "verdict": check["verdict"],
+            "receipts": [
+                {"request_id": step["request_id"], "sha256": step["receipt_sha256"]}
+                for step in check["steps"]
+            ],
+        }
+    assert (
+        "private-value" not in findings_text
+        and "redirect-proof.invalid" not in findings_text
+    )
+    assert main([*args, "--format", "findings-json"]) == 0
+    assert capsys.readouterr().out == findings_text
     assert main([*args, "--format", "coverage-json"]) == 0
     encoded = capsys.readouterr().out
     coverage = json.loads(encoded)
@@ -180,6 +212,27 @@ def test_partial_report_keeps_api_observation_distinct_from_testing(mission, cap
     )
     assert receipt["sha256"] == api["receipt_sha256"]
     assert receipt["references"] == [{"kind": "navigation", "id": api["navigation_id"]}]
+    assert findings_export(saved)["findings"] == []
+
+
+def test_findings_export_can_trace_a_first_confirmation_to_a_retest(setup):
+    runtime, mid, worker, _, _ = setup()
+    site(worker, "fixed")
+    with runtime:
+        run_id = discover(runtime, mid)
+        original = RedirectVerification(runtime).run(run_id)
+        check_id = original["redirect_checks"][0]["id"]
+        site(worker)
+        saved = RedirectVerification(runtime).run(run_id, retest=UUID(check_id))
+
+    [finding] = findings_export(saved)["findings"]
+    assert findings_export(original)["findings"] == []
+    assert finding["finding_id"] == check_id
+    assert finding["status"] == "confirmed"
+    assert finding["first_confirmation"] == finding["latest_retest"]
+    assert (
+        finding["first_confirmation"]["check_id"] == saved["redirect_checks"][1]["id"]
+    )
 
 
 def test_evidence_index_deduplicates_references_and_rejects_conflicts():
@@ -311,6 +364,8 @@ def test_report_format_constraints(setup, capsys):
     assert main([*args, "--format", "markdown"]) == 2
     assert "invalid_input" in capsys.readouterr().out
     assert main([*args, "--format", "coverage-json"]) == 2
+    assert json.loads(capsys.readouterr().out) == {"error": "invalid_input"}
+    assert main([*args, "--format", "findings-json"]) == 2
     assert json.loads(capsys.readouterr().out) == {"error": "invalid_input"}
     with pytest.raises(SystemExit) as error:
         main([*args, "--format", "markdown", "--json"])

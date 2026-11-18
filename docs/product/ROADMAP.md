@@ -25,7 +25,9 @@ relie les reçus aux routes, navigations et contrôles enregistrés. La
 vérifier son empreinte et d’afficher son résultat expurgé. La
 [vérification d’un index archivé](WEB_CLIENT_REPORT.md#vérifier-un-index-archivé)
 contrôle en une commande que l’index correspond aux preuves de l’exécution
-dans la base privée.
+dans la base privée. L’[export JSON des constats](WEB_CLIENT_REPORT.md#exporter-les-constats-pour-suivre-les-corrections)
+fournit des identifiants stables, les preuves de la première confirmation
+et le dernier recontrôle pour le suivi des corrections.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :

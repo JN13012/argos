@@ -264,6 +264,44 @@ l’empreinte modifiée, le reçu manquant et les liaisons altérées dans la ba
 Les suites régulières Python 3.12 et 3.14 passent avec 976 réussites chacune
 et 86 essais hôte hors suite. Ruff, son contrôle de format et Pyright passent.
 
+## Exporter les constats pour suivre les corrections
+
+Un réviseur peut utiliser le format JSON pour préparer les tickets de
+correction ou alimenter un tableau de suivi :
+
+```bash
+umask 077
+python -m argos web report --run-id UUID --format findings-json > constats.json
+```
+
+Le format v1 contient `schema_version`, `mission_id`, `run_id`,
+`configuration_sha256` et la liste `findings`, triée par `finding_id`.
+L’identifiant du constat reste celui du contrôle initial, même si la première
+confirmation intervient lors d’un recontrôle. Chaque entrée indique la
+famille (`WEB-04` pour la redirection), le type, l’état actuel du constat,
+la référence de route, l’index du paramètre et une piste de correction.
+La gravité reste `unrated` en attendant la qualification métier.
+
+`first_confirmation` conserve le contrôle qui a établi le constat.
+`latest_retest` indique le dernier recontrôle ou vaut `null` si aucun
+n’a été enregistré. Chaque résumé fournit `check_id`, `recorded_at` en UTC,
+`verdict` et les références `request_id` et `sha256` des reçus disponibles.
+L’état `not_reproduced` indique que le dernier recontrôle n’a pas reproduit le
+comportement. L’état `retest_inconclusive` indique qu’il reste à réévaluer.
+Une liste vide signifie qu’aucun constat n’a été confirmé dans cette
+exécution.
+
+Le CLI lit la base en lecture seule et écrit le JSON sur la sortie standard.
+Les URL, valeurs des paramètres, en-têtes et corps restent dans le dossier
+privé. Le réviseur complète les tickets avec le contexte métier et les
+détails autorisés.
+
+Validation locale : 11 tests de rapport, dont l’export stable et expurgé,
+l’historique conservé après un recontrôle et la première confirmation lors
+d’un recontrôle. Les suites régulières Python 3.12 et 3.14 passent avec
+977 réussites chacune et 86 essais hôte hors suite. Ruff, son contrôle de
+format et Pyright passent.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de

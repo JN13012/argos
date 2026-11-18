@@ -47,6 +47,7 @@ from .store import WebStore
 from .transport import HTTPWorker
 
 DEFAULT_DB = ".argos/web/missions.sqlite3"
+JSON_REPORT_FORMATS = ("coverage-json", "evidence-json", "findings-json")
 
 
 def add_parser(commands):
@@ -98,7 +99,7 @@ def add_parser(commands):
         if name == "report":
             output.add_argument(
                 "--format",
-                choices=("markdown", "coverage-json", "evidence-json"),
+                choices=("markdown", *JSON_REPORT_FORMATS),
                 help="Report format",
             )
         if name == "init":
@@ -244,10 +245,7 @@ def emit(value: dict, structured: bool):
 
 
 def execute(args: argparse.Namespace) -> int:
-    structured = args.json or getattr(args, "format", None) in {
-        "coverage-json",
-        "evidence-json",
-    }
+    structured = args.json or getattr(args, "format", None) in JSON_REPORT_FORMATS
     try:
         return dispatch(args)
     except WebPolicyError as error:
@@ -460,6 +458,10 @@ def dispatch(args: argparse.Namespace) -> int:
             from .evidence_index import evidence_index
 
             emit(evidence_index(value), structured=True)
+        elif report_format == "findings-json":
+            from .reporting import findings_export
+
+            emit(findings_export(value), structured=True)
         else:
             emit(value, args.json)
         return 0

@@ -1,6 +1,6 @@
-"""Client Markdown generated from the existing read-only web projection."""
+"""Client reports generated from the existing read-only web projection."""
 
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from re import fullmatch
 from uuid import UUID
@@ -53,6 +53,10 @@ FINDING_STATES = {
     "not_reproduced": "Non reproduit au dernier recontrôle",
     "retest_inconclusive": "Dernier recontrôle inconclusif",
 }
+REDIRECT_FIX = (
+    "Privilégier les chemins internes ou limiter les destinations externes "
+    "à une liste explicite."
+)
 
 
 def _label(value: str, allowed: set[str] | frozenset[str]) -> str:
@@ -82,11 +86,15 @@ def _counts(values: dict, allowed: set[str] | frozenset[str]) -> str:
     )
 
 
-def _check(lines: list[str], check: dict, title: str) -> None:
-    recorded = datetime.fromisoformat(check["recorded_at"])
+def _utc_date(value: str) -> str:
+    recorded = datetime.fromisoformat(value)
     if recorded.tzinfo is None:
         raise ValueError("Missing evidence timestamp offset")
-    date = recorded.astimezone(UTC).isoformat()
+    return recorded.astimezone(UTC).isoformat()
+
+
+def _check(lines: list[str], check: dict, title: str) -> None:
+    date = _utc_date(check["recorded_at"])
     verdict = VERDICTS.get(check["verdict"], "Non classé")
     reason = _label(check["reason"], REASONS)
     lines.append(f"- {title} `{UUID(check['id'])}` · {date} · {verdict} ({reason}).")
@@ -96,6 +104,72 @@ def _check(lines: list[str], check: dict, title: str) -> None:
                 f"  - Reçu `{UUID(step['request_id'])}` · "
                 f"SHA-256 `{_sha256(fingerprint)}`."
             )
+
+
+def _check_export(check: dict) -> dict:
+    verdict = check["verdict"]
+    if verdict not in VERDICTS:
+        raise ValueError("Unknown check verdict")
+    return dict(
+        check_id=str(UUID(check["id"])),
+        recorded_at=_utc_date(check["recorded_at"]),
+        verdict=verdict,
+        receipts=[
+            dict(request_id=str(UUID(step["request_id"])), sha256=_sha256(fingerprint))
+            for step in check["steps"]
+            if (fingerprint := step["receipt_sha256"]) is not None
+        ],
+    )
+
+
+def findings_export(report: dict) -> dict:
+    checks_by_id = {check["id"]: check for check in report["redirect_checks"]}
+    retests_by_parent: dict[str, list[dict]] = defaultdict(list)
+    for check in report["redirect_checks"]:
+        if check["parent_id"] is not None:
+            retests_by_parent[check["parent_id"]].append(check)
+
+    findings = []
+    for finding in sorted(report["findings"], key=lambda item: item["id"]):
+        finding_id = finding["id"]
+        status = finding["status"]
+        if status not in FINDING_STATES:
+            raise ValueError("Unknown finding status")
+        initial = checks_by_id[finding_id]
+        first_confirmed = next(
+            (
+                check
+                for check in [initial, *retests_by_parent[finding_id]]
+                if check["verdict"] == "confirmed"
+            ),
+            None,
+        )
+        if first_confirmed is None:
+            raise ValueError("Finding has no recorded confirmation")
+        latest = checks_by_id[finding["last_check_id"]]
+        findings.append(
+            dict(
+                finding_id=str(UUID(finding_id)),
+                family_id="WEB-04",
+                kind="external_redirect",
+                status=status,
+                severity="unrated",
+                remediation=REDIRECT_FIX,
+                route_id=str(UUID(finding["route_id"])),
+                parameter_index=_count(finding["parameter_index"]),
+                first_confirmation=_check_export(first_confirmed),
+                latest_retest=_check_export(latest)
+                if latest["id"] != finding_id
+                else None,
+            )
+        )
+    return dict(
+        schema_version=1,
+        mission_id=str(UUID(report["mission_id"])),
+        run_id=str(UUID(report["run_id"])),
+        configuration_sha256=_sha256(report["configuration_sha256"]),
+        findings=findings,
+    )
 
 
 def render_markdown(report: dict) -> str:
@@ -187,8 +261,7 @@ def render_markdown(report: dict) -> str:
                 f"- Statut : {FINDING_STATES.get(finding['status'], 'Non classé')}.",
                 "- Effet observé : l’application a renvoyé une redirection vers "
                 "une destination externe contrôlée par la valeur du paramètre.",
-                "- Correction proposée : privilégier les chemins internes ou "
-                "limiter les destinations externes à une liste explicite.",
+                f"- Correction proposée : {REDIRECT_FIX}",
             ]
         )
         _check(lines, confirmed, "Première confirmation")

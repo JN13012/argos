@@ -35,6 +35,9 @@ relire. Les identifiants et empreintes y sont fictifs.
 4. **Vérifier le recontrôle.** Conserver l’observation initiale et préciser ce
    que le nouveau résultat établit. « Non reproduit » décrit le résultat du
    contrôle, tandis qu’« inconclusif » laisse la correction à vérifier.
+5. **Préparer le suivi.** Utiliser l’[export JSON des constats](../product/WEB_CLIENT_REPORT.md#exporter-les-constats-pour-suivre-les-corrections)
+   pour rattacher chaque ticket à l’identifiant du constat et retrouver les
+   reçus de sa première confirmation et du dernier recontrôle.
 
 Relire aussi les compléments manuels pour écarter les secrets et données
 personnelles inutiles. Les rapports réels restent hors du dépôt.
