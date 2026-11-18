@@ -1,6 +1,7 @@
 """Read-only CLI export of recorded web evidence."""
 
 import json
+import sqlite3
 from uuid import UUID
 
 import pytest
@@ -212,6 +213,58 @@ def test_evidence_index_deduplicates_references_and_rejects_conflicts():
     resource["receipt_sha256"] = "c" * 64
     with pytest.raises(WebIntegrityError, match="Conflicting receipt fingerprints"):
         evidence_index(report)
+
+
+def test_verify_saved_evidence_rejects_changed_export_and_database(
+    mission, tmp_path, capsys
+):
+    m = mission(browser={"max_navigations": 1})
+    browser_site(m).run(m.run_id)
+    scope = ["--run-id", str(m.run_id), "--db", str(m.path)]
+    assert main(["web", "report", *scope, "--format", "evidence-json"]) == 0
+    original = capsys.readouterr().out
+    index_file = tmp_path / "index.json"
+    index_file.write_text(original, encoding="utf-8")
+    verify = ["web", "verify-evidence", *scope, "--index", str(index_file)]
+    original_db = m.path.read_bytes()
+    saved = json.loads(original)
+    assert main(verify) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        key: value for key, value in saved.items() if key != "receipts"
+    } | {"verified_receipts": len(saved["receipts"])}
+    assert index_file.read_text(encoding="utf-8") == original
+
+    index_file.write_text('{"schema_version": 1, ' + original[1:], encoding="utf-8")
+    assert main(verify) == 2
+    assert json.loads(capsys.readouterr().out) == {"error": "invalid_input"}
+
+    receipt = next(
+        item
+        for item in saved["receipts"]
+        if item["references"][0]["kind"] == "navigation"
+    )
+    receipt["sha256"] = "0" * 64
+    index_file.write_text(json.dumps(saved), encoding="utf-8")
+    assert main(verify) == 1
+    assert json.loads(capsys.readouterr().out) == {"error": "index_mismatch"}
+
+    saved["receipts"].remove(receipt)
+    index_file.write_text(json.dumps(saved), encoding="utf-8")
+    assert main(verify) == 1
+    assert json.loads(capsys.readouterr().out) == {"error": "index_mismatch"}
+    assert m.path.read_bytes() == original_db
+
+    index_file.write_text(original, encoding="utf-8")
+    with sqlite3.connect(m.path) as db:
+        assert (
+            db.execute(
+                "UPDATE web_http_evidence SET payload_sha256=? WHERE request_id=?",
+                ("0" * 64, receipt["request_id"]),
+            ).rowcount
+            == 1
+        )
+    assert main(verify) == 1
+    assert json.loads(capsys.readouterr().out) == {"error": "storage_failed"}
 
 
 @pytest.mark.parametrize(

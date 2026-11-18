@@ -1,12 +1,10 @@
 """Compare two saved coverage snapshots without loading a mission database."""
 
-import json
-import os
-import stat
 from uuid import UUID
 
 from .contracts import _digest, _integer
 from .report_coverage import FAMILIES, STATUS_LABELS
+from .report_files import load_report_file
 
 SCHEMA_VERSION = 1
 MAX_SNAPSHOT_BYTES = 65536
@@ -18,31 +16,10 @@ COUNT_FIELDS = {
 }
 
 
-def _unique_object(pairs: list[tuple[str, object]]) -> dict:
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("Duplicate coverage key")
-        result[key] = value
-    return result
-
-
 def _load(path: str) -> dict:
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    with os.fdopen(descriptor, "rb") as stream:
-        info = os.fstat(stream.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_SNAPSHOT_BYTES:
-            raise ValueError("Bounded regular coverage file required")
-        content = stream.read(MAX_SNAPSHOT_BYTES + 1)
-    if len(content) > MAX_SNAPSHOT_BYTES:
-        raise ValueError("Coverage export exceeds limit")
-    try:
-        value = json.loads(content.decode("utf-8"), object_pairs_hook=_unique_object)
-    except RecursionError as error:
-        raise ValueError("Coverage export is too deeply nested") from error
+    value = load_report_file(path, max_bytes=MAX_SNAPSHOT_BYTES)
     if (
-        not isinstance(value, dict)
-        or set(value) != {*IDENTITY, "schema_version", "families"}
+        set(value) != {*IDENTITY, "schema_version", "families"}
         or type(value["schema_version"]) is not int
         or value["schema_version"] != SCHEMA_VERSION
     ):

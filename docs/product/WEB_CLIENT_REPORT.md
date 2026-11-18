@@ -229,6 +229,41 @@ faulthandler_timeout=30` passe avec 975 tests sur Python 3.12 et 3.14.
 Les 86 essais hôte n’ont pas été activés. Ruff, son contrôle de format et
 Pyright passent.
 
+## Vérifier un index archivé
+
+Avant la remise du rapport, comparer l’index fourni au réviseur avec la vue
+actuelle de l’exécution dans la base privée :
+
+```bash
+python -m argos web verify-evidence --run-id UUID --index index.json
+```
+
+La commande relit les preuves et leurs liaisons dans une transaction SQLite
+en lecture seule, puis compare les identifiants de mission et d’exécution,
+l’empreinte de configuration et la liste complète des reçus avec leurs
+références. Le JSON peut être reformaté, mais l’ordre des listes de l’export
+est requis. Le fichier local doit être ordinaire, de 16 Mio au plus, sans
+lien symbolique final ni clé JSON répétée.
+
+- Code `0` : l’index correspond à la vue actuelle. La sortie JSON indique
+  les identifiants, l’empreinte de configuration et `verified_receipts`.
+- Code `1`, `index_mismatch` : l’index diffère de la vue actuelle. Une reprise
+  ou un recontrôle peut avoir ajouté des reçus depuis son export.
+- Code `1`, `storage_failed` : la lecture de la base ou le contrôle des
+  liaisons de preuve a échoué.
+- Code `2`, `invalid_input` : fichier mal formé ou version non prise en charge,
+  par exemple.
+
+Cette vérification établit la concordance avec la base locale au moment de la
+lecture. Elle ne fournit pas de signature d’archive, ne compare pas le
+Markdown et ne rejoue aucune action. Consulter le résumé d’un reçu lorsque
+la revue exige le détail d’un échange.
+
+Validation locale : le test CLI couvre l’index valide, le doublon de clé,
+l’empreinte modifiée, le reçu manquant et les liaisons altérées dans la base.
+Les suites régulières Python 3.12 et 3.14 passent avec 976 réussites chacune
+et 86 essais hôte hors suite. Ruff, son contrôle de format et Pyright passent.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de

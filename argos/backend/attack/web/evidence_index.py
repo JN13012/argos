@@ -12,6 +12,10 @@ from .receipts import ERRORS, FINAL_STATES, WebIntegrityError, digest
 if TYPE_CHECKING:
     from .store import WebStore
 
+INDEX_VERSION = 1
+MAX_INDEX_BYTES = 16 * 1024 * 1024
+INDEX_IDENTITY = ("mission_id", "run_id", "configuration_sha256")
+
 
 def evidence_index(report: dict) -> dict:
     receipts: dict[str, dict] = {}
@@ -50,11 +54,29 @@ def evidence_index(report: dict) -> dict:
     for receipt in ordered:
         receipt["references"].sort(key=lambda item: (item["kind"], item["id"]))
     return dict(
-        schema_version=1,
+        schema_version=INDEX_VERSION,
         mission_id=str(UUID(report["mission_id"])),
         run_id=str(UUID(report["run_id"])),
         configuration_sha256=configuration,
         receipts=ordered,
+    )
+
+
+def verify_evidence_index(report: dict, saved: dict) -> dict | None:
+    if (
+        set(saved) != {"schema_version", *INDEX_IDENTITY, "receipts"}
+        or type(saved["schema_version"]) is not int
+        or saved["schema_version"] != INDEX_VERSION
+        or not isinstance(saved["receipts"], list)
+    ):
+        raise ValueError("Unsupported evidence index")
+    current = evidence_index(report)
+    if saved != current:
+        return None
+    return dict(
+        schema_version=INDEX_VERSION,
+        **{key: current[key] for key in INDEX_IDENTITY},
+        verified_receipts=len(current["receipts"]),
     )
 
 

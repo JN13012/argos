@@ -66,6 +66,13 @@ def add_parser(commands):
     evidence.add_argument(
         "--expected-sha256", help="Receipt fingerprint from an export"
     )
+    verification = actions.add_parser(
+        "verify-evidence", help="Verify a saved evidence index against a recorded run"
+    )
+    verification.set_defaults(action="web_verify-evidence", json=True)
+    verification.add_argument("--db", default=DEFAULT_DB)
+    verification.add_argument("--run-id", required=True, type=UUID)
+    verification.add_argument("--index", required=True, help="Saved evidence JSON")
     for name in (
         "init",
         "plan",
@@ -274,6 +281,20 @@ def dispatch(args: argparse.Namespace) -> int:
         emit(compare_coverage(args.before, args.after), structured=True)
         return 0
     path = private_path(args.db, create=action == "init")
+    if action == "verify-evidence":
+        from .evidence_index import MAX_INDEX_BYTES, verify_evidence_index
+        from .report_files import load_report_file
+
+        saved = load_report_file(args.index, max_bytes=MAX_INDEX_BYTES)
+        with WebStore(path, readonly=True) as store:
+            store.db.execute("BEGIN")
+            report = summary(store, args.run_id, details=True)
+        value = verify_evidence_index(report, saved)
+        if value is None:
+            emit(dict(error="index_mismatch"), structured=True)
+            return 1
+        emit(value, structured=True)
+        return 0
     if action == "evidence":
         from .evidence_index import evidence_detail
 

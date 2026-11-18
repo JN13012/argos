@@ -28,6 +28,8 @@ relire. Les identifiants et empreintes y sont fictifs.
    elle ne remplace pas la preuve conservée dans le dossier de mission.
    Utiliser l’[index des preuves HTTP](../product/WEB_CLIENT_REPORT.md#index-des-preuves-http)
    pour inventorier les références sans partager la base de mission.
+   [Vérifier l’index archivé](../product/WEB_CLIENT_REPORT.md#vérifier-un-index-archivé)
+   avant la remise pour relever d’éventuels écarts avec la base privée.
    [Consulter un reçu](../product/WEB_CLIENT_REPORT.md#consulter-un-reçu) depuis
    la base privée pour vérifier son empreinte et lire le résumé de l’échange.
 4. **Vérifier le recontrôle.** Conserver l’observation initiale et préciser ce

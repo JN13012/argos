@@ -22,7 +22,10 @@ en [JSON versionné](WEB_CLIENT_REPORT.md#export-json-de-la-couverture), avec
 exports de la même exécution. Un [index des preuves HTTP](WEB_CLIENT_REPORT.md#index-des-preuves-http)
 relie les reçus aux routes, navigations et contrôles enregistrés. La
 [consultation d’un reçu](WEB_CLIENT_REPORT.md#consulter-un-reçu) permet de
-vérifier son empreinte et d’afficher son résultat expurgé.
+vérifier son empreinte et d’afficher son résultat expurgé. La
+[vérification d’un index archivé](WEB_CLIENT_REPORT.md#vérifier-un-index-archivé)
+contrôle en une commande que l’index correspond aux preuves de l’exécution
+dans la base privée.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
