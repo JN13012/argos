@@ -52,6 +52,12 @@ DEFAULT_DB = ".argos/web/missions.sqlite3"
 def add_parser(commands):
     web = commands.add_parser("web", help="Web missions and bounded HTTP discovery")
     actions = web.add_subparsers(required=True)
+    comparison = actions.add_parser(
+        "compare-coverage", help="Compare saved coverage JSON"
+    )
+    comparison.set_defaults(action="web_compare-coverage", json=True)
+    comparison.add_argument("--before", required=True, help="Earlier coverage export")
+    comparison.add_argument("--after", required=True, help="Later coverage export")
     for name in (
         "init",
         "plan",
@@ -249,6 +255,11 @@ def execute(args: argparse.Namespace) -> int:
 
 def dispatch(args: argparse.Namespace) -> int:
     action = args.action.removeprefix("web_")
+    if action == "compare-coverage":
+        from .coverage_comparison import compare_coverage
+
+        emit(compare_coverage(args.before, args.after), structured=True)
+        return 0
     path = private_path(args.db, create=action == "init")
     if action == "init":
         if bool(args.config) == bool(args.target):

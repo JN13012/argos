@@ -117,6 +117,47 @@ API observée et API testée, et l’intégrité de la base. La suite régulièr
 Python 3.12 et 3.14. Les 86 essais hôte n’ont pas été activés. Ruff,
 le formatage Ruff et Pyright passent.
 
+## Comparer deux exports
+
+Conserver un export avant et après une reprise ou un recontrôle permet de
+repérer les changements sans rouvrir la base de mission :
+
+```bash
+python -m argos web compare-coverage --before avant.json --after apres.json
+```
+
+Les deux fichiers doivent être des exports de couverture v1 de la même
+exécution, avec le même identifiant de mission et la même empreinte de
+configuration. La commande lit des fichiers locaux ordinaires, au plus 64 Kio
+par fichier, sans suivre un lien symbolique final. Elle ne modifie aucun
+fichier, n’accède pas au réseau et n’a pas besoin de la base SQLite.
+
+La sortie est un objet JSON de version `schema_version: 1`, avec les trois
+références communes et un tableau `changes`. Une famille figure dans ce
+tableau si son état ou l’un de ses compteurs a changé. Par exemple, un
+recontrôle non reproduit peut ajouter ce changement à `changes` :
+
+```json
+{
+  "family_id": "WEB-04",
+  "status_before": "targeted_check_completed",
+  "status_after": "targeted_check_completed",
+  "counts": {"not_reproduced": {"before": 0, "after": 1}}
+}
+```
+
+`changes: []` indique les mêmes états et compteurs. Les libellés de
+présentation sont ignorés. L’ordre avant/après est fourni par l’opérateur.
+La comparaison porte sur des agrégats et ne vérifie ni l’origine ni les
+preuves des fichiers exportés. Pour qualifier une correction, consulter le
+constat et son recontrôle dans le rapport client. Les entrées invalides ou
+incompatibles donnent `{"error":"invalid_input"}` et un code de sortie `2`.
+
+Validation locale : huit cas de comparaison couvrent les écarts, la lecture
+seule et les refus d’entrées. La suite régulière `python -m pytest -q -o
+faulthandler_timeout=30` donne 974 réussites sur Python 3.12 et 3.14, avec 86
+essais hôte hors de cette suite. Ruff, le formatage Ruff et Pyright passent.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de
