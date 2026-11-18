@@ -14,12 +14,10 @@ Les comptes accessibles ou fournis enrichissent les tests. L’agent devra
 explorer, choisir ses hypothèses, exécuter, vérifier et produire rapport/recontrôle
 sans validation humaine entre les actions comprises dans sa configuration.
 
-**Prochaine étape : [premier rapport client W6](WEB_CLIENT_REPORT.md).**
-La préparation décrit un export Markdown à partir d’une exécution enregistrée,
-avec couverture, preuves, recontrôle et exemple de restitution. Cette tranche
-repose sur le moteur actuel et peut précéder les sessions.
+Le [premier rapport client W6](WEB_CLIENT_REPORT.md) est disponible en Markdown
+à partir d’une exécution enregistrée, avec couverture, preuves et recontrôle.
 
-**Suite côté navigateur : W4.3c, actions de formulaire et sessions.**
+**Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
 interception CDP de chaque saut, preuve avant remise, URL finale réelle et
 plafonds. Le [lot W4.3](WEB_INTERACTIONS.md) et
@@ -40,7 +38,7 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Navigateur | Chromium → HTTP/TLS depuis le CLI ; redirections document/script/API en v5 avec preuve par saut, URL finale et liens DOM ; GET/HEAD, même origine, sans sessions |
 | Autres outils web | ZAP, Nuclei, SQLmap, ffuf et Katana sont des candidats ; aucun de leurs adaptateurs de mission n’est livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
-| Restitution client complète | À construire ; les preuves JSON et le premier recontrôle ne sont pas un rapport de pentest complet |
+| Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |
 | OSINT / Nmap | CLI SIRENE livré ; Nmap en bibliothèque avec exécution contrôlée, qualification réelle encore ouverte |
 | API et interface | Santé HTTP reliée au frontend ; aucune interface métier de mission active |
 | Enum2Root / PromptLab | Références étudiées, sans intégration fonctionnelle complète |
@@ -76,7 +74,7 @@ Les résultats de CI distante ne sont pas revérifiés par cette mise à jour.
 | W4.3a | Validé localement | Requêtes structurées anonymes, v4 signée, limites et écritures explicites, preuves et consultation CLI ; HTTP/TLS, arrêt et récupération sans replay |
 | W4.3b | Validé localement | Interception de chaque redirection navigateur, URL visible exacte, périmètre, cycles, budgets et preuve par saut |
 | W4.3c | À détailler | Actions de formulaire et sessions anonymes puis identités optionnelles séparées ; parcours, reprise et nettoyage sans fuite |
-| W5.1 + W6 initial | [Premier rapport préparé](WEB_CLIENT_REPORT.md) ; registre à détailler | Exporter les preuves disponibles, puis étendre le registre de cas et la couverture sans perdre l’historique |
+| W5.1 + W6 initial | [Premier rapport validé localement](WEB_CLIENT_REPORT.md) ; registre à détailler | Étendre le registre de cas et la couverture sans perdre l’historique |
 | W5.2–W5.3 + W6 | À détailler | Premier ensemble anonyme multi-familles puis accès/sessions/API selon les identités disponibles ; témoins corrigés, effet reproduit et rapport utile |
 | W7 V0 | À détailler après les premiers cas W5/W6 | Boucle autonome sur un petit ensemble déjà vérifié ; hypothèses, choix, observation, validation, reprise et rapport sans intervention intermédiaire |
 | W5.4–W5.6 + W6/W7 | À détailler | Fichiers, traitements serveur, SSRF/XXE, logique métier et approfondissements ; enrichir le catalogue et l’agent avec mesures par famille |
@@ -114,6 +112,6 @@ sans créer un programme concurrent.
 
 À chaque livraison : mettre à jour la ligne concernée, le bilan du lot et les
 contrats ou références affectés. Les critères professionnels et métriques
-restent au [plan web](WEB_PENTEST_PLAN.md), les tâches immédiates au
+restent au [plan web](WEB_PENTEST_PLAN.md), le contrat de restitution au
 [lot rapport client](WEB_CLIENT_REPORT.md). Les seuils proposés ne constituent pas
 une certification de niveau senior ni une promesse commerciale déjà tenue.

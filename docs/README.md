@@ -13,7 +13,7 @@ réelles, les travaux à réaliser et les documents historiques.
 | Que doit couvrir la première offre web ? | [Scope](product/SCOPE.md) : périmètre et limites produit |
 | Comment passer du socle au pentest autonome ? | [Plan web](product/WEB_PENTEST_PLAN.md) : démarche, dépendances et qualification |
 | Quels tests web faut-il construire ? | [Catalogue de capacités](product/WEB_CAPABILITIES.md) : familles, preuves et critères de livraison |
-| Comment sera produit le premier rapport client ? | [Préparation W6](product/WEB_CLIENT_REPORT.md) : sources, format, guide et critères d’acceptation |
+| Comment produire et relire le premier rapport client ? | [Export W6](product/WEB_CLIENT_REPORT.md), [guide](development/WEB_REPORT_GUIDE.md) et [exemple](development/examples/web-client-report.md) |
 | Quel lot vient d’être livré et quelle est la suite ? | [W4.3](product/WEB_INTERACTIONS.md) : requêtes structurées W4.3a et redirections navigateur W4.3b ; actions/sessions W4.3c à détailler |
 | Comment est construit le logiciel actuel ? | [Architecture](architecture/ARCHITECTURE.md) |
 | Comment fonctionnera l’agent autonome ? | [Architecture agent cible](architecture/AGENTIC_CORE.md), conception distincte de l’implémentation |

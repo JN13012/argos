@@ -1,7 +1,7 @@
 # Premier rapport client web
 
-**Préparé, non implémenté.** Cette tranche ouvre W6 à partir des preuves déjà
-disponibles. Elle peut être livrée avant les sessions W4.3c.
+**Livré et validé localement.** Cette tranche ouvre W6 à partir des preuves déjà
+disponibles. Elle est indépendante des sessions W4.3c.
 
 ## Résultat à livrer
 
@@ -10,7 +10,7 @@ au client. Argos remplit les sections à partir des données locales. Un guide
 et un exemple synthétique montrent comment le réviseur complète le contexte,
 qualifie l’impact métier et relit le document avant remise.
 
-Interface CLI proposée, avec l’identifiant d’une exécution existante :
+Commande CLI avec l’identifiant d’une exécution existante :
 
 ```bash
 python -m argos web report --run-id UUID --format markdown
@@ -36,19 +36,13 @@ S’appuyer sur les projections existantes du [rapport web](WEB_CLI_DISCOVERY.md
 et du [recontrôle](WEB_OPEN_REDIRECT.md). Le rapport se limite aux valeurs
 expurgées de ces projections, aux références de preuve et au texte produit par
 Argos. Ne pas réinjecter les URL privées, en-têtes, corps, cookies ou secrets.
-Échapper les valeurs issues de la mission pour qu’elles restent du texte dans
-le Markdown, y compris les liens, images et balises HTML. Le guide explique
+Le rendu accepte les identifiants et empreintes sous leur forme canonique et
+limite les états et motifs à des valeurs connues. Le [guide](../development/WEB_REPORT_GUIDE.md) explique
 comment documenter les preuves manquantes et les zones non testées, notamment
 les parcours auxquels une mission anonyme n’a pas accès.
 
-## Ordre d’implémentation
-
-1. Ajouter le rendu dans `argos/backend/attack/web/reporting.py` à partir de la
-   projection en lecture seule et le raccorder à `argos/backend/attack/web/cli.py`.
-2. Vérifier un rapport complet et un rapport partiel dans les tests du CLI, à
-   partir d’exécutions synthétiques déjà enregistrées.
-3. Ajouter le guide et un exemple Markdown synthétique dans `docs/development/`,
-   puis actualiser l’index et la roadmap après validation.
+Un [exemple synthétique](../development/examples/web-client-report.md) montre
+un constat confirmé à l’origine puis non reproduit au recontrôle.
 
 ## Critères de livraison
 
@@ -65,3 +59,13 @@ les parcours auxquels une mission anonyme n’a pas accès.
 - L’exemple et le guide permettent au réviseur de distinguer les données issues
   d’Argos des compléments saisis pour le client. Les rapports réels restent
   hors du dépôt.
+
+## Bilan local
+
+Les quatre tests de `tests/test_web_client_report.py` vérifient le rapport avec
+recontrôle, la couverture partielle, l’exclusion de texte hostile et les
+options CLI. La suite `python -m pytest -q -o faulthandler_timeout=30` donne
+962 réussites sous Python 3.12 et 3.14, avec 86 essais hôte hors de cette suite
+régulière. Ruff, le formatage Ruff et Pyright passent. Ces essais concernent
+la restitution et la non-régression du dépôt. Aucun rapport réel ni résultat
+de qualification client n’a été produit.

@@ -70,9 +70,14 @@ def add_parser(commands):
         parser = actions.add_parser(name)
         parser.set_defaults(action="web_" + name)
         parser.add_argument("--db", default=DEFAULT_DB)
-        parser.add_argument(
+        output = parser.add_mutually_exclusive_group() if name == "report" else parser
+        output.add_argument(
             "--json", action="store_true", help="Structured redacted output"
         )
+        if name == "report":
+            output.add_argument(
+                "--format", choices=("markdown",), help="Client report format"
+            )
         if name == "init":
             parser.add_argument("target", nargs="?", help="URL or domain")
             parser.add_argument("--config", help="Explicit v2/v3/v4/v5 configuration")
@@ -348,6 +353,9 @@ def dispatch(args: argparse.Namespace) -> int:
         emit(value, args.json)
         return 0
     if action in ("status", "report"):
+        markdown = action == "report" and getattr(args, "format", None) == "markdown"
+        if markdown and args.run_id is None:
+            raise ValueError("Markdown report requires a run ID")
         with WebStore(path, readonly=True) as store:
             store.db.execute("BEGIN")
             run_id = args.run_id
@@ -381,7 +389,12 @@ def dispatch(args: argparse.Namespace) -> int:
                     return 0
                 run_id = UUID(row[0])
             value = summary(store, run_id, details=action == "report")
-        emit(value, args.json)
+        if markdown:
+            from .reporting import render_markdown
+
+            print(render_markdown(value), end="")
+        else:
+            emit(value, args.json)
         return 0
     if action == "stop":
         with WebStore(path) as store:
