@@ -199,9 +199,17 @@ def test_installation_tree_hash_refuses_links_and_detects_change(tmp_path):
         tree_digest(tmp_path)
 
 
-def test_fixed_entry_point_and_mounts_and_input_identity(tmp_path):
+def test_fixed_entry_point_and_mounts_and_input_identity(tmp_path, monkeypatch):
     from argos.backend.core import browser_sandbox
 
+    node = tmp_path / "node"
+    node.write_bytes(b"synthetic Node binary")
+    real_read = Path.read_bytes
+
+    def read_bytes(path):
+        return real_read(node if path == Path("/usr/bin/node") else path)
+
+    monkeypatch.setattr(Path, "read_bytes", read_bytes)
     core = tmp_path / "core"
     engine = tmp_path / "engine"
     core.mkdir()
@@ -221,9 +229,7 @@ def test_fixed_entry_point_and_mounts_and_input_identity(tmp_path):
             "input": str(source),
             "input_sha256": hashlib.sha256(b"{}").hexdigest(),
             "relay": str(relay),
-            "node_sha256": hashlib.sha256(
-                Path("/usr/bin/node").read_bytes()
-            ).hexdigest(),
+            "node_sha256": hashlib.sha256(node.read_bytes()).hexdigest(),
             "script_sha256": hashlib.sha256(
                 Path(browser_sandbox.__file__)
                 .with_name("browser_driver.cjs")
@@ -253,6 +259,9 @@ def test_fixed_entry_point_and_mounts_and_input_identity(tmp_path):
             )
         (core / "modified").write_text("changed")
         with pytest.raises(RuntimeError, match="identity changed"):
+            browser_command(command.copy(), settings)
+        node.write_bytes(b"different Node binary")
+        with pytest.raises(RuntimeError, match="Node identity changed"):
             browser_command(command.copy(), settings)
 
 
