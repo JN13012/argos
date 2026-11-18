@@ -89,8 +89,8 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **899 Python tests** validated on Python 3.12 and 3.14 with host isolation
-  qualification enabled (836 regular tests and 63 host tests requiring opt-in).
+- **985 Python tests** validated on Python 3.12 and 3.14 with host isolation
+  qualification enabled (912 regular tests and 73 host tests requiring opt-in).
   Owned local HTTP/TLS endpoints and synthetic processes, no client scans;
   repository-wide Ruff and pinned Pyright; GitHub Actions configuration covering backend and frontend.
 - **Mission network isolation:** the execution manager defaults to rootless
@@ -146,12 +146,15 @@ HTML discovery, controlled HTTP, evidence and a first open-redirect check with
 retesting. The `web browse` command runs Chromium through the signed HTTP
 runtime, records API observations, and follows links created by JavaScript.
 Durable receipts, DOM provenance, redacted reports and explicit recovery are
-connected. Redirects, interactions and sessions are the next step. A complete autonomous pentest and
+connected. Signed v4 missions also support `web request` for bounded anonymous
+JSON/form requests, explicit methods and writes, with redacted receipts and
+recovery that never replays uncertain writes. Browser redirects and sessions
+are the next steps. A complete autonomous pentest and
 an LLM mission loop remain to be built.
 
 See the [web delivery plan](docs/product/WEB_PENTEST_PLAN.md),
 [capability catalogue](docs/product/WEB_CAPABILITIES.md) and
-[next implementation slice](docs/product/WEB_BROWSER_RUNTIME.md).
+[current interaction work](docs/product/WEB_INTERACTIONS.md).
 Evaluation uses benchmarks and client comparisons; a passing software test
 suite does not demonstrate senior-level vulnerability discovery.
 
@@ -261,7 +264,7 @@ behavior, delivery plans, technical contracts and historical material.
 
 - Development: [repository instructions](AGENTS.md).
 - Product: [roadmap and current status](docs/product/ROADMAP.md), [scope](docs/product/SCOPE.md), [web delivery plan](docs/product/WEB_PENTEST_PLAN.md).
-- Web capabilities: [coverage catalogue](docs/product/WEB_CAPABILITIES.md), [next implementation slice](docs/product/WEB_BROWSER_RUNTIME.md).
+- Web capabilities: [coverage catalogue](docs/product/WEB_CAPABILITIES.md), [current interaction work](docs/product/WEB_INTERACTIONS.md).
 - Architecture: [implemented system](docs/architecture/ARCHITECTURE.md), [agent design](docs/architecture/AGENTIC_CORE.md).
 
 ## Responsible use

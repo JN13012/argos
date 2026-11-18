@@ -114,7 +114,7 @@ class WebPolicy:
     def configuration(
         self, mission_id: UUID, *, connection: sqlite3.Connection | None = None
     ) -> WebExecutionConfig:
-        """Reload the exact signed v2/v3 grant for the trusted HTTP runtime."""
+        """Reload the exact signed v2/v3/v4 grant for the trusted HTTP runtime."""
         return self._configuration(mission_id, connection=connection)
 
     def _configuration(
@@ -181,6 +181,10 @@ class WebPolicy:
         usage: WebBudgetUsage,
         worker_limits: WorkerLimits | None,
     ) -> WebPreflight:
+        from .interaction import StructuredWebRequest
+
+        if type(request) not in {WebRequest, StructuredWebRequest}:
+            raise WebPolicyError(WebErrorCode.EFFECT_DENIED)
         if usage.mission_id != request.mission_id:
             raise WebPolicyError(WebErrorCode.BUDGET_EXHAUSTED)
         if request.capability not in config.capabilities:
@@ -195,6 +199,23 @@ class WebPolicy:
             raise WebPolicyError(WebErrorCode.SCOPE_DENIED)
         request = replace(request, url=canonical)
         _check_effects(request)
+        from .interaction import (
+            READ_METHODS,
+            StructuredWebRequest,
+            WebInteractionConfig,
+        )
+
+        if isinstance(request, StructuredWebRequest):
+            if (
+                not isinstance(config, WebInteractionConfig)
+                or request.method not in config.interaction.methods
+                or len(request.body.encode()) > config.interaction.body_bytes
+                or sum(len(k) + len(v) for k, v in request.headers)
+                > config.interaction.header_bytes
+                or request.method not in READ_METHODS
+                and not config.effects.allow_test_writes
+            ):
+                raise WebPolicyError(WebErrorCode.EFFECT_DENIED)
         remaining_ms = config.limits.duration_seconds * 1000 - usage.elapsed_ms
         timeout_ms = min(config.limits.request_timeout_seconds * 1000, remaining_ms)
         if timeout_ms < 1000:

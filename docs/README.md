@@ -13,7 +13,7 @@ réelles, les travaux à réaliser et les documents historiques.
 | Que doit couvrir la première offre web ? | [Scope](product/SCOPE.md) : périmètre et limites produit |
 | Comment passer du socle au pentest autonome ? | [Plan web](product/WEB_PENTEST_PLAN.md) : démarche, dépendances et qualification |
 | Quels tests web faut-il construire ? | [Catalogue de capacités](product/WEB_CAPABILITIES.md) : familles, preuves et critères de livraison |
-| Quel lot vient d’être livré et quelle est la suite ? | [W4.2c](product/WEB_BROWSER_RUNTIME.md#bilan-dimplémentation-w42c) : découverte navigateur CLI ; W4.3, interactions et sessions, est la prochaine étape à détailler dans la [roadmap](product/ROADMAP.md) |
+| Quel lot vient d’être livré et quelle est la suite ? | [W4.3](product/WEB_INTERACTIONS.md) : requêtes structurées W4.3a ; redirections navigateur puis actions/sessions dans les sous-lots suivants |
 | Comment est construit le logiciel actuel ? | [Architecture](architecture/ARCHITECTURE.md) |
 | Comment fonctionnera l’agent autonome ? | [Architecture agent cible](architecture/AGENTIC_CORE.md), conception distincte de l’implémentation |
 | Pourquoi une décision d’architecture ? | [ADR du monolithe](architecture/adr/0001-modular-monolith.md), puis nouveaux ADR si nécessaire |
@@ -34,9 +34,10 @@ universelle sur des applications client.
 
 | Domaine | Documents |
 | --- | --- |
-| Configuration web | [W1 boîte noire](product/WEB_W1_BLACKBOX.md), [configuration W1.1](product/WEB_CONFIG.md), exemples [HTTP v2](development/examples/web-mission-v2.json) et [navigateur v3](development/examples/web-mission-v3.json) |
+| Configuration web | [W1 boîte noire](product/WEB_W1_BLACKBOX.md), [configuration W1.1](product/WEB_CONFIG.md), exemples [HTTP v2](development/examples/web-mission-v2.json) [navigateur v3](development/examples/web-mission-v3.json) et [interactions v4](development/examples/web-mission-v4.json) |
 | HTTP | [Spécification W1.3](product/WEB_HTTP_EXECUTION.md), [politique W2.1](product/WEB_HTTP_POLICY.md), [transport W2.2](product/WEB_HTTP_TRANSPORT.md), [runtime W2.3](product/WEB_HTTP_RUNTIME.md) |
 | Découverte et premier test | [CLI W3.1](product/WEB_CLI_DISCOVERY.md), [redirection/recontrôle W3.2](product/WEB_OPEN_REDIRECT.md) |
+| Interactions | [W4.3](product/WEB_INTERACTIONS.md) : configuration, méthodes, corps/en-têtes et reprise |
 | Navigateur | [Worker W4.1](product/WEB_BROWSER_WORKER.md), [contrats et intégration W4.2](product/WEB_BROWSER_RUNTIME.md) |
 | Évaluation web | [Corpus et limites](../benchmarks/web/README.md), [manifest pour l’évaluateur](../benchmarks/web/manifest.json) ; données de correction séparées des entrées de l’agent évalué |
 | Isolation | [Worker sans réseau](product/WORKER_ISOLATION.md), [réseau de mission](product/MISSION_NETWORK.md), [exécution P1](product/EXECUTION_P1.md) |

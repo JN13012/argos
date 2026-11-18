@@ -324,6 +324,10 @@ class WebMissionConfig:
 
     @classmethod
     def from_dict(cls, value: object) -> WebMissionConfig:
+        if isinstance(value, dict) and value.get("schema_version") == 4:
+            from .interaction import WebInteractionConfig
+
+            return WebInteractionConfig.from_dict(value)
         if isinstance(value, dict) and value.get("schema_version") == 3:
             from .browser_config import WebBrowserConfig
 

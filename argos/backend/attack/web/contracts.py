@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import ClassVar
 from uuid import UUID, uuid4
 
 from .config import _keys, _text
@@ -57,6 +58,9 @@ class WebErrorCode(StrEnum):
 
 @dataclass(frozen=True)
 class WebRequest:
+    ALLOWED_CAPABILITIES: ClassVar[frozenset[str]] = HTTP_CAPABILITIES
+    ALLOWED_METHODS: ClassVar[frozenset[str]] = frozenset({"GET", "HEAD"})
+
     mission_id: UUID
     url: str = field(repr=False)
     capability: str = "http.discover"
@@ -75,8 +79,8 @@ class WebRequest:
         if (
             not isinstance(self.capability, str)
             or not isinstance(self.method, str)
-            or self.capability not in HTTP_CAPABILITIES
-            or self.method not in {"GET", "HEAD"}
+            or self.capability not in self.ALLOWED_CAPABILITIES
+            or self.method not in self.ALLOWED_METHODS
         ):
             raise ValueError("Unsupported anonymous HTTP request")
         if self.capability == "http.check_redirect" and self.method != "GET":
@@ -285,7 +289,7 @@ class WebCoverage:
         _uuid(self.route_id)
         if (
             not isinstance(self.capability, str)
-            or self.capability not in HTTP_CAPABILITIES
+            or self.capability not in HTTP_CAPABILITIES | {"http.interact"}
             or type(self.state) is not CoverageState
             or self.identity != "anonymous"
         ):

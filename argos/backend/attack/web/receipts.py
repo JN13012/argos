@@ -57,10 +57,15 @@ def digest(value: object) -> str:
 
 
 def request_data(request: WebRequest) -> dict:
-    return {
+    value = {
         key: str(value) if isinstance(value, UUID) else value
         for key, value in asdict(request).items()
     }
+    from .interaction import StructuredWebRequest
+
+    if isinstance(request, StructuredWebRequest):
+        value["request_version"] = 2
+    return value
 
 
 def load_request(data: str) -> WebRequest:
@@ -68,6 +73,13 @@ def load_request(data: str) -> WebRequest:
     for key in ("mission_id", "request_id", "parent_request_id"):
         if value[key] is not None:
             value[key] = UUID(value[key])
+    from .interaction import StructuredWebRequest
+
+    if "request_version" in value:
+        version = value.pop("request_version")
+        if type(version) is not int or version != 2:
+            raise ValueError("Unsupported request version")
+        return StructuredWebRequest(**value)
     return WebRequest(**value)
 
 
@@ -105,7 +117,7 @@ def receipt(
         raise ValueError("A completed outcome requires a complete exchange")
     # Header names are only compared; even a malicious header name is not exported.
     names = [name.lower() for name, _ in exchange.headers] if exchange else []
-    return {
+    value = {
         "version": "web-redaction-v1",
         "id": str(uuid4()),
         "request_id": str(request.request_id),
@@ -136,3 +148,10 @@ def receipt(
             "reason": "http_response" if state == "completed" else error or state,
         },
     }
+
+    from .interaction import StructuredWebRequest, request_summary
+
+    if isinstance(request, StructuredWebRequest):
+        value["version"] = "web-redaction-v2"
+        value["structured_request"] = request_summary(request)
+    return value

@@ -726,6 +726,15 @@ class WebStore:
         ):
             raise WebIntegrityError("HTTP evidence binding differs")
         NavigationEvidence(NavigationStore(self)).validate_receipt(request_id, payload)
+        from .interaction import StructuredWebRequest, request_summary
+
+        if isinstance(request, StructuredWebRequest):
+            if payload.get("version") != "web-redaction-v2" or payload.get(
+                "structured_request"
+            ) != request_summary(request):
+                raise WebIntegrityError("Structured request receipt differs")
+        elif "structured_request" in payload:
+            raise WebIntegrityError("Unexpected structured receipt")
         return payload
 
     def snapshot(self, request_id: UUID) -> WebJobSnapshot:

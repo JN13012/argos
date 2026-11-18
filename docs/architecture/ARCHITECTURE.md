@@ -37,7 +37,14 @@ provenance optionnelle sur les nouvelles routes rendent cette expansion
 idempotente, transactionnelle et comptée dans le quota de preuves. Les vues
 restent en lecture seule ; `browse --resume` adopte seulement les travaux
 jamais réservés, sans rejouer les navigations interrompues.
-Les sessions multi-rôles et services de mission restent à construire. Le
+Le [transport structuré W4.3a](../product/WEB_INTERACTIONS.md) ajoute un DTO
+`StructuredWebRequest`, une configuration v4 explicitement signée et les
+commandes `request`/`request-status`. Le même runtime applique méthodes, corps,
+en-têtes et effets permis avant DNS puis lancement ; le worker génère lui-même
+Host, Content-Length et encodage. Les entrées privées sont versionnées et les
+reçus expurgés v2 lient tailles/empreintes. Aucun retry d'écriture, suivi de 3xx
+ou cookie n'est ajouté. Les sessions multi-rôles et services de mission restent
+à construire. Le
 contrôle IP/port est complété par les contrôles d'origine, URL et méthodes du
 médiateur et de la politique HTTP, même lorsque plusieurs origines partagent
 une adresse IP.

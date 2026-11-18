@@ -31,6 +31,12 @@ from .config import WebMissionConfig
 from .execution_config import WebExecutionConfig
 from .exploration import Exploration, summary
 from .frontier import Frontier
+from .interaction import (
+    StructuredWebRequest,
+    WebInteractionConfig,
+    private_request_file,
+    request_view,
+)
 from .policy import WebPolicy, WebPolicyError
 from .receipts import WebIntegrityError, WebPersistenceError, digest
 from .redirect_checks import RedirectChecks
@@ -57,6 +63,8 @@ def add_parser(commands):
         "check",
         "retest",
         "browse",
+        "request",
+        "request-status",
     ):
         parser = actions.add_parser(name)
         parser.set_defaults(action="web_" + name)
@@ -66,25 +74,46 @@ def add_parser(commands):
         )
         if name == "init":
             parser.add_argument("target", nargs="?", help="URL or domain")
-            parser.add_argument("--config", help="Explicit v2/v3 configuration")
+            parser.add_argument("--config", help="Explicit v2/v3/v4 configuration")
             parser.add_argument("--name", default="Web mission")
             parser.add_argument("--reference", default="web-cli")
             parser.add_argument("--expires-at", help="Aware ISO date; default 24 hours")
-        elif name in ("plan", "activate", "run"):
+        elif name in ("plan", "activate", "run", "request"):
             parser.add_argument("--mission-id", type=UUID, required=True)
         elif name in ("status", "report"):
             target = parser.add_mutually_exclusive_group(required=True)
             target.add_argument("--run-id", type=UUID)
             target.add_argument("--mission-id", type=UUID)
+        elif name == "request-status":
+            parser.add_argument("--request-id", type=UUID, required=True)
         elif name == "retest":
             parser.add_argument("--check-id", type=UUID, required=True)
         else:
             parser.add_argument("--run-id", type=UUID, required=True)
-        if name in ("activate", "run", "resume", "plan", "check", "retest", "browse"):
+        if name in (
+            "activate",
+            "run",
+            "resume",
+            "plan",
+            "check",
+            "retest",
+            "browse",
+            "request",
+        ):
             parser.add_argument(
                 "--public-key",
                 required=name != "plan",
                 help="Administrator Ed25519 public key PEM",
+            )
+        if name == "request":
+            source = parser.add_mutually_exclusive_group(required=True)
+            source.add_argument(
+                "--request-file", help="Private UTF-8 JSON input (mode 0600)"
+            )
+            source.add_argument(
+                "--resume-request-id",
+                type=UUID,
+                help="Adopt a never-started structured request",
             )
         if name == "browse":
             parser.add_argument(
@@ -108,7 +137,7 @@ def add_parser(commands):
             parser.add_argument(
                 "--approval", required=True, help="Offline-issued SignedApproval JSON"
             )
-        if name in ("run", "resume", "check", "retest", "browse"):
+        if name in ("run", "resume", "check", "retest", "browse", "request"):
             parser.add_argument(
                 "--slirp",
                 default="/usr/bin/slirp4netns",
@@ -230,7 +259,7 @@ def dispatch(args: argparse.Namespace) -> int:
             )
         )
         if not isinstance(config, WebExecutionConfig):
-            raise ValueError("Executable v2/v3 configuration required")
+            raise ValueError("Executable v2/v3/v4 configuration required")
         expiry = (
             datetime.fromisoformat(args.expires_at)
             if args.expires_at
@@ -282,7 +311,7 @@ def dispatch(args: argparse.Namespace) -> int:
                 raise ValueError("Unknown web mission")
             config = WebMissionConfig.from_json(record.web_configuration)
             if not isinstance(config, WebExecutionConfig):
-                raise ValueError("Executable v2/v3 required")
+                raise ValueError("Executable v2/v3/v4 required")
             if args.public_key:
                 WebPolicy(path, verifier(args.public_key)).configuration(
                     args.mission_id, connection=store.db
@@ -303,6 +332,15 @@ def dispatch(args: argparse.Namespace) -> int:
             if isinstance(config, WebBrowserConfig):
                 value["browser"] = json.loads(config.to_json())["browser"]
                 value["browser_execution"] = "available_via_browse"
+            if isinstance(config, WebInteractionConfig):
+                value["interaction"] = json.loads(config.to_json())["interaction"]
+                value["interaction_execution"] = "available_via_request"
+        emit(value, args.json)
+        return 0
+    if action == "request-status":
+        with WebStore(path, readonly=True) as store:
+            store.db.execute("BEGIN")
+            value = request_view(store, args.request_id)
         emit(value, args.json)
         return 0
     if action in ("status", "report"):
@@ -365,7 +403,27 @@ def dispatch(args: argparse.Namespace) -> int:
             path, verifier(args.public_key), worker=worker, stop=stopped
         ) as runtime:
             exploration = Exploration(runtime)
-            if action == "browse":
+            if action == "request":
+                if args.request_file:
+                    request = StructuredWebRequest.from_agent(
+                        args.mission_id, private_request_file(args.request_file)
+                    )
+                    request_id = runtime.submit(request)
+                else:
+                    request_id = args.resume_request_id
+                    with WebStore(path) as store:
+                        request, _ = store.private_request(request_id)
+                        if (
+                            not isinstance(request, StructuredWebRequest)
+                            or request.mission_id != args.mission_id
+                        ):
+                            raise ValueError("Matching structured request required")
+                    runtime.resume(request_id)
+                print(f"Request ID: {request_id}", file=sys.stderr, flush=True)
+                runtime.run(request_id)
+                with WebStore(path) as store:
+                    value = request_view(store, request_id)
+            elif action == "browse":
                 run_id = args.run_id
                 print(f"Run ID: {run_id}", file=sys.stderr, flush=True)
                 browser = BrowserWorker(
@@ -411,6 +469,14 @@ def dispatch(args: argparse.Namespace) -> int:
         emit(value, args.json)
         if received:
             return 128 + received[0]
+        if action == "request":
+            if value["error"] in (
+                "isolation_unavailable",
+                "profile_changed",
+                "evidence_failed",
+            ):
+                return 1
+            return 0 if value["state"] == "completed" else 3
         if value["reason"] in (
             "isolation_unavailable",
             "profile_changed",

@@ -1,0 +1,17 @@
+{
+  "schema_version": 4,
+  "name": "Client web interactions",
+  "seeds": ["https://app.example.com/"],
+  "capabilities": ["http.discover", "browser.discover", "http.interact"],
+  "browser": {},
+  "interaction": {
+    "methods": ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"],
+    "body_bytes": 16384,
+    "header_bytes": 2048
+  },
+  "effects": {"allow_test_writes": true},
+  "scope": {
+    "origins": ["https://app.example.com"],
+    "excluded_paths": ["/logout", "/billing"]
+  }
+}

@@ -6,6 +6,7 @@ plan. A Python plan is not an execution grant. No host transport fallback.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import struct
@@ -124,7 +125,7 @@ class HTTPWorker:
 
     def profile(self, plan: PreparedWebRequest) -> dict:
         policy = NetworkPolicy(plan.target_ip, (plan.preflight.port,))
-        return {
+        profile = {
             "version": "argos-http-worker-v1",
             "configuration_sha256": plan.preflight.configuration_sha256,
             "request_id": str(plan.preflight.request.request_id),
@@ -158,6 +159,18 @@ class HTTPWorker:
             ).hexdigest(),
             "rules_sha256": hashlib.sha256(policy.nft_rules().encode()).hexdigest(),
         }
+        from .interaction import StructuredWebRequest
+
+        if isinstance(plan.preflight.request, StructuredWebRequest):
+            request = plan.preflight.request
+            profile["structured_input"] = dict(
+                version=1,
+                method=request.method,
+                body_bytes=len(request.body.encode()),
+                body_sha256=hashlib.sha256(request.body.encode()).hexdigest(),
+                headers_sha256=digest(request.headers),
+            )
+        return profile
 
     def exchange(
         self,
@@ -197,6 +210,15 @@ class HTTPWorker:
                 )
             },
         }
+        from .interaction import StructuredWebRequest
+
+        request = plan.preflight.request
+        if isinstance(request, StructuredWebRequest):
+            settings.update(
+                request_version=2,
+                request_headers=[list(pair) for pair in request.headers],
+                request_body=base64.b64encode(request.body.encode()).decode("ascii"),
+            )
         payload = json.dumps(settings, ensure_ascii=True).encode()
         if len(payload) > 65536:
             raise IsolationError("HTTP worker input limit")

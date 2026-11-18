@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from .browser_config import WebBrowserConfig
+from .config import WebMissionConfig
 from .contracts import WebBudgetUsage, WebErrorCode, _digest, _uuid
 from .frontier import Frontier
 from .navigation import NavigationRequest, NavigationSnapshot, NavigationUsage
@@ -153,7 +154,7 @@ class NavigationStore:
             ).fetchone()
             if saved is None:
                 raise ValueError
-            config = WebBrowserConfig.from_json(saved[0])
+            config = WebMissionConfig.from_json(saved[0])
             if (
                 not isinstance(config, WebBrowserConfig)
                 or digest(json.loads(config.to_json())) != value["configuration_sha256"]

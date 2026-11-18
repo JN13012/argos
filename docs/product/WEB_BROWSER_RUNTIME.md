@@ -500,7 +500,8 @@ Acceptation finale de W4.2 :
 
 Le [catalogue de capacités](WEB_CAPABILITIES.md) définit les familles W5 et
 leurs preuves ; la [roadmap](ROADMAP.md) porte leur ordre et leur état.
-Après W4.2 : W4.3 ajoute redirections, interactions, sessions anonymes et comptes
+Après W4.2 : le [lot W4.3](WEB_INTERACTIONS.md) ajoute requêtes structurées,
+redirections, interactions, sessions anonymes et comptes
 optionnels séparés. En parallèle au sens du planning, les premières capacités
 W5/W6 apportent tests méthodologiques, preuves et restitution ; il n'est pas
 nécessaire d'attendre un catalogue exhaustif pour commencer W7 sur un petit

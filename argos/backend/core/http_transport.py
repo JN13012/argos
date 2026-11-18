@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import ipaddress
 import json
@@ -98,6 +100,88 @@ def headers(reader: Reader, config: dict) -> tuple[int, list[list[str]]]:
     raise ProtocolError("informational_limit")
 
 
+def outgoing(config: dict) -> bytes:
+    """Validate private input before creating any socket. No arbitrary headers."""
+    method = config["method"]
+    body = b""
+    fields = []
+    new_fields = {"request_version", "request_headers", "request_body"}
+    structured = bool(new_fields & set(config))
+    if structured:
+        if (
+            not new_fields <= set(config)
+            or type(config["request_version"]) is not int
+            or config["request_version"] != 2
+            or method
+            not in {"GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"}
+        ):
+            raise ProtocolError("request_contract")
+        encoded = config["request_body"]
+        if not isinstance(encoded, str) or len(encoded) > 21848:
+            raise ProtocolError("request_body_limit")
+        try:
+            body = base64.b64decode(encoded, validate=True)
+            body.decode("utf-8")
+        except (binascii.Error, UnicodeError, ValueError):
+            raise ProtocolError("request_encoding") from None
+        if len(body) > 16384 or method in {"GET", "HEAD", "OPTIONS"} and body:
+            raise ProtocolError("request_body_limit")
+        pairs = config["request_headers"]
+        if not isinstance(pairs, list) or len(pairs) > 2:
+            raise ProtocolError("request_headers")
+        seen = set()
+        for pair in pairs:
+            if not isinstance(pair, list) or len(pair) != 2:
+                raise ProtocolError("request_headers")
+            name, value = pair
+            if (
+                not isinstance(name, str)
+                or name not in {"accept", "content-type"}
+                or name in seen
+                or not isinstance(value, str)
+                or any(not 32 <= ord(c) < 127 for c in value)
+            ):
+                raise ProtocolError("request_headers")
+            if name == "content-type" and value.lower() not in {
+                "application/json",
+                "application/x-www-form-urlencoded",
+                "text/plain",
+                "application/json; charset=utf-8",
+                "application/x-www-form-urlencoded; charset=utf-8",
+                "text/plain; charset=utf-8",
+            }:
+                raise ProtocolError("request_media_type")
+            fields.append((name, value))
+            seen.add(name)
+        if (
+            sum(len(k) + len(v) for k, v in fields) > 2048
+            or body
+            and "content-type" not in seen
+        ):
+            raise ProtocolError("request_headers")
+    elif method not in {"GET", "HEAD"}:
+        raise ProtocolError("request_contract")
+    target, host = config["request_target"], config["host_header"]
+    if (
+        not isinstance(target, str)
+        or not target.startswith("/")
+        or len(target) > 8192
+        or not isinstance(host, str)
+        or not host
+        or len(host) > 1024
+        or any(not 33 <= ord(c) < 127 for c in target + host)
+    ):
+        raise ProtocolError("request_target")
+    extra = "".join(f"{k}: {v}\r\n" for k, v in fields)
+    if structured and method not in {"GET", "HEAD", "OPTIONS"}:
+        extra += f"Content-Length: {len(body)}\r\n"
+    return (
+        f"{method} {target} HTTP/1.1\r\nHost: {host}\r\n"
+        "Accept-Encoding: identity\r\nConnection: close\r\n"
+        f"User-Agent: Argos/1\r\n{extra}\r\n"
+    ).encode("ascii") + body
+
+
 def exchange(config: dict) -> tuple[dict, bytes]:
     """Private primitive; caller must establish the firewall before invoking."""
     body = bytearray()
@@ -111,6 +195,9 @@ def exchange(config: dict) -> tuple[dict, bytes]:
     deadline = time.monotonic() + config["timeout_ms"] / 1000
     phase = "connect_failed"
     try:
+        phase = "protocol_failed"
+        wire = outgoing(config)
+        phase = "connect_failed"
         address = ipaddress.ip_address(config["connect_ip"])
         connection = socket.socket(
             socket.AF_INET6 if address.version == 6 else socket.AF_INET
@@ -128,14 +215,7 @@ def exchange(config: dict) -> tuple[dict, bytes]:
             )
         phase = "protocol_failed"
         connection.settimeout(max(0.001, deadline - time.monotonic()))
-        connection.sendall(
-            (
-                f"{config['method']} {config['request_target']} HTTP/1.1\r\n"
-                f"Host: {config['host_header']}\r\n"
-                "Accept-Encoding: identity\r\nConnection: close\r\n"
-                "User-Agent: Argos/1\r\n\r\n"
-            ).encode("ascii")
-        )
+        connection.sendall(wire)
         reader = Reader(connection, deadline)
         status, fields = headers(reader, config)
         result.update(status=status, headers=fields)
@@ -203,7 +283,7 @@ def exchange(config: dict) -> tuple[dict, bytes]:
         result["error"] = "request_timeout"
     except ssl.SSLError:
         result["error"] = "tls_failed"
-    except (OSError, ValueError):
+    except (OSError, ValueError, TypeError, KeyError):
         result["error"] = phase
     finally:
         if connection is not None:
