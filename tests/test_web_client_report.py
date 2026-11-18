@@ -90,6 +90,36 @@ def test_report_keeps_confirmation_and_retest_after_runtime_closed(setup, capsys
     )
     assert main([*args, "--format", "evidence-json"]) == 0
     assert capsys.readouterr().out == index_text
+    proof = next(
+        value
+        for value in receipts.values()
+        if value["references"][0]["kind"] == "redirect_check"
+    )
+    lookup = [
+        "web",
+        "evidence",
+        "--run-id",
+        str(run_id),
+        "--db",
+        str(runtime.database),
+    ]
+    selected = [*lookup, "--request-id", proof["request_id"], "--expected-sha256"]
+    assert main([*selected, proof["sha256"]]) == 0
+    detail_text = capsys.readouterr().out
+    detail = json.loads(detail_text)
+    assert detail["request_id"] == proof["request_id"]
+    assert detail["sha256"] == proof["sha256"]
+    assert detail["references"] == proof["references"]
+    assert detail["state"] == "completed" and detail["error"] is None
+    assert set(detail["response"]) == {"status", "body_complete"}
+    assert (
+        "private-value" not in detail_text
+        and "redirect-proof.invalid" not in detail_text
+    )
+    assert main([*selected, "0" * 64]) == 1
+    assert json.loads(capsys.readouterr().out) == {"error": "storage_failed"}
+    assert main([*lookup, "--request-id", str(UUID(int=0))]) == 2
+    assert json.loads(capsys.readouterr().out) == {"error": "invalid_input"}
     assert runtime.database.read_bytes() == original_db
     assert (len(worker.calls), len(resolver.calls)) == calls
 

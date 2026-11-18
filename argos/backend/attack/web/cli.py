@@ -58,6 +58,14 @@ def add_parser(commands):
     comparison.set_defaults(action="web_compare-coverage", json=True)
     comparison.add_argument("--before", required=True, help="Earlier coverage export")
     comparison.add_argument("--after", required=True, help="Later coverage export")
+    evidence = actions.add_parser("evidence", help="Inspect one indexed HTTP receipt")
+    evidence.set_defaults(action="web_evidence", json=True)
+    evidence.add_argument("--db", default=DEFAULT_DB)
+    evidence.add_argument("--run-id", required=True, type=UUID)
+    evidence.add_argument("--request-id", required=True, type=UUID)
+    evidence.add_argument(
+        "--expected-sha256", help="Receipt fingerprint from an export"
+    )
     for name in (
         "init",
         "plan",
@@ -266,6 +274,17 @@ def dispatch(args: argparse.Namespace) -> int:
         emit(compare_coverage(args.before, args.after), structured=True)
         return 0
     path = private_path(args.db, create=action == "init")
+    if action == "evidence":
+        from .evidence_index import evidence_detail
+
+        with WebStore(path, readonly=True) as store:
+            store.db.execute("BEGIN")
+            report = summary(store, args.run_id, details=True)
+            value = evidence_detail(
+                store, report, args.request_id, args.expected_sha256
+            )
+        emit(value, structured=True)
+        return 0
     if action == "init":
         if bool(args.config) == bool(args.target):
             raise ValueError("Choose URL or config")

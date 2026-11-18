@@ -199,6 +199,36 @@ La suite régulière `python -m pytest -q -o faulthandler_timeout=30` passe avec
 975 réussites sur Python 3.12 et 3.14. Les 86 essais hôte n’ont pas été activés.
 Ruff, le formatage Ruff et Pyright passent.
 
+## Consulter un reçu
+
+L’index donne le `request_id` et l’empreinte nécessaires pour retrouver un
+reçu dans la base de mission en lecture seule :
+
+```bash
+python -m argos web evidence --run-id UUID --request-id UUID_REQUETE \
+  --expected-sha256 EMPREINTE_DU_RECU
+```
+
+La commande renvoie le reçu sous forme de résumé JSON. Elle vérifie d’abord
+qu’il fait partie de l’exécution demandée, puis contrôle les liaisons du reçu
+dans SQLite. `--expected-sha256` est facultatif et permet de vérifier une
+empreinte relevée dans un export antérieur. Une empreinte différente est
+refusée avec `storage_failed`. Un identifiant absent de l’index donne
+`invalid_input`. Aucun échec ne renvoie de reçu partiel.
+
+Le résumé contient la date, l’état de l’échange, son motif d’échec éventuel,
+le statut HTTP s’il existe, l’état de complétude du corps et les références
+de l’index. Les URL, en-têtes et contenus restent hors de la sortie. Le
+résumé décrit un échange individuel et ne qualifie pas la gravité, l’impact
+ou l’applicabilité d’un constat.
+
+Validation locale : vérification CLI du bon reçu, refus d’une empreinte
+différente et d’une requête absente de l’index, stabilité de la base et
+sortie expurgée. La suite régulière `python -m pytest -q -o
+faulthandler_timeout=30` passe avec 975 tests sur Python 3.12 et 3.14.
+Les 86 essais hôte n’ont pas été activés. Ruff, son contrôle de format et
+Pyright passent.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de
