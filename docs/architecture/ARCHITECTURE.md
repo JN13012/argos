@@ -31,7 +31,12 @@ le raccorde au runtime HTTP signé : ressource et reçu liés atomiquement,
 réponse remise après commit, limites v3, capture DOM persistante et récupération
 sans replay. L'entrée `BrowserNavigation` exige une route HTML déjà vérifiée.
 Les échanges HTTP/TLS locaux et le nettoyage navigateur/HTTP après crash sont
-qualifiés ; la commande `browse` et la frontière DOM/API restent à W4.2c.
+qualifiés. W4.2c expose `browse`, relève les API et alimente la frontière HTTP
+avec les liens DOM. Des marqueurs liés aux captures dans le run et une
+provenance optionnelle sur les nouvelles routes rendent cette expansion
+idempotente, transactionnelle et comptée dans le quota de preuves. Les vues
+restent en lecture seule ; `browse --resume` adopte seulement les travaux
+jamais réservés, sans rejouer les navigations interrompues.
 Les sessions multi-rôles et services de mission restent à construire. Le
 contrôle IP/port est complété par les contrôles d'origine, URL et méthodes du
 médiateur et de la politique HTTP, même lorsque plusieurs origines partagent
@@ -47,7 +52,7 @@ argos/
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
-│   └── attack/web/          Runtime HTTP, CLI, frontière, oracle et missions navigateur internes
+│   └── attack/web/          Runtime HTTP, CLI, frontière, oracle et découverte navigateur CLI
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
 ```

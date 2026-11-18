@@ -34,11 +34,18 @@ class BrowserNavigation:
         self.worker = worker
 
     def navigate(
-        self, run_id: UUID, route_id: UUID, *, cancel: threading.Event | None = None
+        self,
+        run_id: UUID,
+        route_id: UUID,
+        *,
+        cancel: threading.Event | None = None,
+        navigation_id: UUID | None = None,
     ) -> NavigationSnapshot:
         with self.runtime.operation():
             try:
-                return self._navigate(run_id, route_id, cancel or threading.Event())
+                return self._navigate(
+                    run_id, route_id, cancel or threading.Event(), navigation_id
+                )
             except WebPolicyError:
                 raise
             except (sqlite3.Error, OSError, WebIntegrityError) as error:
@@ -49,7 +56,11 @@ class BrowserNavigation:
                 raise self.runtime._failed_storage(error) from error
 
     def _navigate(
-        self, run_id: UUID, route_id: UUID, cancel: threading.Event
+        self,
+        run_id: UUID,
+        route_id: UUID,
+        cancel: threading.Event,
+        navigation_id: UUID | None,
     ) -> NavigationSnapshot:
         runtime = self.runtime
         started = runtime._now()
@@ -76,6 +87,19 @@ class BrowserNavigation:
         if not isinstance(config, WebBrowserConfig):
             raise WebPolicyError(WebErrorCode.EFFECT_DENIED)
         request = NavigationRequest(mission_id, run_id, route_id, route["url"])
+        if navigation_id is not None:
+            with WebStore(runtime.database) as store:
+                saved = NavigationStore(store).private(navigation_id)
+                old = NavigationStore._request(saved)
+                if (
+                    saved["state"] != "pending"
+                    or saved["reservation"] is not None
+                    or saved["owner_id"] != str(runtime.owner)
+                    or old.run_id != run_id
+                    or old.route_id != route_id
+                ):
+                    raise ValueError("Owned pending navigation required")
+                request = old
         deadline = started + config.browser.navigation_seconds
         reserved = False
         created = False
@@ -121,7 +145,10 @@ class BrowserNavigation:
             if not active():
                 raise WebPolicyError(WebErrorCode.CANCELLED)
             with WebStore(runtime.database) as store:
-                NavigationStore(store).create(request, runtime.owner, runtime.policy)
+                if navigation_id is None:
+                    NavigationStore(store).create(
+                        request, runtime.owner, runtime.policy
+                    )
                 created = True
             profile = self.worker.effective_profile(config.browser, active=active)
             if not active():

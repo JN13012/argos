@@ -1,6 +1,6 @@
 # W4.2 — Navigation de mission et découverte SPA/API
 
-Statut : **W4.2a et W4.2b livrés et validés localement ; W4.2c préparé**.
+Statut : **W4.2a, W4.2b et W4.2c livrés et validés localement**.
 Dépendances livrées :
 [runtime HTTP W2.3](WEB_HTTP_RUNTIME.md), [CLI W3.1](WEB_CLI_DISCOVERY.md),
 [oracle W3.2](WEB_OPEN_REDIRECT.md), [worker navigateur W4.1](WEB_BROWSER_WORKER.md).
@@ -121,24 +121,38 @@ commencées. Rejouer une navigation interrompue exige une nouvelle tentative
 identifiée et de nouveaux tickets, sans effacer son historique. Les vues
 `status/report` restent strictement en lecture seule.
 
-## Parcours CLI prévu
+## Parcours CLI livré
 
-Conserver les commandes HTTP existantes. Ajouter d'abord une action explicite
-de découverte navigateur sur un run, sans URL ou script libres :
+Après `init --config` en v3, activation et `run`, exécuter la découverte
+navigateur sur le run existant, sans URL ou script libres :
 
 ```text
-argos web browse --run-id UUID --public-key reviewer.pub.pem --json
+argos web browse --run-id UUID --public-key reviewer.pub.pem \
+  --browser-core /opt/argos/playwright-core \
+  --browser-engine /opt/argos/chromium-headless-shell --json
 argos web status --run-id UUID --json
 argos web report --run-id UUID --json
 argos web stop --run-id UUID
 ```
 
-**`browse` n'existe pas encore.** Il sélectionnera les routes HTML éligibles
-du run et les nouveaux candidats DOM, dans la limite signée. Les fichiers
+`browse` sélectionne les routes HTML éligibles du run, vérifie les nouveaux
+candidats DOM par HTTP puis les rend dans la limite signée. Les fichiers
 d'installation du navigateur viennent de la configuration d'administration,
 jamais de la cible ou du modèle. La sortie conserve UUID, compteurs, hashes,
 états et raisons stables ; chemins et valeurs de query restent privés.
-Une mission v2 demandant `browse` sera refusée clairement avant lancement.
+Une mission v2 demandant `browse` est refusée avant lancement. Fournir les
+chemins absolus de l’installation administrée suivant le
+[guide navigateur](WEB_BROWSER_WORKER.md#installation-et-qualification-reproductible) ;
+les chemins `/opt/argos` ci-dessus sont des exemples, pas une installation
+embarquée. Les options `--slirp`, `--slirp-library` et `--ca-bundle` restent
+disponibles pour les outils et autorités provisionnés.
+
+Après arrêt ou récupération : reprendre explicitement avec les mêmes options
+et `browse --resume`. Cette action adopte uniquement les navigations `pending`
+jamais réservées et les routes HTTP jamais envoyées. Elle ne rejoue aucune
+navigation annulée, échouée ou interrompue. Un nouveau test de ces pages
+nécessitera une nouvelle tentative explicite ; aucune commande de retry
+navigateur n’est fournie par cette tranche.
 
 ## Contrat de livraison de W4.2a
 
@@ -188,7 +202,8 @@ Première tranche, sans lancer Chromium ni ajouter de trafic :
   créer de table. Un schéma partiel/inconnu est refusé. Initialiser un store
   en écriture ajoute les tables ; `status/report` restent sans migration.
 - `web init --config` accepte v2/v3, conserve v2 par défaut ; `web plan`
-  affiche les budgets v3 avec `browser_execution: not_connected`. Le reste
+  affichait à la clôture de W4.2a les budgets v3 avec
+  `browser_execution: not_connected`. Le reste
   du CLI continue uniquement les capacités HTTP existantes, sans navigateur.
 
 [Exemple v3](../development/examples/web-mission-v3.json). Les représentations
@@ -407,8 +422,9 @@ est abaissé avant chaque téléchargement selon le transfert restant.
 La capture conserve les liens candidats et les empreintes de reçus des
 ressources, dont les types `fetch`/`xhr` permettent d'identifier leur provenance.
 Cette tranche ne les ajoute pas à la frontière et ne modifie pas `status/report`.
-La commande `browse` n'existe pas encore ; le champ CLI `browser_execution`
-reste `not_connected`, décrivant l'absence de parcours navigateur au CLI.
+À la clôture de W4.2b, `browse` n'existait pas encore et le champ CLI
+`browser_execution` restait `not_connected`. W4.2c, décrit plus bas, fournit
+désormais ce parcours et change ce champ de présentation.
 Les restrictions GET/HEAD, origine exacte, absence d'authentification/cookies
 transmis, refus de 3xx et plafonds W4.1 restent ceux de cette livraison.
 
@@ -453,7 +469,7 @@ jamais commencés. L'intégration interne ne constitue pas encore ce parcours CL
 - [x] **W4.2b — Relais HTTP durable** : liaison ticket/ressource, remise après
   commit, deadlines imbriquées, contrôle d'arrêt et réservation des preuves.
   Essais positifs et injections de pannes avant exposition CLI.
-- [ ] **W4.2c — Découverte CLI et qualification** : `browse`, frontière DOM/API,
+- [x] **W4.2c — Découverte CLI et qualification** : `browse`, frontière DOM/API,
   vues expurgées, reprise explicite et essais Chromium + HTTP/TLS réels sur
   serveurs de test locaux. Mettre à jour installation, exemples et bilan.
 
@@ -462,23 +478,23 @@ terminé sur la seule présence du code ou d'un test simulé.
 
 Acceptation finale de W4.2 :
 
-- [ ] Depuis l'URL seule : HTML → script → fetch JSON → lien DOM → nouvelle
+- [x] Depuis l'URL seule : HTML → script → fetch JSON → lien DOM → nouvelle
   page, avec provenance vérifiable et résultat visible dans `report`.
-- [ ] Chaque requête parvenue au serveur possède ticket et reçu correspondants ;
+- [x] Chaque requête parvenue au serveur possède ticket et reçu correspondants ;
   aucun hôte auxiliaire, port interdit, autre origine ou méthode interdite contacté.
-- [ ] Signature invalide/expirée, ancien profil, configuration modifiée,
+- [x] Signature invalide/expirée, ancien profil, configuration modifiée,
   DNS interdit et certificat incorrect refusés par le même runtime HTTP.
-- [ ] La concurrence HTTP égale à un fonctionne ; les compteurs navigateur
+- [x] La concurrence HTTP égale à un fonctionne ; les compteurs navigateur
   n'affaiblissent ni cadence globale ni quota HTTP, même après redémarrage.
-- [ ] Budgets de durée, ressources, corps, preuves et URL épuisés séparément :
+- [x] Budgets de durée, ressources, corps, preuves et URL épuisés séparément :
   arrêt explicite, résultats partiels, aucune relance cachée.
-- [ ] Annulation, révocation et crash pendant démarrage, attente de débit,
+- [x] Annulation, révocation et crash pendant démarrage, attente de débit,
   connexion, réponse et commit : descendants nettoyés, historique conservé,
   aucune ressource fournie après un refus d’activité observé ou une preuve
   non validée.
-- [ ] Corps, cookies et marqueurs privés absents des sorties, logs ordinaires
+- [x] Corps, cookies et marqueurs privés absents des sorties, logs ordinaires
   et reçus publics ; bases anciennes toujours consultables.
-- [ ] Suites Python 3.12/3.14, lint, typage, wheel/sdist et essais hôte passent.
+- [x] Suites Python 3.12/3.14, lint, typage, wheel/sdist et essais hôte passent.
 
 ## Suite vers le pentest professionnel
 
@@ -496,3 +512,107 @@ la livraison et les pilotes clients sur un périmètre annoncé honnêtement.
 Le dernier bilan W4.1, antérieur à cette préparation documentaire, est de
 760 tests locaux sous Python 3.12 et 3.14. Ce nombre mesure les régressions
 du logiciel ; il ne mesure pas le taux de vulnérabilités qu'Argos sait trouver.
+
+## Préparation W4.2c — Découverte navigateur depuis le CLI
+
+Tranche engagée après W4.2b : `browse --run-id` sélectionne les pages HTML
+vérifiées, relève les appels `fetch`/`xhr` et ajoute les liens DOM à la frontière
+HTTP avant leur rendu éventuel. Les API restent des observations, sans nouveau
+test de vulnérabilité ni répétition automatique de leurs appels.
+
+Les chemins d'installation sont des options d'administration explicites
+`--browser-core` et `--browser-engine`. `--resume` adopte seulement les travaux
+`pending` jamais réservés. Les navigations interrompues restent dans l'historique
+et ne sont jamais rejouées. Une capture déjà validée peut alimenter la frontière
+après redémarrage sans nouvelle exécution de Chromium.
+
+La provenance DOM est ajoutée aux nouvelles routes et un marqueur d'expansion
+lié à l'empreinte de capture est conservé dans le run. L'ensemble est écrit en
+une transaction, compte dans le quota de preuves et reste lisible sans DDL.
+Les doublons restent uniques ; le rapport conserve chaque observation même
+si elle désigne une route déjà connue. Les vues publiques n'exposent que UUID,
+empreintes, compteurs, états et raisons fermées.
+
+Critères : parcours CLI HTTP et HTTPS jusqu'à une page absente du HTML initial,
+preuve par requête, arrêt puis reprise explicite sans replay, bornes signées,
+refus v2 avant lancement, lecture seule sans changement de base, expurgation,
+suites 3.12/3.14 et paquet exécutable hors checkout. Le bilan ci-dessous sera
+renseigné après exécution effective des contrôles.
+
+### Bilan d'implémentation W4.2c
+
+`BrowserDiscovery(runtime, worker).run(run_id, resume=False)` orchestre la
+sélection et l'expansion. `BrowserNavigation.navigate(..., navigation_id=...)`
+peut exécuter un identifiant existant seulement s'il est `pending`, jamais
+réservé et appartient au runtime. `NavigationStore.adopt` assure le changement
+de propriétaire explicite après revalidation. Le CLI vérifie la configuration
+v3 avant tout lancement ; `plan` indique `browser_execution: available_via_browse`.
+
+Le run reste `running` pendant l'alternance HTTP/navigateur pour rendre `stop`
+effectif même après une première découverte terminée. `Exploration.run` peut
+vider la frontière sans clore ce run. Chaque page rendue doit avoir une route
+HTML et une preuve HTTP vérifiées. Une navigation déjà tentée n'est pas choisie
+à nouveau ; `interrupted`, `cancelled`, échec et rendu limité restent visibles
+et rendent le résultat partiel. Une installation indisponible termine le run
+en état partiel avec `isolation_unavailable` ; un arrêt pendant sa préparation
+reste un arrêt explicite. Un plafond atteint laisse les pages restantes
+observées ou non rendues, sans annoncer une couverture complète.
+
+Les liens DOM alimentent la frontière avec les mêmes plafonds URL/profondeur/
+variantes, exclusions et contrôles d'effets. Les nouvelles routes portent
+`browser_source` ; le run conserve `browser_expansions`, une liste bornée de
+paires navigation/empreinte de capture. Aucune table ni migration supplémentaire
+n'est nécessaire. Publication, marqueur et provenance sont transactionnels,
+revalidés à la lecture et comptés avec une enveloppe JSON conservatrice dans
+le quota de preuves. Un quota insuffisant annule toute l'expansion. Une panne
+de stockage empoisonne le runtime ; une capture déjà committée reste disponible
+et peut alimenter la frontière après récupération sans rendu supplémentaire.
+
+Les vues `status/report` ajoutent `browser` : compteurs, états et, dans le
+rapport, détails de navigations/ressources, liens observés et appels `fetch`/
+`xhr`. Les identifiants de route/navigation, séquences et empreintes relient
+les observations aux preuves. Les doublons restent uniques dans la frontière ;
+le rapport garde chaque provenance observée. Les URL brutes, valeurs de query,
+corps, cookies et chemins d'installation restent privés. Les appels API ne sont
+pas réémis automatiquement : `security_testing: not_tested` distingue cette
+observation des tests de vulnérabilité futurs.
+
+Essais nouveaux : 16 cas de contrats, provenance, refus v2, budgets, révocation,
+lecture seule, panne transactionnelle, préparation navigateur et récupération ;
+trois essais hôte CLI
+réels, dont deux parcours complets HTTP/HTTPS et un arrêt pendant un appel API
+suivi d'une reprise sans replay. Les deux parcours complets vérifient sept
+requêtes reçues et sept tickets/preuves : contrôle de page absente, source
+HTML, document navigateur, script, API, vérification HTTP du lien dynamique,
+puis rendu de cette nouvelle page. Le rapport et le statut ne modifient pas
+les octets de la base. Les marqueurs privés sont absents de stdout/stderr.
+
+Validation W4.2c des 17–18 novembre 2026 :
+
+| Vérification | Résultat |
+| --- | --- |
+| Suite finale Python 3.14.6 | 899 réussis en 301,88 s, aucun ignoré |
+| Suite finale Python 3.12.15 | 899 réussis en 301,66 s, aucun ignoré |
+| Tests ciblés de découverte navigateur | 16 réussis en 14,55 s |
+| Nouveaux essais hôte CLI Chromium/HTTP/TLS | 3 réussis en 62,02 s avant la correction de préparation ; repris dans les suites finales |
+| Wheel finale extraite, HTTP et HTTPS via CLI hors checkout | 2 réussis en 45,97 s ; import depuis `/tmp/argos-w42c-wheel` vérifié |
+| Ruff, formatage et Pyright | Validés sur tout le dépôt, 0 erreur et 0 avertissement de typage |
+| Construction hors ligne | Wheel/sdist construits, module inclus, sources Python/CJS comparées au checkout, frontend/node_modules exclus |
+
+Les suites finales comprennent 836 cas réguliers et 63 essais hôte. La
+correction finale de préparation navigateur est incluse dans ces deux passes.
+Les suites ont été lancées simultanément sur cet hôte ; leurs durées ne sont
+pas des mesures de performance de pentest.
+
+Commandes : reprendre les variables hôte du bilan W4.2a et lancer chaque
+interpréteur avec `-m pytest -xq -o faulthandler_timeout=30`. Les 19 cas ajoutés
+se trouvent dans `tests/test_web_browser_discovery.py` et
+`tests/test_web_browser_cli_network.py`. Construction :
+`UV_CACHE_DIR=/tmp/argos-uv-cache uv build --offline --wheel --sdist --out-dir
+/tmp/argos-w42c-dist`. L'essai du paquet copie les essais CLI sous `/tmp`,
+importe explicitement le paquet extrait via `PYTHONPATH`, puis sélectionne
+les deux parcours HTTP/HTTPS ; le cas d'arrêt est exécuté dans les suites hôte.
+L'avertissement du CLI uv 0.13.1 face au backend verrouillé `<0.12` n'empêche
+pas la construction hors ligne. Aucun benchmark externe, cible client, score de découverte
+de failles ou CI distante n'est déduit de ces essais locaux. Pas de changement
+frontend, donc aucune qualification UI ajoutée.

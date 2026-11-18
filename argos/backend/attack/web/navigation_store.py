@@ -308,6 +308,27 @@ class NavigationStore:
             )
         return request.navigation_id
 
+    def adopt(self, navigation_id: UUID, owner: UUID, policy: WebPolicy) -> None:
+        """Explicitly adopt only a never-reserved job; never replay execution."""
+        _uuid(owner)
+        with self.db:
+            self.db.execute("BEGIN IMMEDIATE")
+            value = self.private(navigation_id)
+            request = self._request(value)
+            if value["state"] != "pending" or value["reservation"] is not None:
+                raise ValueError("Only never-started navigation can resume")
+            policy.navigation_preflight(
+                request,
+                usage=WebBudgetUsage(request.mission_id),
+                navigation_usage=self.usage(request.mission_id),
+                connection=self.db,
+            )
+            run = self._binding(request, value["configuration_sha256"])
+            if run["stop_requested"] or run["owner"] != str(owner):
+                raise WebPolicyError(WebErrorCode.CANCELLED)
+            value["owner_id"] = str(owner)
+            self._save(value)
+
     def reserve(
         self,
         navigation_id: UUID,

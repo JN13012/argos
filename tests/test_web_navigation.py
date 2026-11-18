@@ -532,5 +532,5 @@ def test_cli_plan_displays_signed_browser_limits(mission, capsys):
     output = capsys.readouterr().out
     plan = json.loads(output)
     assert plan["browser"] == asdict(WebBrowserLimits())
-    assert plan["browser_execution"] == "not_connected"
+    assert plan["browser_execution"] == "available_via_browse"
     assert "secret" not in output

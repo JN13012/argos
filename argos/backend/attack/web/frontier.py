@@ -188,6 +188,7 @@ class Frontier:
         depth: int,
         source: dict | None,
         redirects: int,
+        browser_source: dict | None = None,
     ):
         routes = self.routes(UUID(run["id"]))
         existing = {route["url"]: route for route in routes}
@@ -221,7 +222,7 @@ class Frontier:
                 and variants[variant] >= config.execution.query_variants
             ):
                 reason = "query_variants"
-            item = dict(
+            item: dict = dict(
                 id=str(uuid4()),
                 run_id=run["id"],
                 url=url,
@@ -241,6 +242,8 @@ class Frontier:
                 has_query=bool(parts.query),
                 observation_sha256=None,
             )
+            if browser_source is not None and kind == "page":
+                item["browser_source"] = browser_source
             self._save_route(item)
             existing[url] = item
             if parts.query and item["state"] != "excluded":

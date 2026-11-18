@@ -89,8 +89,8 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **711 Python tests** validated on Python 3.12 and 3.14 with host isolation
-  qualification enabled (666 regular tests and 45 host tests requiring opt-in).
+- **899 Python tests** validated on Python 3.12 and 3.14 with host isolation
+  qualification enabled (836 regular tests and 63 host tests requiring opt-in).
   Owned local HTTP/TLS endpoints and synthetic processes, no client scans;
   repository-wide Ruff and pinned Pyright; GitHub Actions configuration covering backend and frontend.
 - **Mission network isolation:** the execution manager defaults to rootless
@@ -143,9 +143,10 @@ snapshot, not the active backlog.
 The first commercial target is **autonomous external black-box web and API
 pentesting**, starting from a URL or domain. The current CLI supports bounded
 HTML discovery, controlled HTTP, evidence and a first open-redirect check with
-retesting. Internal Chromium missions now relay resources through the signed
-HTTP runtime, with durable receipts, DOM captures and crash recovery. Browser
-CLI discovery is the next integration step. A complete autonomous pentest and
+retesting. The `web browse` command runs Chromium through the signed HTTP
+runtime, records API observations, and follows links created by JavaScript.
+Durable receipts, DOM provenance, redacted reports and explicit recovery are
+connected. Redirects, interactions and sessions are the next step. A complete autonomous pentest and
 an LLM mission loop remain to be built.
 
 See the [web delivery plan](docs/product/WEB_PENTEST_PLAN.md),

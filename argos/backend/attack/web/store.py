@@ -303,6 +303,9 @@ class WebStore:
                 active += has_ticket
                 evidence += row["capacity"] if has_ticket else 0
         evidence += NavigationEvidence(NavigationStore(self)).quota(mission_id)
+        from .browser_discovery import projection_quota
+
+        evidence += projection_quota(self, mission_id)
         return WebBudgetUsage(
             mission_id,
             used,

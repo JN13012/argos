@@ -7,6 +7,7 @@ import sqlite3
 from collections import Counter
 from uuid import UUID
 
+from .browser_discovery import browser_report
 from .contracts import WebErrorCode, WebRequest
 from .frontier import GAPS, Frontier
 from .policy import WebPolicyError
@@ -56,6 +57,7 @@ def summary(store: WebStore, run_id: UUID, *, details: bool = False) -> dict:
     if details:
         value["surface"] = observations
     value.update(RedirectChecks(store.db).report(store, run_id))
+    value["browser"] = browser_report(store, run_id, details=details)
     return value
 
 
@@ -85,11 +87,11 @@ class Exploration:
                 run_id, "running", "resumed", owner=self.runtime.owner, reset_stop=True
             )
 
-    def run(self, run_id: UUID) -> dict:
+    def run(self, run_id: UUID, *, finalize: bool = True) -> dict:
         with self.runtime.operation():
-            return self._run(run_id)
+            return self._run(run_id, finalize=finalize)
 
-    def _run(self, run_id: UUID) -> dict:
+    def _run(self, run_id: UUID, *, finalize: bool = True) -> dict:
         try:
             while True:
                 with WebStore(self.runtime.database) as store:
@@ -107,6 +109,8 @@ class Exploration:
                         (item for item in routes if item["state"] == "queued"), None
                     )
                     if route is None:
+                        if not finalize:
+                            break
                         partial = any(
                             item["state"] in ("blocked", "interrupted")
                             for item in routes

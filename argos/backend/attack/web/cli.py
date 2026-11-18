@@ -24,7 +24,9 @@ from argos.backend.core.mission_store import MissionStore
 from argos.backend.core.missions import Mission
 from argos.backend.core.network_worker import NetworkTools
 
+from .browser import BrowserInstallation, BrowserWorker
 from .browser_config import WebBrowserConfig
+from .browser_discovery import BrowserDiscovery
 from .config import WebMissionConfig
 from .execution_config import WebExecutionConfig
 from .exploration import Exploration, summary
@@ -54,6 +56,7 @@ def add_parser(commands):
         "report",
         "check",
         "retest",
+        "browse",
     ):
         parser = actions.add_parser(name)
         parser.set_defaults(action="web_" + name)
@@ -77,17 +80,35 @@ def add_parser(commands):
             parser.add_argument("--check-id", type=UUID, required=True)
         else:
             parser.add_argument("--run-id", type=UUID, required=True)
-        if name in ("activate", "run", "resume", "plan", "check", "retest"):
+        if name in ("activate", "run", "resume", "plan", "check", "retest", "browse"):
             parser.add_argument(
                 "--public-key",
                 required=name != "plan",
                 help="Administrator Ed25519 public key PEM",
             )
+        if name == "browse":
+            parser.add_argument(
+                "--resume",
+                action="store_true",
+                help="Resume never-started browser work; no replay",
+            )
+            parser.add_argument(
+                "--browser-core",
+                type=Path,
+                required=True,
+                help="Administrator playwright-core directory",
+            )
+            parser.add_argument(
+                "--browser-engine",
+                type=Path,
+                required=True,
+                help="Administrator Chromium directory",
+            )
         if name == "activate":
             parser.add_argument(
                 "--approval", required=True, help="Offline-issued SignedApproval JSON"
             )
-        if name in ("run", "resume", "check", "retest"):
+        if name in ("run", "resume", "check", "retest", "browse"):
             parser.add_argument(
                 "--slirp",
                 default="/usr/bin/slirp4netns",
@@ -281,7 +302,7 @@ def dispatch(args: argparse.Namespace) -> int:
             )
             if isinstance(config, WebBrowserConfig):
                 value["browser"] = json.loads(config.to_json())["browser"]
-                value["browser_execution"] = "not_connected"
+                value["browser_execution"] = "available_via_browse"
         emit(value, args.json)
         return 0
     if action in ("status", "report"):
@@ -344,7 +365,16 @@ def dispatch(args: argparse.Namespace) -> int:
             path, verifier(args.public_key), worker=worker, stop=stopped
         ) as runtime:
             exploration = Exploration(runtime)
-            if action in ("check", "retest"):
+            if action == "browse":
+                run_id = args.run_id
+                print(f"Run ID: {run_id}", file=sys.stderr, flush=True)
+                browser = BrowserWorker(
+                    BrowserInstallation(args.browser_core, args.browser_engine)
+                )
+                value = BrowserDiscovery(runtime, browser).run(
+                    run_id, resume=args.resume
+                )
+            elif action in ("check", "retest"):
                 with WebStore(path) as store:
                     run_id = (
                         UUID(RedirectChecks(store.db).case(args.check_id)[0]["run_id"])
