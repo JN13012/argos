@@ -18,7 +18,9 @@ from test_web_redirects import discover, site
 from test_web_runtime import setup as setup
 
 
-def test_report_keeps_confirmation_and_retest_after_runtime_closed(setup, capsys):
+def test_report_keeps_confirmation_and_retest_after_runtime_closed(
+    setup, capsys, tmp_path
+):
     runtime, mid, worker, resolver, _ = setup()
     site(worker)
     with runtime:
@@ -79,6 +81,35 @@ def test_report_keeps_confirmation_and_retest_after_runtime_closed(setup, capsys
     )
     assert main([*args, "--format", "findings-json"]) == 0
     assert capsys.readouterr().out == findings_text
+    before_path, after_path = tmp_path / "before.json", tmp_path / "after.json"
+    before_path.write_text(json.dumps(findings_export(initial)), encoding="utf-8")
+    after_path.write_text(findings_text, encoding="utf-8")
+    assert (
+        main(
+            [
+                "web",
+                "compare-findings",
+                "--before",
+                str(before_path),
+                "--after",
+                str(after_path),
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out)["changes"] == [
+        {
+            "finding_id": finding["finding_id"],
+            "before": {"status": "confirmed", "latest_retest": None},
+            "after": {
+                "status": "not_reproduced",
+                "latest_retest": {
+                    "check_id": finding["latest_retest"]["check_id"],
+                    "verdict": "not_confirmed",
+                },
+            },
+        }
+    ]
     assert main([*args, "--format", "coverage-json"]) == 0
     encoded = capsys.readouterr().out
     coverage = json.loads(encoded)

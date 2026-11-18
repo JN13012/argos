@@ -27,7 +27,10 @@ vérifier son empreinte et d’afficher son résultat expurgé. La
 contrôle en une commande que l’index correspond aux preuves de l’exécution
 dans la base privée. L’[export JSON des constats](WEB_CLIENT_REPORT.md#exporter-les-constats-pour-suivre-les-corrections)
 fournit des identifiants stables, les preuves de la première confirmation
-et le dernier recontrôle pour le suivi des corrections.
+et le dernier recontrôle pour le suivi des corrections. La
+[comparaison des constats](WEB_CLIENT_REPORT.md#comparer-les-constats-avant-et-après-un-recontrôle)
+repère les changements d’état et les nouveaux recontrôles entre deux exports
+de la même exécution.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :

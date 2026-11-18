@@ -302,6 +302,40 @@ d’un recontrôle. Les suites régulières Python 3.12 et 3.14 passent avec
 977 réussites chacune et 86 essais hôte hors suite. Ruff, son contrôle de
 format et Pyright passent.
 
+## Comparer les constats avant et après un recontrôle
+
+Conserver un export `findings-json` avant et après le recontrôle, puis
+comparer les deux fichiers sur le poste de revue :
+
+```bash
+python -m argos web compare-findings --before constats-avant.json --after constats-apres.json
+```
+
+Les exports v1 doivent correspondre à la même mission, à la même exécution
+et à la même empreinte de configuration. La lecture se limite à deux
+fichiers ordinaires de 16 Mio au plus chacun, sans lien symbolique final
+ni clé JSON répétée. Un identifiant de constat répété ou un état incompatible
+avec le dernier verdict est refusé. La commande travaille sans base ni réseau.
+
+Le JSON de sortie contient les références communes et `changes`, trié par
+`finding_id`. Chaque entrée donne `before` et `after` avec le statut, puis
+l’identifiant et le verdict du dernier recontrôle s’il existe. Un nouvel
+identifiant de recontrôle figure dans la comparaison même si le statut reste
+identique. Un côté à `null` signifie que le constat est absent du fichier
+correspondant. Cette absence ne valide aucune correction.
+
+`changes: []` signifie que les deux fichiers s’accordent sur les identifiants,
+les états et les derniers recontrôles. La commande ne compare pas les reçus
+ni la première confirmation. Pour vérifier les références de preuve avec
+la base privée, utiliser la [vérification d’index](#vérifier-un-index-archivé).
+Une comparaison valide, avec ou sans écarts, sort avec le code `0`. Un
+format ou des références incompatibles donnent `invalid_input` et le code `2`.
+
+Validation locale : 16 tests ciblés couvrent notamment les nouveaux constats,
+les recontrôles successifs, les entrées incompatibles et la lecture seule.
+Les suites régulières Python 3.12 et 3.14 passent avec 982 réussites chacune
+et 86 essais hôte hors suite. Ruff, son contrôle de format et Pyright passent.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de

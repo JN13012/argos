@@ -38,6 +38,9 @@ relire. Les identifiants et empreintes y sont fictifs.
 5. **Préparer le suivi.** Utiliser l’[export JSON des constats](../product/WEB_CLIENT_REPORT.md#exporter-les-constats-pour-suivre-les-corrections)
    pour rattacher chaque ticket à l’identifiant du constat et retrouver les
    reçus de sa première confirmation et du dernier recontrôle.
+   [Comparer les deux exports](../product/WEB_CLIENT_REPORT.md#comparer-les-constats-avant-et-après-un-recontrôle)
+   pour repérer les tickets dont il faut mettre à jour l’état ou les
+   références du dernier recontrôle.
 
 Relire aussi les compléments manuels pour écarter les secrets et données
 personnelles inutiles. Les rapports réels restent hors du dépôt.

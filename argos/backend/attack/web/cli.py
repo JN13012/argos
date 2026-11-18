@@ -59,6 +59,12 @@ def add_parser(commands):
     comparison.set_defaults(action="web_compare-coverage", json=True)
     comparison.add_argument("--before", required=True, help="Earlier coverage export")
     comparison.add_argument("--after", required=True, help="Later coverage export")
+    findings = actions.add_parser(
+        "compare-findings", help="Compare saved findings JSON"
+    )
+    findings.set_defaults(action="web_compare-findings", json=True)
+    findings.add_argument("--before", required=True, help="Earlier findings export")
+    findings.add_argument("--after", required=True, help="Later findings export")
     evidence = actions.add_parser("evidence", help="Inspect one indexed HTTP receipt")
     evidence.set_defaults(action="web_evidence", json=True)
     evidence.add_argument("--db", default=DEFAULT_DB)
@@ -277,6 +283,11 @@ def dispatch(args: argparse.Namespace) -> int:
         from .coverage_comparison import compare_coverage
 
         emit(compare_coverage(args.before, args.after), structured=True)
+        return 0
+    if action == "compare-findings":
+        from .findings_comparison import compare_findings
+
+        emit(compare_findings(args.before, args.after), structured=True)
         return 0
     path = private_path(args.db, create=action == "init")
     if action == "verify-evidence":
