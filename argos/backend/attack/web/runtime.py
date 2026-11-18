@@ -172,6 +172,11 @@ class WebRuntime:
             self._admit()
             try:
                 config = self.policy.configuration(request.mission_id)
+                if _resource is not None and _resource.allow_redirects:
+                    from .browser_redirects import WebRedirectConfig
+
+                    if not isinstance(config, WebRedirectConfig):
+                        raise WebPolicyError(WebErrorCode.EFFECT_DENIED)
                 with WebStore(self.database) as store:
                     usage = store.usage(request.mission_id, config, self._now())
                     preflight = self._bound_resource(
@@ -630,10 +635,28 @@ class WebRuntime:
                             payload["redirect_check"] = observation
                     context = self._resources.get(request.request_id)
                     offered = (
-                        relay_response(exchange, context.body_limit)
+                        relay_response(
+                            exchange,
+                            context.body_limit,
+                            allow_redirects=context.allow_redirects,
+                        )
                         if context and exchange and payload["state"] == "completed"
                         else None
                     )
+                    redirect_url = None
+                    if (
+                        context is not None
+                        and context.allow_redirects
+                        and offered is not None
+                    ):
+                        from .browser_redirects import (
+                            REDIRECT_STATUSES,
+                            redirect_target,
+                        )
+
+                        redirect_url = redirect_target(request.url, offered)
+                        if offered.status in REDIRECT_STATUSES and redirect_url is None:
+                            offered = None
                     if context is not None:
                         payload["browser_resource"] = dict(
                             version=1,
@@ -641,6 +664,16 @@ class WebRuntime:
                             sequence=context.sequence,
                             response=response_binding(offered) if offered else None,
                         )
+                        resource = NavigationEvidence(
+                            NavigationStore(store)
+                        ).for_request(request.request_id)
+                        if resource is not None and resource["version"] == 2:
+                            from .browser_redirects import hop_binding
+
+                            resource["redirect_target"] = redirect_url
+                            payload["browser_resource"].update(
+                                version=2, redirect=hop_binding(resource)
+                            )
                     store.finish(
                         request.request_id,
                         self.owner,
@@ -649,6 +682,7 @@ class WebRuntime:
                         suspended=suspended,
                         discovery=capture,
                         discovery_config=discovery_config,
+                        browser_redirect_target=redirect_url,
                         guard=lambda connection: self._commit_active(
                             connection, request, row["configuration_sha256"], event
                         ),

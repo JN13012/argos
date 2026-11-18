@@ -143,13 +143,21 @@ def mission(tmp_path):
         seeds=None,
         transport=None,
         resolver=None,
+        version=3,
+        redirects=None,
     ):
         config = WebMissionConfig.from_dict(
             dict(
-                schema_version=3,
+                schema_version=version,
                 name="Browser runtime",
                 seeds=seeds or ["http://target/"],
-                capabilities=["http.discover", "browser.discover"],
+                capabilities=["http.discover", "browser.discover"]
+                + (["http.interact", "browser.redirects"] if version == 5 else []),
+                **(
+                    dict(interaction={}, redirects=redirects or {})
+                    if version == 5
+                    else {}
+                ),
                 browser=browser or {},
                 limits=limits or {"requests_per_second": 100, "concurrency": 1},
                 execution=execution or {},

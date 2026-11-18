@@ -88,7 +88,12 @@ class WebExecutionConfig(WebMissionConfig):
 
     @classmethod
     def _fields(
-        cls, value: object, *, browser: bool = False, interaction: bool = False
+        cls,
+        value: object,
+        *,
+        browser: bool = False,
+        interaction: bool = False,
+        redirects: bool = False,
     ) -> dict:
         """Shared parsing; version-specific fields remain explicitly closed."""
         data = _keys(
@@ -107,10 +112,12 @@ class WebExecutionConfig(WebMissionConfig):
                 "execution",
             }
             | ({"browser"} if browser else set())
-            | ({"interaction"} if interaction else set()),
+            | ({"interaction"} if interaction else set())
+            | ({"redirects"} if redirects else set()),
             {"schema_version", "name", "seeds", "capabilities"}
             | ({"browser"} if browser else set())
-            | ({"interaction"} if interaction else set()),
+            | ({"interaction"} if interaction else set())
+            | ({"redirects"} if redirects else set()),
         )
         dest = _keys(data.get("destination", {}), {"kind", "networks"})
         destination = DestinationProfile(

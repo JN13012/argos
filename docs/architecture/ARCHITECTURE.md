@@ -42,9 +42,19 @@ Le [transport structuré W4.3a](../product/WEB_INTERACTIONS.md) ajoute un DTO
 commandes `request`/`request-status`. Le même runtime applique méthodes, corps,
 en-têtes et effets permis avant DNS puis lancement ; le worker génère lui-même
 Host, Content-Length et encodage. Les entrées privées sont versionnées et les
-reçus expurgés v2 lient tailles/empreintes. Aucun retry d'écriture, suivi de 3xx
-ou cookie n'est ajouté. Les sessions multi-rôles et services de mission restent
-à construire. Le
+reçus expurgés v2 lient tailles/empreintes. Aucun retry d’écriture, suivi de 3xx HTTP direct
+ou cookie n’est ajouté. Les sessions multi-rôles et services de mission restent
+à construire.
+
+[W4.3b](../product/WEB_INTERACTIONS.md#bilan-w43b) ajoute une configuration v5
+signée et un pilote CDP Fetch, décrit dans l'[ADR 0002](adr/0002-browser-redirect-interception.md).
+Il remplit ou bloque chaque requête sans continuer dans le réseau Chromium.
+Les ressources JSON v2 lient identifiant de saut, parent, profondeur, destination
+privée et empreinte du reçu. La capture v2 lie l'URL finale réelle à un document
+offert ; le rapport ne présente que son empreinte. Chaque saut repasse par le
+runtime HTTP et ses contrôles, y compris DNS/TLS et révocation. Une origine
+exacte reste requise ; les cibles auxiliaires limitent ce rendu. Les anciens
+pilotes/configurations et reçus restent lisibles, sans réécriture ni DDL nouvelle. Le
 contrôle IP/port est complété par les contrôles d'origine, URL et méthodes du
 médiateur et de la politique HTTP, même lorsque plusieurs origines partagent
 une adresse IP.

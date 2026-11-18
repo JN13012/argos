@@ -4,9 +4,13 @@ const fs = require('node:fs');
 const net = require('node:net');
 const { chromium } = require('/argos-playwright');
 
+const relaySockets = new Set();
+
 function exchange(request) {
   return new Promise((resolve, reject) => {
     const socket = net.createConnection('/argos-relay.sock');
+    relaySockets.add(socket);
+    socket.on('close', () => relaySockets.delete(socket));
     let data = Buffer.alloc(0);
     socket.setTimeout(12000, () => socket.destroy(new Error('relay timeout')));
     socket.on('connect', () => socket.end(JSON.stringify(request) + '\n'));
@@ -42,7 +46,7 @@ function exchange(request) {
     let requests = 0;
     let queue = Promise.resolve();
     await context.routeWebSocket('**/*', ws => { blockedWebsockets++; ws.close(); });
-    await context.route('**/*', route => {
+    if (!input.redirects) await context.route('**/*', route => {
       // Single outstanding relay operation, regardless of page concurrency.
       queue = queue.then(async () => {
         try {
@@ -62,6 +66,67 @@ function exchange(request) {
       return queue;
     });
     const page = await context.newPage();
+    let unsupported = false;
+    let stopFetch = () => {};
+    const documents = new Set();
+    if (input.redirects) {
+      // One CDP Fetch session owns every hop. Never continue into Chrome's network.
+      const cdp = await context.newCDPSession(page);
+      const observer = await browser.newBrowserCDPSession();
+      const own = (await cdp.send('Target.getTargetInfo')).targetInfo;
+      function blockTarget() {
+        unsupported = true; limited = true;
+        for (const socket of relaySockets) socket.destroy(new Error('browser request abandoned'));
+        context.close().catch(() => {});
+      }
+      stopFetch = blockTarget;
+      observer.on('Target.targetCreated', ({ targetInfo }) => {
+        if (targetInfo.browserContextId === own.browserContextId &&
+            targetInfo.targetId !== own.targetId &&
+            ['page', 'iframe', 'worker', 'shared_worker', 'service_worker'].includes(targetInfo.type)) {
+          blockTarget();
+        }
+      });
+      page.on('worker', blockTarget);
+      await observer.send('Target.setDiscoverTargets', { discover: true });
+      await cdp.send('Network.enable');
+      await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+      await cdp.send('Network.setBypassServiceWorker', { bypass: true });
+      const ids = new Map();
+      cdp.on('Fetch.requestPaused', event => {
+        const resourceId = ++requests;
+        const parent = event.redirectedRequestId ? ids.get(event.redirectedRequestId) : null;
+        if (resourceId <= input.max_requests) ids.set(event.requestId, resourceId);
+        queue = queue.then(async () => {
+          const abort = () => cdp.send('Fetch.failRequest', {
+            requestId: event.requestId, errorReason: 'BlockedByClient',
+          }).catch(() => {});
+          try {
+            if (unsupported || resourceId > input.max_requests || parent === undefined) {
+              limited = true; return await abort();
+            }
+            const types = { Document: 'document', Stylesheet: 'stylesheet', Image: 'image',
+              Media: 'media', Font: 'font', Script: 'script', TextTrack: 'texttrack',
+              XHR: 'xhr', Fetch: 'fetch', EventSource: 'eventsource', Manifest: 'manifest' };
+            const response = await exchange({
+              url: event.request.url, method: event.request.method,
+              resource: types[event.resourceType] || 'other',
+              resource_id: resourceId, redirected_from: parent,
+            });
+            if (response.blocked) { limited = true; return await abort(); }
+            await cdp.send('Fetch.fulfillRequest', {
+              requestId: event.requestId, responseCode: response.status,
+              responseHeaders: response.headers.map(([name, value]) => ({ name, value })),
+              body: response.body,
+            });
+            if (event.resourceType === 'Document' && ![301,302,303,307,308].includes(response.status)) {
+              documents.add(event.request.url.split('#')[0]);
+            }
+          } catch { limited = true; await abort(); }
+        });
+      });
+      await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
+    }
     context.on('page', popup => { if (popup !== page) popup.close().catch(() => {}); });
     page.on('dialog', dialog => dialog.dismiss().catch(() => {}));
     page.on('download', download => download.cancel().catch(() => {}));
@@ -77,7 +142,7 @@ function exchange(request) {
         await page.waitForTimeout(100);
         if (current === queue) break;
       }
-    } catch { state = 'partial'; }
+    } catch { state = 'partial'; if (input.redirects) stopFetch(); }
     const snapshot = await page.evaluate(maxLinks => {
       const links = [];
       const seen = new Set();
@@ -95,12 +160,19 @@ function exchange(request) {
       }
       return { links, limited: limited || elements.length > 1024 };
     }, input.max_links || 128).catch(() => ({ links: [], limited: true }));
+    let finalUrl = input.redirects && !unsupported ? page.url() : null;
+    if (input.redirects && finalUrl !== null && (Buffer.byteLength(finalUrl, 'utf8') > 8192 ||
+        !documents.has(finalUrl.split('#')[0]))) {
+      finalUrl = null; limited = true;
+    }
     await context.close();
     await queue;
-    process.stdout.write(JSON.stringify({
-      version: 'argos-browser-v1', state, links: snapshot.links,
+    const output = {
+      version: input.redirects ? 'argos-browser-v2' : 'argos-browser-v1', state, links: snapshot.links,
       browser_version: browser.version(),
       limited: limited || snapshot.limited, blocked_websockets: blockedWebsockets,
-    }));
+    };
+    if (input.redirects) output.final_url = finalUrl;
+    process.stdout.write(JSON.stringify(output));
   } finally { await browser.close(); }
 })().catch(() => { process.stderr.write('Browser execution failed\n'); process.exitCode = 1; });

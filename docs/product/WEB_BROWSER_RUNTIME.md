@@ -1,6 +1,9 @@
 # W4.2 — Navigation de mission et découverte SPA/API
 
 Statut : **W4.2a, W4.2b et W4.2c livrés et validés localement**.
+Les restrictions de rendu de ce bilan concernent v3/v4. Le
+[lot W4.3b](WEB_INTERACTIONS.md#bilan-w43b) ajoute explicitement en v5 les
+redirections CDP ; il conserve GET/HEAD anonymes et une origine par navigation.
 Dépendances livrées :
 [runtime HTTP W2.3](WEB_HTTP_RUNTIME.md), [CLI W3.1](WEB_CLI_DISCOVERY.md),
 [oracle W3.2](WEB_OPEN_REDIRECT.md), [worker navigateur W4.1](WEB_BROWSER_WORKER.md).

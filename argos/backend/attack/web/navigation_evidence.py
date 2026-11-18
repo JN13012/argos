@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from .browser import BrowserRequest
+from .browser import BrowserHopRequest, BrowserRequest
 from .browser_config import WebBrowserConfig
 from .contracts import WebErrorCode, _digest
 from .policy import WebPolicyError
@@ -36,6 +36,9 @@ REASONS = {
     "approval_invalid",
     "isolation_unavailable",
     "http_failed",
+    "redirect_invalid",
+    "redirect_limit",
+    "redirect_cycle",
 }
 
 
@@ -65,24 +68,31 @@ class NavigationEvidence:
             raise WebIntegrityError("Missing browser resource")
         try:
             value = json.loads(row["payload_json"])
-            if (
-                set(value)
-                != {
-                    "version",
-                    "navigation_id",
-                    "sequence",
-                    "url",
-                    "url_sha256",
-                    "method",
-                    "resource",
-                    "request_id",
-                    "receipt_sha256",
-                    "response",
-                    "state",
-                    "reason",
-                    "downloaded_bytes",
+            expected = {
+                "version",
+                "navigation_id",
+                "sequence",
+                "url",
+                "url_sha256",
+                "method",
+                "resource",
+                "request_id",
+                "receipt_sha256",
+                "response",
+                "state",
+                "reason",
+                "downloaded_bytes",
+            }
+            if value.get("version") == 2:
+                expected |= {
+                    "resource_id",
+                    "redirected_from",
+                    "depth",
+                    "redirect_target",
                 }
-                or value["version"] != 1
+            if (
+                set(value) != expected
+                or value["version"] not in {1, 2}
                 or type(value["version"]) is not int
                 or value["navigation_id"] != str(navigation_id)
                 or type(value["sequence"]) is not int
@@ -101,6 +111,24 @@ class NavigationEvidence:
                 not isinstance(value["url"], str) or len(value["url"].encode()) > 8192
             ):
                 raise ValueError
+            if value["version"] == 2:
+                if (
+                    type(value["resource_id"]) is not int
+                    or not 1 <= value["resource_id"] <= 64
+                    or value["redirected_from"] is not None
+                    and (
+                        type(value["redirected_from"]) is not int
+                        or not 1 <= value["redirected_from"] < value["resource_id"]
+                    )
+                    or type(value["depth"]) is not int
+                    or not 0 <= value["depth"] <= 64
+                    or value["redirect_target"] is not None
+                    and (
+                        not isinstance(value["redirect_target"], str)
+                        or len(value["redirect_target"].encode()) > 8192
+                    )
+                ):
+                    raise ValueError
             if value["request_id"] is not None:
                 UUID(value["request_id"])
             if value["receipt_sha256"] is not None:
@@ -213,7 +241,40 @@ class NavigationEvidence:
                 range(1, len(resources) + 1)
             ) or len(resources) > value["reservation"]["limits"]["max_resources"]:
                 raise ValueError
+            ids = [r["resource_id"] for r in resources if r["version"] == 2]
+            if len(ids) != len(set(ids)):
+                raise ValueError
+            from .browser_redirects import (
+                WebRedirectConfig,
+                configuration,
+                validate_hop,
+            )
+
+            config = configuration(self, value)
+            if isinstance(config, WebRedirectConfig):
+                from dataclasses import asdict
+
+                if execution["profile"].get("redirect_limits") != asdict(
+                    config.redirects
+                ):
+                    raise ValueError
             for resource in resources:
+                if (
+                    isinstance(config, WebRedirectConfig)
+                    and resource["version"] == 1
+                    and resource["request_id"] is not None
+                ):
+                    raise ValueError
+                if resource["version"] == 2:
+                    if not isinstance(config, WebRedirectConfig):
+                        raise ValueError
+                    refusal = validate_hop(self, value, resource)
+                    if refusal and not (
+                        resource["state"] == "blocked"
+                        and resource["reason"] == refusal
+                        and resource["request_id"] is None
+                    ):
+                        raise ValueError
                 if resource["request_id"] is None:
                     if (
                         resource["state"] not in {"observed", "blocked"}
@@ -248,19 +309,41 @@ class NavigationEvidence:
             ):
                 raise ValueError
             if capture is not None:
+                expected_capture = {
+                    "version",
+                    "navigation_id",
+                    "profile_sha256",
+                    "receipts",
+                    "links",
+                    "limited",
+                    "blocked_websockets",
+                }
+                if isinstance(config, WebRedirectConfig):
+                    expected_capture.add("final_url")
+                    final = capture.get("final_url")
+                    if final is None and not capture["limited"]:
+                        raise ValueError
+                    if final is not None:
+                        if not isinstance(final, str) or len(final.encode()) > 8192:
+                            raise ValueError
+                        from .config import _origin
+
+                        if _origin(final) != _origin(
+                            value["request"]["url"]
+                        ) or not any(
+                            r["url"] == final.split("#", 1)[0]
+                            and r["resource"] == "document"
+                            and r["state"] == "offer_attempted"
+                            and r["response"] is not None
+                            and r["response"]["status"] not in {301, 302, 303, 307, 308}
+                            for r in resources
+                        ):
+                            raise ValueError
                 if (
-                    set(capture)
-                    != {
-                        "version",
-                        "navigation_id",
-                        "profile_sha256",
-                        "receipts",
-                        "links",
-                        "limited",
-                        "blocked_websockets",
-                    }
+                    set(capture) != expected_capture
                     or type(capture["version"]) is not int
-                    or capture["version"] != 1
+                    or capture["version"]
+                    != (2 if isinstance(config, WebRedirectConfig) else 1)
                     or type(capture["limited"]) is not bool
                     or not isinstance(capture["links"], list)
                     or len(capture["links"])
@@ -345,6 +428,37 @@ class NavigationEvidence:
                 reason=reason,
                 downloaded_bytes=0,
             )
+            if isinstance(request, BrowserHopRequest):
+                from .browser_redirects import (
+                    WebRedirectConfig,
+                    configuration,
+                    validate_hop,
+                )
+
+                if not isinstance(configuration(self, value), WebRedirectConfig):
+                    raise WebIntegrityError("Unsigned browser redirect protocol")
+                previous = self.resources(navigation_id)
+                if any(r.get("resource_id") == request.resource_id for r in previous):
+                    resource.update(state="blocked", reason="redirect_invalid")
+                else:
+                    parent = next(
+                        (
+                            r
+                            for r in previous
+                            if r.get("resource_id") == request.redirected_from
+                        ),
+                        None,
+                    )
+                    resource.update(
+                        version=2,
+                        resource_id=request.resource_id,
+                        redirected_from=request.redirected_from,
+                        depth=parent["depth"] + 1 if parent else 0,
+                        redirect_target=None,
+                    )
+                    refusal = validate_hop(self, value, resource)
+                    if refusal:
+                        resource.update(state="blocked", reason=refusal)
             self._write_resource(resource)
             self.save(value)
             return sequence
@@ -389,12 +503,16 @@ class NavigationEvidence:
                 raise WebIntegrityError("Orphan browser receipt")
             return
         binding = payload.get("browser_resource")
-        expected = dict(
+        expected: dict = dict(
             version=1,
             navigation_id=resource["navigation_id"],
             sequence=resource["sequence"],
             response=resource["response"],
         )
+        if resource["version"] == 2:
+            from .browser_redirects import hop_binding
+
+            expected.update(version=2, redirect=hop_binding(resource))
         # Cancelled/interrupted receipts deliberately contain no offered response.
         if (
             resource["receipt_sha256"] != digest(payload)
@@ -417,8 +535,24 @@ class NavigationEvidence:
                 raise WebIntegrityError("Browser response differs")
             _digest(r["body_sha256"])
             _digest(r["headers_sha256"])
+        if resource["version"] == 2:
+            from .browser_redirects import REDIRECT_STATUSES
 
-    def record(self, request_id: UUID, payload: dict) -> None:
+            target = resource["redirect_target"]
+            if (
+                resource["response"] is not None
+                and resource["response"]["status"] in REDIRECT_STATUSES
+            ) != (target is not None):
+                raise WebIntegrityError("Browser redirect target differs")
+            if target is not None:
+                from .config import _normalize_url
+
+                if _normalize_url(target, private_profile=True) != target:
+                    raise WebIntegrityError("Browser redirect URL differs")
+
+    def record(
+        self, request_id: UUID, payload: dict, *, redirect_target: str | None = None
+    ) -> None:
         resource = self.for_request(request_id)
         if resource is None:
             return
@@ -435,6 +569,15 @@ class NavigationEvidence:
             state="ready" if response else "blocked",
             reason="response_ready" if response else "http_failed",
         )
+        if resource["version"] == 2:
+            resource["redirect_target"] = redirect_target if response else None
+            if (
+                payload["state"] == "completed"
+                and (payload.get("response") or {}).get("status")
+                in {301, 302, 303, 307, 308}
+                and response is None
+            ):
+                resource["reason"] = "redirect_invalid"
         self._write_resource(resource)
         self.validate_receipt(request_id, payload)
         self.save(value)

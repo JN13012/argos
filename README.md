@@ -89,8 +89,8 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **985 Python tests** validated on Python 3.12 and 3.14 with host isolation
-  qualification enabled (912 regular tests and 73 host tests requiring opt-in).
+- **1044 Python tests** validated on Python 3.12 and 3.14 with host isolation
+  qualification enabled (958 regular tests and 86 host tests requiring opt-in).
   Owned local HTTP/TLS endpoints and synthetic processes, no client scans;
   repository-wide Ruff and pinned Pyright; GitHub Actions configuration covering backend and frontend.
 - **Mission network isolation:** the execution manager defaults to rootless
@@ -148,8 +148,9 @@ runtime, records API observations, and follows links created by JavaScript.
 Durable receipts, DOM provenance, redacted reports and explicit recovery are
 connected. Signed v4 missions also support `web request` for bounded anonymous
 JSON/form requests, explicit methods and writes, with redacted receipts and
-recovery that never replays uncertain writes. Browser redirects and sessions
-are the next steps. A complete autonomous pentest and
+recovery that never replays uncertain writes. Signed v5 browser missions intercept each redirect hop,
+retain its proof and keep the actual final URL. Navigation stays within one
+origin; browser form actions and sessions are the next steps. A complete autonomous pentest and
 an LLM mission loop remain to be built.
 
 See the [web delivery plan](docs/product/WEB_PENTEST_PLAN.md),

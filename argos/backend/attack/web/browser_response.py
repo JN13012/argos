@@ -9,14 +9,18 @@ from .receipts import WebIntegrityError, digest
 from .transport import HTTPExchange
 
 
-def relay_response(response: HTTPExchange, maximum: int) -> HTTPExchange | None:
+def relay_response(
+    response: HTTPExchange, maximum: int, *, allow_redirects: bool = False
+) -> HTTPExchange | None:
     if (
         response.state != "completed"
         or not response.body_complete
         or response.error is not None
         or type(response.status) is not int
         or not 200 <= response.status <= 599
-        or response.status in {301, 302, 303, 304, 305, 307, 308}
+        or response.status in {304, 305}
+        or not allow_redirects
+        and response.status in {301, 302, 303, 307, 308}
         or len(response.body) > maximum
         or len(response.headers) > 100
     ):
@@ -76,6 +80,7 @@ class ResourceContext:
     body_limit: int
     active: Callable[[], bool] = field(repr=False)
     handoff: "ResponseHandoff | None" = field(default=None, repr=False)
+    allow_redirects: bool = False
 
 
 class ResponseHandoff:

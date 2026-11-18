@@ -59,6 +59,21 @@ class BrowserRequest:
 
 
 @dataclass(frozen=True)
+class BrowserHopRequest(BrowserRequest):
+    resource_id: int
+    redirected_from: int | None
+
+    def __post_init__(self):
+        if type(self.resource_id) is not int or not 1 <= self.resource_id <= 64:
+            raise ValueError("Invalid browser resource id")
+        if self.redirected_from is not None and (
+            type(self.redirected_from) is not int
+            or not 1 <= self.redirected_from < self.resource_id
+        ):
+            raise ValueError("Invalid browser redirect parent")
+
+
+@dataclass(frozen=True)
 class BrowserInstallation:
     """Administrator paths only. Never accepted from a page or agent."""
 
@@ -119,7 +134,9 @@ class BrowserRelay:
         cancel: Event | None,
         limits: WebBrowserLimits | None = None,
         refused: Callable[[BrowserRequest | None, str], None] | None = None,
+        redirects: dict | None = None,
     ):
+        self.redirects = redirects
         self.limits = limits or WebBrowserLimits()
         self.refused = refused
         self.peer_active: Callable[[], bool] = lambda: True
@@ -153,11 +170,10 @@ class BrowserRelay:
             self.limited = True
             return {"blocked": True}
         try:
-            if not isinstance(payload, dict) or set(payload) != {
-                "url",
-                "method",
-                "resource",
-            }:
+            expected = {"url", "method", "resource"}
+            if self.redirects is not None:
+                expected |= {"resource_id", "redirected_from"}
+            if not isinstance(payload, dict) or set(payload) != expected:
                 raise ValueError
             raw, method, resource = (
                 payload["url"],
@@ -179,16 +195,42 @@ class BrowserRelay:
                 "state": "blocked",
             }
             self.events.append(event)
+            request = (
+                BrowserHopRequest(
+                    url,
+                    event["method"],
+                    event["resource"],
+                    payload["resource_id"],
+                    payload["redirected_from"],
+                )
+                if self.redirects is not None
+                else BrowserRequest(url, event["method"], event["resource"])
+            )
             if not allowed:
                 if self.refused:
                     self.refused(
-                        BrowserRequest(url, event["method"], event["resource"]),
+                        request,
                         "relay_denied",
                     )
                 self.limited = True
                 return {"blocked": True}
-            response = self.mediator(BrowserRequest(url, method, resource))
-            response = relay_response(response, self.limits.resource_body_bytes)
+            request = (
+                BrowserHopRequest(
+                    url,
+                    method,
+                    resource,
+                    payload["resource_id"],
+                    payload["redirected_from"],
+                )
+                if self.redirects is not None
+                else BrowserRequest(url, method, resource)
+            )
+            response = self.mediator(request)
+            response = relay_response(
+                response,
+                self.limits.resource_body_bytes,
+                allow_redirects=self.redirects is not None,
+            )
             if (
                 response is None
                 or not self.alive()
@@ -273,6 +315,7 @@ class BrowserObservation:
     limited: bool
     blocked_websockets: int
     profile: dict = field(repr=False)
+    final_url: str | None = field(default=None, repr=False)
 
     def summary(self) -> dict:
         return {
@@ -322,8 +365,11 @@ class BrowserWorker:
         self,
         limits: WebBrowserLimits | None = None,
         active: Callable[[], bool] | None = None,
+        redirects: dict | None = None,
     ) -> dict:
         profile = self.profile(active=active)
+        if redirects is not None:
+            profile["redirect_limits"] = redirects
         if limits is not None:
             profile = {
                 **profile,
@@ -350,30 +396,39 @@ class BrowserWorker:
         limits: WebBrowserLimits | None = None,
         refused: Callable[[BrowserRequest | None, str], None] | None = None,
         bind_activity: Callable[[Callable[[], bool]], None] | None = None,
+        redirects: dict | None = None,
     ) -> BrowserObservation:
         if not active() or cancel is not None and cancel.is_set():
             return BrowserObservation("cancelled", (), (), True, 0, {})
         url = _normalize_url(url, private_profile=True)
         if len(url.encode()) > 8192:
             raise ValueError("Browser URL limit")
-        profile = self.effective_profile(limits, active=active)
+        profile = self.effective_profile(limits, active=active, redirects=redirects)
         if expected_profile is not None and profile != expected_profile:
             raise IsolationError("Browser isolation profile changed")
         with tempfile.TemporaryDirectory(prefix="argos-browser-") as directory:
             path = Path(directory)
             bounds = limits or WebBrowserLimits()
-            payload = json.dumps(
-                {
-                    "url": url,
-                    "max_requests": bounds.max_resources,
-                    "max_links": bounds.max_links,
-                }
-            ).encode()
+            options = {
+                "url": url,
+                "max_requests": bounds.max_resources,
+                "max_links": bounds.max_links,
+            }
+            if redirects is not None:
+                options["redirects"] = redirects
+            payload = json.dumps(options).encode()
             source = path / "input.json"
             source.touch(mode=0o600)
             source.write_bytes(payload)
             relay = BrowserRelay(
-                str(path / "relay"), url, mediator, active, cancel, limits, refused
+                str(path / "relay"),
+                url,
+                mediator,
+                active,
+                cancel,
+                limits,
+                refused,
+                redirects,
             )
             if bind_activity is not None:
                 bind_activity(relay.alive)
@@ -416,7 +471,10 @@ class BrowserWorker:
                     result.stdout, tuple(relay.events), profile, relay.limited
                 )
                 # Detect installation changes while running; no fallback/replay.
-                if self.effective_profile(limits, active=active) != profile:
+                if (
+                    self.effective_profile(limits, active=active, redirects=redirects)
+                    != profile
+                ):
                     raise IsolationError("Browser isolation profile changed")
                 if limits and len(observation.links) > limits.max_links:
                     raise IsolationError("Browser link limit exceeded")
@@ -432,18 +490,21 @@ def decode_observation(
         if len(data) > 524288:
             raise ValueError
         value = json.loads(data)
+        redirected = "redirect_limits" in profile
+        expected = {
+            "version",
+            "state",
+            "links",
+            "limited",
+            "blocked_websockets",
+            "browser_version",
+        }
+        if redirected:
+            expected.add("final_url")
         if (
-            set(value)
-            != {
-                "version",
-                "state",
-                "links",
-                "limited",
-                "blocked_websockets",
-                "browser_version",
-            }
+            set(value) != expected
             or value["browser_version"] != profile["browser_version"]
-            or value["version"] != VERSION
+            or value["version"] != ("argos-browser-v2" if redirected else VERSION)
             or value["state"] not in {"observed", "partial"}
             or type(value["limited"]) is not bool
             or type(value["blocked_websockets"]) is not int
@@ -464,6 +525,16 @@ def decode_observation(
             except ValueError:
                 limited = True
         limited = limited or value["limited"] or bool(value["blocked_websockets"])
+        final_url = None
+        if redirected and value["final_url"] is not None:
+            final = value["final_url"]
+            if not isinstance(final, str) or len(final.encode()) > 8192:
+                raise ValueError
+            if final == "about:blank":
+                limited = True
+            else:
+                _normalize_url(final.split("#", 1)[0], private_profile=True)
+                final_url = final
         return BrowserObservation(
             "partial" if limited else value["state"],
             tuple(dict.fromkeys(links)),
@@ -471,6 +542,7 @@ def decode_observation(
             limited,
             value["blocked_websockets"],
             profile,
+            final_url,
         )
     except (ValueError, TypeError, KeyError):
         raise IsolationError("Invalid browser observation") from None

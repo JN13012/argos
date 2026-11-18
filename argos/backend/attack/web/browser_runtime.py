@@ -6,12 +6,19 @@ import sqlite3
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import asdict
 from uuid import UUID
 
 from argos.backend.core.isolated_worker import IsolationError
 
-from .browser import BrowserObservation, BrowserRequest, BrowserWorker
+from .browser import (
+    BrowserHopRequest,
+    BrowserObservation,
+    BrowserRequest,
+    BrowserWorker,
+)
 from .browser_config import WebBrowserConfig
+from .browser_redirects import WebRedirectConfig
 from .browser_response import ResourceContext
 from .config import _origin
 from .contracts import WebErrorCode, WebRequest
@@ -86,6 +93,11 @@ class BrowserNavigation:
         config = runtime.policy.configuration(mission_id)
         if not isinstance(config, WebBrowserConfig):
             raise WebPolicyError(WebErrorCode.EFFECT_DENIED)
+        options = (
+            {"redirects": asdict(config.redirects)}
+            if isinstance(config, WebRedirectConfig)
+            else {}
+        )
         request = NavigationRequest(mission_id, run_id, route_id, route["url"])
         if navigation_id is not None:
             with WebStore(runtime.database) as store:
@@ -150,7 +162,9 @@ class BrowserNavigation:
                         request, runtime.owner, runtime.policy
                     )
                 created = True
-            profile = self.worker.effective_profile(config.browser, active=active)
+            profile = self.worker.effective_profile(
+                config.browser, active=active, **options
+            )
             if not active():
                 raise WebPolicyError(WebErrorCode.CANCELLED)
             with WebStore(runtime.database) as store:
@@ -185,6 +199,11 @@ class BrowserNavigation:
                 ipc_active = callback
 
             def mediator(resource: BrowserRequest) -> HTTPExchange:
+                if isinstance(config, WebRedirectConfig) and not isinstance(
+                    resource, BrowserHopRequest
+                ):
+                    refused(resource, "redirect_invalid")
+                    return BLOCKED_RESPONSE
                 if _origin(resource.url) != _origin(
                     request.url
                 ) or resource.method not in {"GET", "HEAD"}:
@@ -194,7 +213,11 @@ class BrowserNavigation:
                     nav = NavigationStore(store)
                     ledger = NavigationEvidence(nav)
                     sequence = ledger.observe(request.navigation_id, resource)
-                    if sequence is None:
+                    if (
+                        sequence is None
+                        or ledger.resource(request.navigation_id, sequence)["state"]
+                        == "blocked"
+                    ):
                         return BLOCKED_RESPONSE
                     used = sum(
                         r["downloaded_bytes"]
@@ -216,6 +239,7 @@ class BrowserNavigation:
                     min(deadline, runtime._now() + 10),
                     maximum,
                     lambda: active(force=True) and ipc_active(),
+                    allow_redirects=isinstance(config, WebRedirectConfig),
                 )
                 child = WebRequest(mission_id, resource.url, method=resource.method)
                 try:
@@ -263,6 +287,7 @@ class BrowserNavigation:
                 limits=config.browser,
                 refused=refused,
                 bind_activity=bind_activity,
+                **options,
             )
             if not active(force=True) or observation.state in {
                 "cancelled",
@@ -290,7 +315,7 @@ class BrowserNavigation:
                 state, reason = (
                     ("partial", "limited") if limited else ("completed", "observed")
                 )
-                capture = dict(
+                capture: dict | None = dict(
                     version=1,
                     navigation_id=str(request.navigation_id),
                     profile_sha256=digest(profile),
@@ -299,6 +324,8 @@ class BrowserNavigation:
                     limited=limited,
                     blocked_websockets=observation.blocked_websockets,
                 )
+                if isinstance(config, WebRedirectConfig):
+                    capture.update(version=2, final_url=observation.final_url)
             with WebStore(runtime.database) as store:
                 NavigationEvidence(NavigationStore(store)).finish(
                     request.navigation_id,

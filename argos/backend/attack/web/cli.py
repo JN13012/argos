@@ -27,6 +27,7 @@ from argos.backend.core.network_worker import NetworkTools
 from .browser import BrowserInstallation, BrowserWorker
 from .browser_config import WebBrowserConfig
 from .browser_discovery import BrowserDiscovery
+from .browser_redirects import WebRedirectConfig
 from .config import WebMissionConfig
 from .execution_config import WebExecutionConfig
 from .exploration import Exploration, summary
@@ -74,7 +75,7 @@ def add_parser(commands):
         )
         if name == "init":
             parser.add_argument("target", nargs="?", help="URL or domain")
-            parser.add_argument("--config", help="Explicit v2/v3/v4 configuration")
+            parser.add_argument("--config", help="Explicit v2/v3/v4/v5 configuration")
             parser.add_argument("--name", default="Web mission")
             parser.add_argument("--reference", default="web-cli")
             parser.add_argument("--expires-at", help="Aware ISO date; default 24 hours")
@@ -259,7 +260,7 @@ def dispatch(args: argparse.Namespace) -> int:
             )
         )
         if not isinstance(config, WebExecutionConfig):
-            raise ValueError("Executable v2/v3/v4 configuration required")
+            raise ValueError("Executable v2/v3/v4/v5 configuration required")
         expiry = (
             datetime.fromisoformat(args.expires_at)
             if args.expires_at
@@ -311,7 +312,7 @@ def dispatch(args: argparse.Namespace) -> int:
                 raise ValueError("Unknown web mission")
             config = WebMissionConfig.from_json(record.web_configuration)
             if not isinstance(config, WebExecutionConfig):
-                raise ValueError("Executable v2/v3/v4 required")
+                raise ValueError("Executable v2/v3/v4/v5 required")
             if args.public_key:
                 WebPolicy(path, verifier(args.public_key)).configuration(
                     args.mission_id, connection=store.db
@@ -335,6 +336,9 @@ def dispatch(args: argparse.Namespace) -> int:
             if isinstance(config, WebInteractionConfig):
                 value["interaction"] = json.loads(config.to_json())["interaction"]
                 value["interaction_execution"] = "available_via_request"
+            if isinstance(config, WebRedirectConfig):
+                value["redirects"] = json.loads(config.to_json())["redirects"]
+                value["browser_redirects_execution"] = "cdp_per_hop"
         emit(value, args.json)
         return 0
     if action == "request-status":

@@ -1,0 +1,38 @@
+{
+  "schema_version": 5,
+  "name": "Client web redirections",
+  "seeds": [
+    "https://app.example.com/"
+  ],
+  "capabilities": [
+    "http.discover",
+    "browser.discover",
+    "http.interact",
+    "browser.redirects"
+  ],
+  "browser": {},
+  "interaction": {
+    "methods": [
+      "GET",
+      "HEAD",
+      "OPTIONS"
+    ],
+    "body_bytes": 16384,
+    "header_bytes": 2048
+  },
+  "effects": {
+    "allow_test_writes": false
+  },
+  "scope": {
+    "origins": [
+      "https://app.example.com"
+    ],
+    "excluded_paths": [
+      "/logout",
+      "/billing"
+    ]
+  },
+  "redirects": {
+    "max_hops": 5
+  }
+}

@@ -14,13 +14,15 @@ Les comptes accessibles ou fournis enrichissent les tests. L’agent devra
 explorer, choisir ses hypothèses, exécuter, vérifier et produire rapport/recontrôle
 sans validation humaine entre les actions comprises dans sa configuration.
 
-**Prochaine étape : W4.3b, redirections navigateur contrôlées.**
-W4.3a ajoute les requêtes HTTP structurées anonymes : configuration v4 signée,
-méthodes et écritures explicites, corps UTF-8 borné, CLI `request` et preuves
-expurgées. Le [lot W4.3](WEB_INTERACTIONS.md) porte le découpage et le bilan.
-Les commandes de découverte v2/v3 restent compatibles. Le navigateur conserve
-GET/HEAD, sans redirections ni sessions ; W4.3b doit qualifier l'interception
-de chaque saut avant W4.3c, actions de formulaire et sessions séparées.
+**Prochaine étape : W4.3c, actions de formulaire et sessions.**
+W4.3b apporte les redirections navigateur sous configuration v5 signée :
+interception CDP de chaque saut, preuve avant remise, URL finale réelle et
+plafonds. Le [lot W4.3](WEB_INTERACTIONS.md) et
+[l'ADR](../architecture/adr/0002-browser-redirect-interception.md) portent les
+contrats et limites. Les missions v1 à v4 gardent leurs représentations et
+comportements ; v3/v4 continuent de refuser les 3xx au rendu. W4.3c doit ajouter
+les actions de formulaire et les sessions anonymes puis identités séparées,
+sans confondre une requête exécutée et une transaction métier vérifiée.
 
 ## Capacités disponibles et limites
 
@@ -30,7 +32,7 @@ de chaque saut avant W4.3c, actions de formulaire et sessions séparées.
 | Runtime HTTP | GET/HEAD historique ; requêtes structurées anonymes v4 (GET/HEAD/OPTIONS/POST/PUT/PATCH/DELETE), méthodes/corps/en-têtes bornés, écritures explicites, tickets et preuves ; pas de sessions |
 | Découverte HTML | Liens et paramètres observés, frontière persistante, raisons de refus et états partiels |
 | Premier oracle web | Redirection externe pilotée par un paramètre découvert : référence, deux marqueurs et recontrôle ; impact métier à qualifier |
-| Navigateur | Chromium → HTTP/TLS depuis le CLI, liens DOM suivis, appels API observés, tickets/preuves et provenance ; GET/HEAD, même origine par navigation, sans sessions ni redirections navigateur |
+| Navigateur | Chromium → HTTP/TLS depuis le CLI ; redirections document/script/API en v5 avec preuve par saut, URL finale et liens DOM ; GET/HEAD, même origine, sans sessions |
 | Autres outils web | ZAP, Nuclei, SQLmap, ffuf et Katana sont des candidats ; aucun de leurs adaptateurs de mission n’est livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client complète | À construire ; les preuves JSON et le premier recontrôle ne sont pas un rapport de pentest complet |
@@ -40,9 +42,9 @@ de chaque saut avant W4.3c, actions de formulaire et sessions séparées.
 
 **Argos n’effectue pas encore un pentest web complet.** Les nouveaux parcours
 CLI relient réellement Chromium aux workers HTTP/TLS locaux et suivent une
-page créée par JavaScript. Le bilan de validation W4.3a est détaillé dans le
-[lot](WEB_INTERACTIONS.md#bilan-w43a) : 985 réussites sous chaque interpréteur
-Python 3.12/3.14, dont 73 essais hôte activés. Ce bilan est une preuve
+page créée par JavaScript. Le bilan de validation W4.3b est détaillé dans le
+[lot](WEB_INTERACTIONS.md#bilan-w43b) : 1 044 réussites sous chaque
+interpréteur Python 3.12/3.14, dont 86 essais hôte activés. Ce bilan est une preuve
 de régression/isolation datée, pas une mesure du taux
 de failles détectées. Le corpus de 12 cas W1.2 est préparé, non exécuté.
 Les résultats de CI distante ne sont pas revérifiés par cette mise à jour.
@@ -67,7 +69,7 @@ Les résultats de CI distante ne sont pas revérifiés par cette mise à jour.
 | W4.2b | Validé localement | Relais vers le runtime HTTP, ticket par ressource, remise après commit et deadlines ; panne de preuve = aucune remise au navigateur |
 | W4.2c | Validé localement | Commande `browse`, frontière DOM/API, provenance et vues ; chaîne HTML → JS → API → lien dynamique sur HTTP/TLS réel, avec arrêt/reprise testés |
 | W4.3a | Validé localement | Requêtes structurées anonymes, v4 signée, limites et écritures explicites, preuves et consultation CLI ; HTTP/TLS, arrêt et récupération sans replay |
-| W4.3b | À détailler | Interception de chaque redirection navigateur, URL visible exacte, périmètre, cycles, budgets et preuve par saut |
+| W4.3b | Validé localement | Interception de chaque redirection navigateur, URL visible exacte, périmètre, cycles, budgets et preuve par saut |
 | W4.3c | À détailler | Actions de formulaire et sessions anonymes puis identités optionnelles séparées ; parcours, reprise et nettoyage sans fuite |
 | W5.1 + W6 initial | À détailler | Registre de cas et couverture, modèle de constat/rapport ; reprendre l’oracle existant sans perdre preuves et historique |
 | W5.2–W5.3 + W6 | À détailler | Premier ensemble anonyme multi-familles puis accès/sessions/API selon les identités disponibles ; témoins corrigés, effet reproduit et rapport utile |

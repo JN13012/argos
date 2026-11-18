@@ -562,6 +562,7 @@ class WebStore:
         guard: Callable[[sqlite3.Connection], bool] | None = None,
         discovery: dict | None = None,
         discovery_config: WebExecutionConfig | None = None,
+        browser_redirect_target: str | None = None,
     ) -> None:
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
@@ -670,7 +671,9 @@ class WebStore:
                 )
             self._event(request_id, "terminal")
             RedirectChecks(self.db).record(self, request_id, payload)
-            NavigationEvidence(NavigationStore(self)).record(request_id, payload)
+            NavigationEvidence(NavigationStore(self)).record(
+                request_id, payload, redirect_target=browser_redirect_target
+            )
 
     @checked_read
     def evidence(self, request_id: UUID) -> dict | None:

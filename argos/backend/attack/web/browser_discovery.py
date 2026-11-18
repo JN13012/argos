@@ -111,6 +111,8 @@ def browser_report(store: WebStore, run_id: UUID, *, details: bool) -> dict:
             links=len(capture["links"]) if capture else 0,
             expanded=any(m["navigation_id"] == str(snapshot.id) for m in markers),
         )
+        if capture and capture.get("version") == 2:
+            item["final_url_sha256"] = digest(capture["final_url"])
         if details:
             item["resources"] = [
                 {
@@ -129,6 +131,11 @@ def browser_report(store: WebStore, run_id: UUID, *, details: bool) -> dict:
                 }
                 for r in resources
             ]
+            from .browser_redirects import hop_binding
+
+            for exported, resource in zip(item["resources"], resources, strict=True):
+                if resource["version"] == 2:
+                    exported["redirect"] = hop_binding(resource)
         items.append(item)
         for resource in resources:
             if resource["resource"] in {"xhr", "fetch"}:
