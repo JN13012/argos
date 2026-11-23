@@ -80,6 +80,15 @@ def add_parser(commands):
     verification.add_argument("--db", default=DEFAULT_DB)
     verification.add_argument("--run-id", required=True, type=UUID)
     verification.add_argument("--index", required=True, help="Saved evidence JSON")
+    report_check = actions.add_parser(
+        "verify-report", help="Verify three saved JSON exports against one recorded run"
+    )
+    report_check.set_defaults(action="web_verify-report", json=True)
+    report_check.add_argument("--db", default=DEFAULT_DB)
+    report_check.add_argument("--run-id", required=True, type=UUID)
+    report_check.add_argument("--coverage", required=True, help="Saved coverage JSON")
+    report_check.add_argument("--findings", required=True, help="Saved findings JSON")
+    report_check.add_argument("--index", required=True, help="Saved evidence JSON")
     for name in (
         "init",
         "plan",
@@ -277,6 +286,52 @@ def execute(args: argparse.Namespace) -> int:
         return 130
 
 
+def verify_report(args: argparse.Namespace, path: Path) -> int:
+    from .coverage_comparison import MAX_SNAPSHOT_BYTES as MAX_COVERAGE_BYTES
+    from .evidence_index import INDEX_IDENTITY, MAX_INDEX_BYTES, evidence_index
+    from .findings_comparison import MAX_SNAPSHOT_BYTES as MAX_FINDINGS_BYTES
+    from .report_coverage import coverage_export
+    from .report_files import load_report_file
+    from .reporting import findings_export
+
+    exports = (
+        ("coverage-json", args.coverage, MAX_COVERAGE_BYTES, coverage_export),
+        ("evidence-json", args.index, MAX_INDEX_BYTES, evidence_index),
+        ("findings-json", args.findings, MAX_FINDINGS_BYTES, findings_export),
+    )
+    try:
+        saved = [
+            load_report_file(filename, max_bytes=limit)
+            for _, filename, limit, _ in exports
+        ]
+    except OSError as error:
+        raise ValueError("Could not read an export") from error
+    with WebStore(path, readonly=True) as store:
+        store.db.execute("BEGIN")
+        report = summary(store, args.run_id, details=True)
+
+    mismatches = []
+    for (name, _, _, project), value in zip(exports, saved, strict=True):
+        try:
+            archived = json.dumps(value, sort_keys=True)
+        except RecursionError as error:
+            raise ValueError("Export is too deeply nested") from error
+        if archived != json.dumps(project(report), sort_keys=True):
+            mismatches.append(name)
+    if mismatches:
+        emit(dict(error="report_mismatch", mismatches=mismatches), structured=True)
+        return 1
+    emit(
+        dict(
+            schema_version=1,
+            **{key: report[key] for key in INDEX_IDENTITY},
+            verified_formats=[name for name, _, _, _ in exports],
+        ),
+        structured=True,
+    )
+    return 0
+
+
 def dispatch(args: argparse.Namespace) -> int:
     action = args.action.removeprefix("web_")
     if action == "compare-coverage":
@@ -290,6 +345,8 @@ def dispatch(args: argparse.Namespace) -> int:
         emit(compare_findings(args.before, args.after), structured=True)
         return 0
     path = private_path(args.db, create=action == "init")
+    if action == "verify-report":
+        return verify_report(args, path)
     if action == "verify-evidence":
         from .evidence_index import MAX_INDEX_BYTES, verify_evidence_index
         from .report_files import load_report_file

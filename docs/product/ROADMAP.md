@@ -1,6 +1,6 @@
 # Argos — Roadmap de référence
 
-État du dépôt vérifié le 18 novembre 2026. Cette page porte les statuts et la
+État du dépôt vérifié le 23 novembre 2026. Cette page porte les statuts et la
 priorité active. Le [scope](SCOPE.md) décrit le périmètre produit ; le
 [plan web](WEB_PENTEST_PLAN.md) organise la réalisation ; le
 [catalogue](WEB_CAPABILITIES.md) définit les capacités et preuves à construire.
@@ -30,7 +30,9 @@ fournit des identifiants stables, les preuves de la première confirmation
 et le dernier recontrôle pour le suivi des corrections. La
 [comparaison des constats](WEB_CLIENT_REPORT.md#comparer-les-constats-avant-et-après-un-recontrôle)
 repère les changements d’état et les nouveaux recontrôles entre deux exports
-de la même exécution.
+de la même exécution. La [vérification groupée des exports](WEB_CLIENT_REPORT.md#vérifier-les-trois-exports-dun-rapport)
+compare la couverture, les constats et l’index des preuves au même instantané
+de la base privée, avant la remise du rapport.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :

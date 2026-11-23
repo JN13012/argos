@@ -351,6 +351,62 @@ def test_verify_saved_evidence_rejects_changed_export_and_database(
     assert json.loads(capsys.readouterr().out) == {"error": "storage_failed"}
 
 
+def test_verify_report_checks_all_saved_exports_without_writing(
+    mission, tmp_path, capsys
+):
+    m = mission(browser={"max_navigations": 1})
+    browser_site(m).run(m.run_id)
+    scope = ["--run-id", str(m.run_id), "--db", str(m.path)]
+    verify = ["web", "verify-report", *scope]
+    files = {}
+    for flag, name in (
+        ("--coverage", "coverage-json"),
+        ("--index", "evidence-json"),
+        ("--findings", "findings-json"),
+    ):
+        assert main(["web", "report", *scope, "--format", name]) == 0
+        path = tmp_path / f"{name}.json"
+        payload = json.loads(capsys.readouterr().out)
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        files[name] = (path, payload)
+        verify.extend((flag, str(path)))
+
+    original_db = m.path.read_bytes()
+    originals = {name: path.read_bytes() for name, (path, _) in files.items()}
+    assert main(verify) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        key: value
+        for key, value in files["coverage-json"][1].items()
+        if key != "families"
+    } | {"verified_formats": list(files)}
+    assert {name: path.read_bytes() for name, (path, _) in files.items()} == originals
+
+    coverage_path, coverage = files["coverage-json"]
+    index_path, index = files["evidence-json"]
+    findings_path, findings = files["findings-json"]
+    findings_path.write_text(
+        json.dumps(findings | {"schema_version": True}), encoding="utf-8"
+    )
+    index_path.write_text(json.dumps(index | {"receipts": []}), encoding="utf-8")
+    assert main(verify) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        "error": "report_mismatch",
+        "mismatches": ["evidence-json", "findings-json"],
+    }
+    coverage_path.write_text(json.dumps(coverage | {"families": []}), encoding="utf-8")
+    assert main(verify) == 1
+    assert json.loads(capsys.readouterr().out)["mismatches"] == list(files)
+    coverage_path.write_text(
+        '{"schema_version": 1, "schema_version": 1}', encoding="utf-8"
+    )
+    assert main(verify) == 2
+    assert json.loads(capsys.readouterr().out) == {"error": "invalid_input"}
+    coverage_path.write_text('{"schema_version": NaN}', encoding="utf-8")
+    assert main(verify) == 2
+    assert json.loads(capsys.readouterr().out) == {"error": "invalid_input"}
+    assert m.path.read_bytes() == original_db
+
+
 @pytest.mark.parametrize(
     ("verdicts", "expected"),
     [

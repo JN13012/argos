@@ -336,6 +336,40 @@ les recontrôles successifs, les entrées incompatibles et la lecture seule.
 Les suites régulières Python 3.12 et 3.14 passent avec 982 réussites chacune
 et 86 essais hôte hors suite. Ruff, son contrôle de format et Pyright passent.
 
+## Vérifier les trois exports d’un rapport
+
+Pour la revue avant remise, vérifier ensemble les fichiers `coverage-json`,
+`findings-json` et `evidence-json` avec la base privée correspondante.
+
+```bash
+python -m argos web verify-report --run-id UUID \
+  --coverage couverture.json --findings constats.json --index index.json
+```
+
+La commande régénère les trois exports depuis le même instantané SQLite en
+lecture seule. La mise en forme JSON et l’ordre des clés sont libres. Les
+valeurs, leurs types et l’ordre des listes doivent correspondre. Chaque fichier
+doit être ordinaire, sans lien symbolique final ni clé JSON répétée. Les
+plafonds sont de 64 Kio pour la couverture et 16 Mio pour chacun des deux
+autres exports.
+
+- Code `0` avec l’identité de l’exécution et les formats vérifiés.
+- Code `1` avec `report_mismatch` et les formats qui divergent, ou
+  `storage_failed` si la lecture de la base ou de ses preuves échoue.
+- Code `2` avec `invalid_input` pour une entrée illisible ou un JSON invalide.
+
+La sortie ne recopie aucune valeur des fichiers fournis. Une reprise ou un
+recontrôle peut faire diverger un export antérieur. La vérification établit la
+concordance avec l’état local au moment de la lecture. Elle ne signe pas
+l’archive, ne vérifie pas le Markdown et n’émet aucun trafic réseau.
+
+Validation locale sous Python 3.12 et 3.14 avec `python -m pytest -q -o
+faulthandler_timeout=30` dans chaque environnement. Les deux suites régulières
+passent avec 983 réussites et 86 essais hôte hors suite. Le test CLI couvre la
+concordance, les écarts dans chacun des formats, le rejet de JSON invalide et
+la lecture seule. `ruff check .`, `ruff format --check .`, `pyright` et
+`git diff --check` passent.
+
 ## Critères de livraison
 
 - Une exécution avec un constat confirmé montre sa preuve et son historique de
