@@ -96,7 +96,7 @@ Les résultats de CI distante ne sont pas revérifiés par cette mise à jour.
 | W5.2–W5.3 + W6 | À détailler | Premier ensemble anonyme multi-familles puis accès/sessions/API selon les identités disponibles ; témoins corrigés, effet reproduit et rapport utile |
 | W7 V0 | À détailler après les premiers cas W5/W6 | Boucle autonome sur un petit ensemble déjà vérifié ; hypothèses, choix, observation, validation, reprise et rapport sans intervention intermédiaire |
 | W5.4–W5.6 + W6/W7 | À détailler | Fichiers, traitements serveur, SSRF/XXE, logique métier et approfondissements ; enrichir le catalogue et l’agent avec mesures par famille |
-| W8 | Protocole au plan ; exécution à faire | Corpus versionné, témoins corrigés, jeux réservés et comparaison experte ; publier précision, omissions, autonomie, coûts et limites |
+| W8 | [M2.0 : évaluateur Juice Shop hors ligne minimal](../../benchmarks/web/README.md#m20--juice-shop-évaluateur-indépendant) ; isolation complète et exécution notée à qualifier | Import officiel, mesures distinctes recon/constats/delta serveur, exports JSON/HTML et filtre de laboratoire ; corpus complet, témoins corrigés et comparaison experte restent à faire |
 | W9 | À faire après W8 | Livraison opérable, installation/secrets, rétention, sauvegarde/restauration, support et pilotes clients ; périmètre annoncé conforme aux capacités démontrées |
 
 W6 et l’évaluation accompagnent chaque capacité. W7 n’attend pas un catalogue

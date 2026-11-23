@@ -4,6 +4,9 @@
 runner d'évaluation. Il ne contient ni application vulnérable, ni solution,
 ni flag, ni résultat de pentest. Aucun score n'est annoncé.
 
+**M2.0 : évaluateur Juice Shop minimal disponible**, décrit ci-dessous. Ce
+prototype hors ligne ne qualifie ni le corpus W1.2, ni une isolation complète.
+
 Le fichier [manifest.json](manifest.json) appartient à l'évaluateur et ne doit
 pas être monté dans le worker ni fourni au contexte du modèle. Il distingue :
 
@@ -130,3 +133,79 @@ ils restent bloqués, sans pouvoir élargir eux-mêmes la configuration.
 W1.2 livre la préparation et ses contrôles hors ligne. Images, oracles, témoins
 et exécution restent à qualifier. La [roadmap](../../docs/product/ROADMAP.md)
 porte l’état du runtime et les priorités avant l’évaluation W8.
+
+## M2.0 — Juice Shop, évaluateur indépendant
+
+`scripts.juice_benchmark` lit les bases en lecture seule et réutilise la
+vérification des reçus/constats existante. Aucun appel HTTP ni scan. Le runtime
+n'importe pas l'évaluateur ; ses workers ne montent ni ce dossier, ni les bases
+de correction, ni les sources/solutions de Juice Shop. Garder ces données et
+exports dans un dossier privé hors des montages des agents (`.argos/` est ignoré).
+Un agent disposant du shell hôte n'est **pas** isolé par cette séparation.
+
+Le checkout officiel **de confiance**, déjà installé, fournit `js-yaml` à Node
+(dépendance de Juice Shop, pas d'Argos). Import des clés/noms/catégories/niveaux,
+sans descriptions, indices ni solutions ; disponibilité calculée selon
+`disabledEnv` et l'environnement/safety déclarés. Version et empreintes source
+conservées ; `20.4.0-SNAPSHOT` est accepté mais explicitement distinct de `20.4.0`.
+
+```bash
+.venv/bin/python -m scripts.juice_benchmark import --source /lab/juice-shop \
+  --environment Linux --safety auto --out /private/catalog.json
+.venv/bin/python -m scripts.juice_benchmark protect-config \
+  --config /private/mission.json --out /private/mission-protected.json
+```
+
+Signer/activer cette configuration avec les commandes de mission existantes.
+Le preload **du laboratoire uniquement** bloque les chemins sensibles avant
+Express, même avec casse/encodage différents, force l'écoute sur loopback et
+journalise avant dispatch (sans requêtes brutes, valeurs de paramètres ou corps) :
+
+```bash
+# Depuis une installation fraîche de Juice Shop ; chemins absolus obligatoires.
+ARGOS_BENCHMARK_CONFIG=/private/mission-protected.json \
+ARGOS_BENCHMARK_ACCESS_LOG=/private/access.jsonl \
+NODE_OPTIONS=--require=/repo/argos/scripts/juice_benchmark_guard.cjs \
+PORT=3087 node build/app.js
+```
+
+Filtrage : Challenges/Hints, snippets/fixes, continue-code/restauration,
+score-board, notifications Socket.IO/répétition, métriques de défis, état NFT et
+chat. Aucun filtrage des API boutique ou assets usuels. Les fonctions pédagogiques
+concernées sont volontairement indisponibles ; la compatibilité complète avec
+l'interface Juice Shop n'est pas qualifiée. Les bundles publics peuvent encore
+contenir des métadonnées pédagogiques. Le filtre n'est pas une isolation hôte.
+
+Pour chaque répétition : nouvelle installation/instance et identifiant UUID
+distinct, démarrage officiel réinitialisant SQLite, nettoyage des autres états
+par l'opérateur. Avant toute requête Argos, puis après la mission :
+
+```bash
+.venv/bin/python -m scripts.juice_benchmark snapshot --catalog /private/catalog.json \
+  --state-db /lab/juice-shop/data/juiceshop.sqlite --instance-id INSTANCE_UUID \
+  --run-id MISSION_UUID --out /private/before.json
+# Répéter après la mission avec --out /private/after.json.
+.venv/bin/python -m scripts.juice_benchmark evaluate --catalog /private/catalog.json \
+  --database /private/missions.db --mission MISSION_UUID --out /private/result \
+  --before /private/before.json --after /private/after.json --access-log /private/access.jsonl
+```
+
+Sans paire, les défis résolus sont **non mesurés**, jamais zéro par défaut.
+Une baseline déjà résolue est invalide ; catalogues, instance, mission et intervalle
+doivent correspondre. Des drapeaux à zéro ne prouvent pas un reset complet ni
+l'attribution à Argos. Les snapshots et journaux restent des entrées de confiance
+de l'évaluateur, sans attestation cryptographique indépendante.
+
+Sorties privées exclusives (aucun écrasement) : `benchmark.json`, HTML autonome
+échappé et `access.jsonl`. Trois mesures séparées : reconnaissance (sous-ensemble
+de GET littéraux déclarés dans `server.ts`, avec codes/preuves ; un 401/500 reste
+une réponse), constats Argos vérifiés, delta officiel des défis disponibles.
+Aucune correspondance défi/constat n'est inventée ; une URL hors référentiel
+n'est pas un faux positif. L'isolation reste `not_qualified` ou `violated`, jamais
+implicitement réussie. Aucun mécanisme LLM ne contribue au score.
+
+Validation M2.0 : tests ciblés d'import, snapshots/reset, reçus SQLite, filtrage
+HTTP réel sur fixture loopback et exports ; relecture des archives M2.1 sans
+nouveau scan. Aucun test offensif, aucune exécution notée sur instance réinitialisée.
+29 tests ciblés réussis sous Python 3.12 et 3.14 ; suite régulière Python 3.14 :
+1 074 réussis, 94 ignorés, aucun échec. Ruff/formatage et Pyright réussis.
