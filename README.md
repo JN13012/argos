@@ -260,6 +260,34 @@ docs/
 tests/             pytest suite
 ```
 
+## Consultation des résultats (M1.2)
+
+L'API `/api/v1/results` lit uniquement les SQLite explicitement autorisées par
+`ARGOS_RESULT_SOURCES` (objet JSON). Exemple de source :
+
+```json
+{"lab":{"label":"Laboratoire local","database":"/chemin/absolu/missions.sqlite3","wordlist_provenance":"targeted","reports":{"html":{"label":"Rapport existant","path":"/chemin/absolu/rapport.html"}}}}
+```
+
+Enregistrer cette configuration privée hors Git, puis démarrer les deux processus :
+
+```bash
+ARGOS_RESULT_SOURCES="$(cat /chemin/prive/sources.json)" bash scripts/dev-api.sh
+npm --prefix argos/frontend run dev
+```
+
+Ouvrir `http://127.0.0.1:8013`. Le panneau des missions ouvre les ports,
+transactions HTTP, classifications, erreurs et reçus vérifiés ; il ne lance
+aucune reconnaissance. Les rapports sont des fichiers existants approuvés par
+configuration, téléchargés comme pièces jointes (16 Mio maximum), sans génération
+ni correspondance automatique avec une mission. `wordlist_provenance` vaut
+`default`, `targeted` ou `unspecified` : c'est une déclaration de l'opérateur.
+Les sources absentes sont signalées, les preuves incohérentes refusées (HTTP 409).
+Aucune source n'est activée par défaut ; aucun chemin n'est accepté du navigateur.
+Cette première interface est locale, sans authentification : conserver l'écoute
+sur la boucle locale. Les fichiers de rapport approuvés peuvent contenir des
+données privées ; leur choix relève de l'opérateur.
+
 ## Documentation
 
 Start with the [documentation index](docs/README.md). It distinguishes current

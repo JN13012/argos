@@ -1,0 +1,64 @@
+@layer layout {
+  .results-panel {
+    margin: var(--space-6) 0;
+  }
+  .results-body {
+    padding: var(--space-6);
+  }
+  .results-mission {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-4) 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .results-mission h4,
+  .results-mission p {
+    margin: var(--space-2) 0;
+    overflow-wrap: anywhere;
+  }
+  .results-notice {
+    color: var(--muted);
+  }
+  .results-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  #real-mission-dialog table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  #real-mission-dialog th,
+  #real-mission-dialog td {
+    text-align: left;
+    vertical-align: top;
+    padding: 10px;
+    border-bottom: 1px solid var(--border-soft);
+    overflow-wrap: anywhere;
+    min-width: 130px;
+  }
+  #real-mission-dialog code,
+  #real-mission-dialog p {
+    overflow-wrap: anywhere;
+  }
+  #real-mission-dialog details {
+    margin: 12px 0;
+  }
+  #real-mission-dialog summary {
+    cursor: pointer;
+  }
+  #real-mission-dialog dd {
+    margin-left: 0;
+  }
+  #real-mission-dialog a {
+    margin: 6px;
+  }
+  @media (max-width: 640px) {
+    .results-mission {
+      align-items: start;
+      flex-direction: column;
+    }
+  }
+}

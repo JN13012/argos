@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ResultsPanel } from "../features/results/ResultsPanel";
 import "./App.css";
 
 type ApiHealth =
@@ -92,9 +93,9 @@ export function App() {
         <p className="app-eyebrow">Socle applicatif</p>
         <h1>Bienvenue sur ARGOS</h1>
         <p className="app-intro">
-          Les espaces métier apparaîtront ici lorsqu’ils seront réellement
-          implémentés. Aucune opération de sécurité n’est disponible dans ce
-          socle initial.
+          Consultez les missions et résultats archivés dans les emplacements
+          autorisés. Cette interface ne lance aucune opération de
+          reconnaissance.
         </p>
 
         <section
@@ -122,9 +123,11 @@ export function App() {
           </button>
         </section>
 
+        {health.status === "available" && <ResultsPanel />}
         <p className="app-note">
-          ATTACK, INTEL et DEFEND sont des espaces prévus, pas des capacités
-          opérationnelles.
+          Les données affichées proviennent des archives autorisées côté
+          serveur. Aucun lancement de scan n’est disponible dans cette
+          interface.
         </p>
       </main>
     </div>

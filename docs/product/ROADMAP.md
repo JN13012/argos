@@ -58,7 +58,7 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |
 | OSINT / Nmap | CLI SIRENE livré ; Nmap réel exercé via le pipeline sur un laboratoire TCP local ; qualification externe/production encore ouverte |
-| API et interface | Santé HTTP reliée au frontend ; aucune interface métier de mission active |
+| API et interface | M1.2 : consultation locale en lecture seule des missions SQLite autorisées, ports Nmap, transactions HTTP et reçus vérifiés ; téléchargements de rapports explicitement configurés. Aucun lancement de mission depuis l’interface |
 | Enum2Root / PromptLab | Références étudiées, sans intégration fonctionnelle complète |
 
 **Argos n’effectue pas encore un pentest web complet.** Les nouveaux parcours
