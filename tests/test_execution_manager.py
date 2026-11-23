@@ -72,9 +72,13 @@ def wait_state(manager, job_id, desired):
     pytest.fail(f"Job did not reach {desired}")
 
 
-def test_lifecycle_completed_and_result(tmp_path):
+@pytest.mark.parametrize("incomplete", [False, True])
+def test_lifecycle_completed_and_result(tmp_path, incomplete):
     runner, mission_id = approved(tmp_path)
     xml = b'<nmaprun><host><address addr="127.0.0.1" addrtype="ipv4"/></host></nmaprun>'
+    if incomplete:
+        xml = xml.replace(b"<host>", b'<host timedout="true">')
+    expected = JobState.FAILED if incomplete else JobState.COMPLETED
 
     class Finished:
         returncode = 0
@@ -101,19 +105,23 @@ def test_lifecycle_completed_and_result(tmp_path):
             max_completed_jobs=1,
         ) as manager:
             job_id = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
-            snap = wait_state(manager, job_id, JobState.COMPLETED)
+            snap = wait_state(manager, job_id, expected)
             assert snap.started_at and snap.finished_at
             result = manager.result(job_id)
-            assert result is not None
-            assert result.observation.target == "127.0.0.1"
+            if incomplete:
+                assert result is None
+                assert snap.error is not None and "incomplete" in snap.error
+            else:
+                assert result is not None
+                assert result.observation.target == "127.0.0.1"
             with EvidenceStore(runner.database_path) as evidence:
                 saved = evidence.get_verified(job_id)
                 assert saved is not None
-                assert saved.record.state == "completed"
+                assert saved.record.state == expected.value
                 assert saved.record.stdout_xml == xml
                 assert saved.record.arguments[-1] == "127.0.0.1"
             second = manager.submit(mission_id, "127.0.0.1", ScanPlanner().initial())
-            wait_state(manager, second, JobState.COMPLETED)
+            wait_state(manager, second, expected)
             assert job_id not in manager._jobs
             assert manager.get(job_id) == snap
             assert manager.result(job_id) == result

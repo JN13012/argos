@@ -8,6 +8,7 @@ from uuid import UUID
 
 from dotenv import load_dotenv
 
+from .backend.attack.recon.cli import add_parser as add_recon_parser
 from .backend.attack.web.cli import add_parser as add_web_parser
 from .backend.attack.web.cli import execute as execute_web
 from .backend.intel.osint.connectors import SireneConnector
@@ -59,6 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     report.add_argument("--name", help="Readable research name for the output folder")
     add_web_parser(commands)
+    add_recon_parser(commands)
     return parser
 
 
@@ -109,7 +111,7 @@ def _print_search(storage: SQLiteStorage, search: Search, coverage: Coverage) ->
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.action.startswith("web_"):
+    if args.action.startswith(("web_", "recon_")):
         return execute_web(args)
     try:
         if args.action == "report" and not Path(args.db).is_file():

@@ -333,6 +333,10 @@ def verify_report(args: argparse.Namespace, path: Path) -> int:
 
 
 def dispatch(args: argparse.Namespace) -> int:
+    if args.action.startswith("recon_"):
+        from argos.backend.attack.recon.cli import dispatch as recon_dispatch
+
+        return recon_dispatch(args)
     action = args.action.removeprefix("web_")
     if action == "compare-coverage":
         from .coverage_comparison import compare_coverage

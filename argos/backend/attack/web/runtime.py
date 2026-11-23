@@ -315,7 +315,11 @@ class WebRuntime:
             return False
 
     def run(
-        self, request_id: UUID, *, _locations: list[str] | None = None
+        self,
+        request_id: UUID,
+        *,
+        _locations: list[str] | None = None,
+        _responses: list[HTTPExchange] | None = None,
     ) -> WebJobSnapshot:
         with self._condition:
             self._admit()
@@ -478,7 +482,25 @@ class WebRuntime:
                     if self._now() >= deadline and not event.is_set()
                     else "cancelled",
                 )
-            result = self._finish(request, event, exchange=exchange, prepared=prepared)
+            result = self._finish(
+                request,
+                event,
+                exchange=exchange,
+                prepared=prepared,
+                tool_relay=_responses is not None,
+            )
+            if _responses is not None and result.state == "completed":
+                offered = relay_response(
+                    exchange, len(exchange.body), allow_redirects=True
+                )
+                proof = self.evidence(request_id)
+                if (
+                    offered is not None
+                    and proof is not None
+                    and proof.get("tool_response") == response_binding(offered)
+                    and active()
+                ):
+                    _responses.append(offered)
             if (
                 _locations is not None
                 and result.state == "completed"
@@ -554,6 +576,7 @@ class WebRuntime:
         prepared: PreparedWebRequest | None = None,
         error: str | None = None,
         state: str | None = None,
+        tool_relay: bool = False,
     ) -> WebJobSnapshot:
         try:
             with self._condition:
@@ -674,6 +697,13 @@ class WebRuntime:
                             payload["browser_resource"].update(
                                 version=2, redirect=hop_binding(resource)
                             )
+                    if tool_relay and exchange and payload["state"] == "completed":
+                        tool_response = relay_response(
+                            exchange, len(exchange.body), allow_redirects=True
+                        )
+                        payload["tool_response"] = (
+                            response_binding(tool_response) if tool_response else None
+                        )
                     store.finish(
                         request.request_id,
                         self.owner,

@@ -6,16 +6,19 @@ stdin is a liveness pipe owned by the runtime, never tool input.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
-import resource
 import select
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 
 
 def verify_controls(limits: dict[str, int]) -> None:
+    import resource
+
     line = next(
         line
         for line in Path("/proc/self/cgroup").read_text().splitlines()
@@ -44,6 +47,31 @@ def verify_controls(limits: dict[str, int]) -> None:
             raise RuntimeError("Required process limit is not active")
 
 
+def nmap_library_aliases() -> dict:
+    """Resolve the Debian BLAS alternative for this interpreter's architecture.
+
+    Only an alias to an existing library under read-only /usr is recreated.
+    Systems without this alternatives layout need no additional alias.
+    """
+    architecture = sysconfig.get_config_var("MULTIARCH")
+    if not architecture:
+        return {}
+    library = Path("/usr/lib") / architecture / "libblas.so.3"
+    if not library.is_symlink():
+        return {}
+    link = Path(os.readlink(library))
+    if link.parent != Path("/etc/alternatives"):
+        return {}
+    target = library.resolve(strict=True)
+    if not target.is_relative_to("/usr") or not target.is_file():
+        raise RuntimeError("Invalid Nmap BLAS library alias")
+    return {
+        str(link): dict(
+            target=str(target), sha256=hashlib.sha256(target.read_bytes()).hexdigest()
+        )
+    }
+
+
 def sandbox_command(limits: dict[str, int], arguments: list[str]) -> list[str]:
     command = [
         "/usr/bin/bwrap",
@@ -70,6 +98,12 @@ def sandbox_command(limits: dict[str, int], arguments: list[str]) -> list[str]:
     for path in ("/usr", "/lib", "/lib64", "/bin"):
         if Path(path).exists():
             command += ["--ro-bind", path, path]
+    if arguments and arguments[0] == "/usr/bin/nmap":
+        # Debian liblinear -> BLAS uses an alternatives link outside /usr.
+        # Recreate only that alias to the already read-only system library;
+        # never mount the host /etc or inherit its resolver/credentials.
+        for alias, identity in nmap_library_aliases().items():
+            command += ["--symlink", identity["target"], alias]
     command += ["--proc", "/proc", "--dev", "/dev"]
     for path in ("/tmp", "/work"):
         command += ["--size", str(limits["scratch_bytes"]), "--tmpfs", path]

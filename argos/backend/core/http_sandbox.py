@@ -27,20 +27,8 @@ def http_command(command: list[str], settings: dict) -> tuple[list[str], int]:
         "/argos-http.py",
     ]:
         raise RuntimeError("Invalid HTTP entry point")
-    descriptor = os.open(settings["input"], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    descriptor = private_input(settings)
     try:
-        info = os.fstat(descriptor)
-        if (
-            not stat.S_ISREG(info.st_mode)
-            or info.st_size > 65536
-            or info.st_uid != os.getuid()
-            or info.st_mode & 0o077
-        ):
-            raise RuntimeError("Invalid private HTTP input")
-        payload = os.read(descriptor, 65537)
-        if hashlib.sha256(payload).hexdigest() != settings["input_sha256"]:
-            raise RuntimeError("HTTP input identity changed")
-        os.lseek(descriptor, 0, os.SEEK_SET)
         index = command.index("--remount-ro")
         command[index:index] = [
             "--ro-bind",
@@ -51,6 +39,28 @@ def http_command(command: list[str], settings: dict) -> tuple[list[str], int]:
             "/argos-ca.pem",
         ]
         return command, descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def private_input(settings: dict) -> int:
+    """Open bounded owned 0600 input without exposing its content in arguments."""
+    descriptor = os.open(settings["input"], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        info = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_size > 65536
+            or info.st_uid != os.getuid()
+            or info.st_mode & 0o077
+        ):
+            raise RuntimeError("Invalid private worker input")
+        payload = os.read(descriptor, 65537)
+        if hashlib.sha256(payload).hexdigest() != settings["input_sha256"]:
+            raise RuntimeError("Worker input identity changed")
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        return descriptor
     except BaseException:
         os.close(descriptor)
         raise

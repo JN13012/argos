@@ -89,15 +89,16 @@ This first increment does no exploitation, credential attacks or intrusive scrip
 
 ### Engineering
 
-- **1044 Python tests** validated on Python 3.12 and 3.14 with host isolation
-  qualification enabled (958 regular tests and 86 host tests requiring opt-in).
-  Owned local HTTP/TLS endpoints and synthetic processes, no client scans;
+- **1107 Python tests** validated on Python 3.12 and 3.14 with host isolation
+  qualification enabled. Owned local HTTP/TLS endpoints, real reconnaissance
+  binaries and synthetic processes, no client scans;
   repository-wide Ruff and pinned Pyright; GitHub Actions configuration covering backend and frontend.
 - **Mission network isolation:** the execution manager defaults to rootless
   Linux workers with a destination/port firewall, cgroup quotas and descendant
   cleanup. Dependencies must be provisioned; no automatic host fallback.
-  See the [network report](docs/product/MISSION_NETWORK.md). Real Nmap lab
-  qualification remains open.
+  See the [network report](docs/product/MISSION_NETWORK.md) and the
+  [real Nmap, Gobuster and ffuf local pipeline](docs/product/WEB_RECON.md).
+  Production and external-target qualification remain open.
 - **Web foundation:** a FastAPI API (health endpoint) and a React / TypeScript /
   Vite application, with 22 Vitest tests and two Playwright browser scenarios.
 - Modular monolith ([ADR 0001](docs/architecture/adr/0001-modular-monolith.md)), dependencies locked with `uv`.
@@ -185,7 +186,7 @@ The interface on slide 11 is a design mock-up (in French); the web application i
 | Area | Tools |
 | --- | --- |
 | Backend | Python 3.12, FastAPI, Pydantic, httpx, SQLite, `cryptography` (Ed25519) |
-| Security tooling | Nmap (allowlisted options, XML parsing) |
+| Security tooling | Nmap, Gobuster and ffuf (controlled recon pipeline, bounded GET enumeration) |
 | Frontend | React, TypeScript, Vite, Vitest, Playwright |
 | Quality | pytest, Ruff, Pyright, ESLint, GitHub Actions, locked dependencies |
 
@@ -248,6 +249,7 @@ argos/
   backend/
     core/          missions, scope, policy, signed approvals, audit
     attack/pentest planner, execution manager, Nmap runner and parser, evidence, reports
+    attack/recon   controlled Nmap, HTML, Gobuster and ffuf CLI pipeline
     intel/osint    SIRENE connector, discovery, storage, reports
     api/           FastAPI application
   frontend/        React / TypeScript / Vite application

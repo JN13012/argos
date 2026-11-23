@@ -179,6 +179,16 @@ class Frontier:
             self._save_run(value)
         return run_id
 
+    def enqueue_candidates(self, run_id, config, owner, urls):
+        """Trusted recon adapter; the normal scope, effect and frontier caps apply."""
+        with self.db:
+            self.db.execute("BEGIN IMMEDIATE")
+            run = self.run(run_id)
+            if run["status"] != "running" or run["owner"] != str(owner):
+                raise ValueError("Active owned discovery required")
+            self._enqueue(run, config, urls, depth=1, source=None, redirects=0)
+            self._save_run(run)
+
     def _enqueue(
         self,
         run: dict,

@@ -69,6 +69,7 @@ argos/
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
+│   ├── attack/recon/        Pipeline CLI Nmap, HTML, Gobuster et ffuf via relais contrôlé
 │   └── attack/web/          Runtime HTTP, CLI, frontière, oracle et découverte navigateur CLI
 ├── osint/                   Réexportations de compatibilité des modèles
 └── frontend/                Accueil minimal connecté à la santé de l’API
@@ -100,7 +101,10 @@ Registre de capacités → Politique déterministe → Worker isolé
 
 Ce schéma est une cible. Le catalogue étendu, la boucle agentique, la reprise
 du plan de mission complet restent à construire. Le worker réseau est intégré
-en bibliothèque et qualifié localement ; Nmap réel reste à qualifier. Le choix
+en bibliothèque et qualifié localement ; le
+[pipeline de reconnaissance](../product/WEB_RECON.md) exerce désormais les vrais
+binaires Nmap, Gobuster et ffuf en laboratoire local. Sa qualification sur des
+cibles externes reste ouverte. Le choix
 d’un agent existant,
 dont Hermes, ou d’un moteur propre passe par une évaluation. Aucune brique
 adoptée ne peut contourner les permissions du runtime Argos.

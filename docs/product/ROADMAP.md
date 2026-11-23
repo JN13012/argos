@@ -53,10 +53,11 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Découverte HTML | Liens et paramètres observés, frontière persistante, raisons de refus et états partiels |
 | Premier oracle web | Redirection externe pilotée par un paramètre découvert : référence, deux marqueurs et recontrôle ; impact métier à qualifier |
 | Navigateur | Chromium → HTTP/TLS depuis le CLI ; redirections document/script/API en v5 avec preuve par saut, URL finale et liens DOM ; GET/HEAD, même origine, sans sessions |
-| Autres outils web | ZAP, Nuclei, SQLmap, ffuf et Katana sont des candidats ; aucun de leurs adaptateurs de mission n’est livré |
+| Reconnaissance par outils | [Pipeline Nmap → Gobuster → ffuf](WEB_RECON.md) validé localement sous Python 3.12/3.14 avec les vrais binaires ; énumération de chemins GET, sans couverture universelle |
+| Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |
-| OSINT / Nmap | CLI SIRENE livré ; Nmap en bibliothèque avec exécution contrôlée, qualification réelle encore ouverte |
+| OSINT / Nmap | CLI SIRENE livré ; Nmap réel exercé via le pipeline sur un laboratoire TCP local ; qualification externe/production encore ouverte |
 | API et interface | Santé HTTP reliée au frontend ; aucune interface métier de mission active |
 | Enum2Root / PromptLab | Références étudiées, sans intégration fonctionnelle complète |
 

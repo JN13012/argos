@@ -37,3 +37,39 @@ def test_reject_doctype_and_large_xml() -> None:
 def test_reject_malformed_xml() -> None:
     with pytest.raises(NmapParseError):
         parse_nmap_xml(b"<nmaprun>", "127.0.0.1")
+
+
+def test_accept_real_nmap_empty_doctype():
+    content = b'<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE nmaprun>\n' + scan()
+    assert parse_nmap_xml(content, "127.0.0.1").open_tcp_ports == frozenset({22})
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        '<!DOCTYPE nmaprun SYSTEM "https://outside.invalid/nmap.dtd">',
+        '<!DOCTYPE nmaprun [<!ENTITY port "22">]>',
+        "<!DOCTYPE nmaprun><!DOCTYPE nmaprun>",
+    ],
+)
+def test_reject_nonempty_or_duplicate_doctype(declaration):
+    with pytest.raises(NmapParseError):
+        parse_nmap_xml(declaration.encode() + scan(), "127.0.0.1")
+
+
+def test_reject_utf16_entity_bypass():
+    content = '<!DOCTYPE nmaprun [<!ENTITY port "22">]><nmaprun/>'
+    with pytest.raises(NmapParseError):
+        parse_nmap_xml(content.encode("utf-16"), "127.0.0.1")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        scan().replace(b"<host>", b'<host timedout="true">'),
+        b'<nmaprun><runstats><finished exit="error"/></runstats></nmaprun>',
+    ],
+)
+def test_incomplete_nmap_xml_cannot_be_a_success(content):
+    with pytest.raises(NmapParseError, match="incomplete"):
+        parse_nmap_xml(content, "127.0.0.1")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import tempfile
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -11,6 +12,7 @@ from uuid import UUID
 
 from .isolated_worker import IsolationError, OfflineWorker, WorkerLimits, WorkerResult
 from .network_policy import NETWORK_VERSION, NetworkPolicy
+from .worker_guardian import nmap_library_aliases
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,7 @@ class NetworkWorker(OfflineWorker):
             "limits": asdict(self.limits),
             "tools": self.tools.identity(),
             "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
+            "library_aliases": self.library_aliases(executable),
             "arguments": list(arguments[:-1] + (policy.connect_ip,)),
             "rules_sha256": hashlib.sha256(policy.nft_rules().encode()).hexdigest(),
             "runtime_sha256": hashlib.sha256(
@@ -86,6 +89,15 @@ class NetworkWorker(OfflineWorker):
             ).hexdigest(),
         }
 
+    @staticmethod
+    def library_aliases(executable: Path) -> dict:
+        if executable != Path("/usr/bin/nmap"):
+            return {}
+        try:
+            return nmap_library_aliases()
+        except (OSError, RuntimeError) as error:
+            raise IsolationError("Invalid Nmap library alias") from error
+
     def run_in_scope(
         self,
         arguments: tuple[str, ...],
@@ -93,10 +105,22 @@ class NetworkWorker(OfflineWorker):
         policy: NetworkPolicy,
         cancel: Event | None = None,
         active: Callable[[], bool] | None = None,
+        input_data: bytes | None = None,
     ) -> WorkerResult:
         network: dict[str, object] = {
             "target_ip": policy.target_ip,
             "ports": list(policy.ports),
             "tools": self.tools.identity(),
         }
-        return self._run(arguments, cancel=cancel, active=active, network=network)
+        if input_data is None:
+            return self._run(arguments, cancel=cancel, active=active, network=network)
+        if len(input_data) > 65536:
+            raise ValueError("Worker input exceeds private input limit")
+        with tempfile.NamedTemporaryFile(prefix="argos-tool-") as source:
+            source.write(input_data)
+            source.flush()
+            network["input"] = dict(
+                input=source.name,
+                input_sha256=hashlib.sha256(input_data).hexdigest(),
+            )
+            return self._run(arguments, cancel=cancel, active=active, network=network)

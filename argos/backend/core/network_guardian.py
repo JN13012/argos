@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from http_sandbox import http_command
+from http_sandbox import http_command, private_input
 from network_policy import GUEST_CIDR, NetworkPolicy
 from worker_guardian import sandbox_command, verify_controls
 
@@ -106,6 +106,8 @@ def main() -> int:
         input_fd = None
         if "http" in network:
             command, input_fd = http_command(command, network["http"])
+        elif "input" in network:
+            input_fd = private_input(network["input"])
         try:
             child = subprocess.Popen(
                 [
