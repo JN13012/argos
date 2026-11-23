@@ -1,7 +1,7 @@
 # Reconnaissance Nmap → Gobuster → ffuf
 
 Lot validé localement le 23 novembre 2026. Le pipeline CLI enchaîne Nmap,
-découverte HTML, Gobuster `dir`, ffuf sur chemins de fichiers, puis exploration
+découverte HTML et des scripts publics, Gobuster `dir`, ffuf sur chemins de fichiers, puis exploration
 des liens nouvellement trouvés. Ce sont des observations, jamais des
 vulnérabilités confirmées. La [décision d’intégration](../architecture/adr/0003-recon-tool-relay.md)
 décrit le relais et ses limites.
@@ -151,3 +151,40 @@ avec la wheel extraite en tête de `PYTHONPATH`. Les chemins `/tmp` désignent
 les dépendances préparées sur cet hôte. Aucun scan externe, CI distante,
 qualification native ARM/Windows/macOS ni taux de découverte client n’est déduit
 de ces essais. Le frontend n’a pas été modifié.
+
+## M2.1 — Découverte statique et SPA
+
+La racine qui partage le HTML du contrôle aléatoire reste un shell observé,
+pas un soft 404. Les scripts/modulepreloads déclarés et imports JS littéraux
+passent par les tickets HTTP existants. Analyse MIME explicite, sans exécution,
+limitée à 2 Mio et 256 références par réponse, capture de 64 Kio. Les lectures
+GET explicites et certaines propriétés locales constantes sont candidates à
+vérification ; routes client, paramètres et préfixes de templates restent
+statiques. Pas de résolution générale des expressions JavaScript. OpenAPI JSON
+v3/Swagger v2 : chemins GET littéraux, sans YAML ni résolution des `$ref`.
+
+Les routes dédupliquées gardent jusqu’à huit origines HTML, JavaScript,
+wordlist ou OpenAPI, liées aux reçus sources. Les références statiques et
+exclues issues des scripts/spécifications occupent chacune au plus un quart
+de la frontière signée ; les captures sources conservent les références dans
+leur propre plafond. Les limites sont explicites et les métadonnées consomment
+le budget de preuves. Une extraction statique n’est pas une réponse HTTP
+vérifiée ; une réponse HTTP n’est pas une vulnérabilité.
+
+Qualification Juice Shop locale sans liste d’endpoints fournie, avec les mêmes
+plafonds qu’au passage initial (150 requêtes, 100 routes, profondeur 3) : 49
+reçus HTTP vérifiés, 18 scripts, 25 références statiques sans appel et sept
+ressources non HTML en HTTP 200 contre deux initialement. Trois candidats JS
+renvoient le shell générique et restent non confirmés. Gobuster reste partiel
+sur le wildcard ; ffuf termine. Limites d’analyse/provenance atteintes ; les
+quatre endpoints précédemment guidés par wordlist ne sont pas retrouvés en
+HTTP. Aucun exploit ni accès hors origine ; laboratoire arrêté et mandats
+révoqués. Les archives privées précédentes restent inchangées.
+
+Validation M2.1 : suite régulière complète, **1 045 réussis, 0 échec et 94
+ignorés sous chacun de Python 3.12 et 3.14**. Les 94 cas hôte ne sont pas tous
+qualifiés par cette suite ; séparément, `ARGOS_TEST_NETWORK=1` avec les chemins
+slirp ci-dessus et `pytest -q tests/test_recon_network.py` donne **8 réussis,
+0 échec, 0 ignoré sous chaque version**, dont HTML → modules JS → route publique,
+budgets, périmètre, redirection, timeout et annulation. Ruff, formatage et
+Pyright passent. Aucune modification du frontend ou dépendance ajoutée.

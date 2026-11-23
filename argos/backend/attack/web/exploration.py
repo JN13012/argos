@@ -30,6 +30,8 @@ def summary(store: WebStore, run_id: UUID, *, details: bool = False) -> dict:
             for key in ("id", "kind", "depth", "state", "reason", "parameter_count")
         }
         item["url_sha256"] = digest(route["url"])
+        item["provenance"] = route.get("provenance", [])
+        item["verification"] = "not_requested"
         if route["request_id"]:
             request_id = UUID(route["request_id"])
             snapshot = store.snapshot(request_id)
@@ -38,6 +40,9 @@ def summary(store: WebStore, run_id: UUID, *, details: bool = False) -> dict:
             proof = store.evidence(request_id)
             if proof:
                 item["evidence_sha256"] = snapshot.evidence_sha256
+                item["verification"] = (
+                    "http_response" if proof.get("response") else "http_failed"
+                )
                 item["observations"] = proof.get("discovery", {})
         observations.append(item)
     value: dict = dict(

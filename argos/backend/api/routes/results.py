@@ -97,7 +97,7 @@ def classification(route, response, *, probe=False):
         return "http_error"
     if route and route["reason"] == "suspected_soft_404":
         return "spa_generic"
-    if route and route["reason"] == "non_html":
+    if route and route["reason"] in {"non_html", "javascript", "openapi", "spa_shell"}:
         return "response_observed"
     if route and route["state"] == "visited" and 200 <= status < 300:
         return "route_observed"
@@ -250,6 +250,10 @@ def details(web, source, mission_id):
                         reason=route["reason"],
                         kind=route["kind"],
                         request_id=route["request_id"],
+                        provenance=route.get("provenance", []),
+                        verification="not_requested"
+                        if not route["request_id"]
+                        else "http_requested",
                     )
                 )
     route_map = {r["request_id"]: r for r in result["routes"]}
@@ -294,6 +298,7 @@ def details(web, source, mission_id):
                     http_status=response.get("status") if response else None,
                     classification=category,
                     reason=route["reason"] if route else "tool_precheck",
+                    provenance=route.get("provenance", []) if route else [],
                     wordlist_provenance=source.wordlist_provenance
                     if tool in {"gobuster", "ffuf"}
                     else "not_applicable",

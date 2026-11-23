@@ -384,7 +384,8 @@ def test_runtime_stop_without_pending_http_stops_navigation(mission):
 
 
 def test_proof_quota_denies_before_browser_launch(mission):
-    m = mission(execution={"evidence_bytes": 2097152})
+    # Permit the initial HTTP ticket and provenance, below the browser reserve.
+    m = mission(execution={"evidence_bytes": 3 * 1024 * 1024})
     from argos.backend.attack.web.policy import WebPolicyError
 
     with pytest.raises(WebPolicyError):

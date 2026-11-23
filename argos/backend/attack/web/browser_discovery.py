@@ -272,7 +272,14 @@ class BrowserDiscovery:
                             for r in frontier.routes(run_id)
                             if r["kind"] == "page"
                             and r["state"] == "visited"
-                            and r["reason"] == "html"
+                            and r["reason"] in {"html", "spa_shell"}
+                            and (
+                                not r.get("provenance")
+                                or any(
+                                    p["relation"] not in {"script", "module"}
+                                    for p in r["provenance"]
+                                )
+                            )
                             and r["id"] not in attempted
                         ),
                         None,

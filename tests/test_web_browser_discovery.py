@@ -342,9 +342,10 @@ def test_dom_frontier_url_budget_not_expanded_on_repeat(mission):
     engine = site(m)
     value = engine.run(m.run_id)
     assert value["status"] == "partial"
-    assert value["limits"]["max_urls"] == 1
+    # Both the statically referenced script and the DOM link exceed the cap.
+    assert value["limits"]["max_urls"] == 2
     assert value["browser"]["observed_links"][0]["state"] == "not_queued"
-    assert engine.run(m.run_id)["limits"]["max_urls"] == 1
+    assert engine.run(m.run_id)["limits"]["max_urls"] == 2
 
 
 @pytest.mark.parametrize("stop", [False, True])

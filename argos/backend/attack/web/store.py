@@ -306,6 +306,7 @@ class WebStore:
         from .browser_discovery import projection_quota
 
         evidence += projection_quota(self, mission_id)
+        evidence += Frontier(self.db).provenance_quota(mission_id)
         return WebBudgetUsage(
             mission_id,
             used,

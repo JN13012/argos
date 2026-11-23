@@ -24,6 +24,8 @@ GAPS = frozenset(
         "redirect_limit",
         "redirect_cycle",
         "https_downgrade",
+        "provenance_limit",
+        "static_reference_limit",
     }
 )
 BLOCKED = frozenset(
@@ -37,6 +39,8 @@ BLOCKED = frozenset(
         "origin_busy",
         "response_error",
         "ambiguous_location",
+        "static_limit",
+        "static_reference",
     }
 )
 
@@ -126,6 +130,23 @@ class Frontier:
             ),
         )
 
+    def provenance_quota(self, mission_id: UUID) -> int:
+        if not self.db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='web_discovery_runs'"
+        ).fetchone():
+            return 0
+        row = self.db.execute(
+            "SELECT id FROM web_discovery_runs WHERE mission_id=?", (str(mission_id),)
+        ).fetchone()
+        if row is None:
+            return 0
+        return sum(
+            len(canonical(dict(provenance=route["provenance"])).encode())
+            for route in self.routes(UUID(row[0]))
+            if "provenance" in route
+        )
+
     def route_for(self, request_id: UUID) -> dict | None:
         # Bounded by the signed max_urls for each run; no untrusted SQL JSON paths.
         if not self.db.execute(
@@ -174,19 +195,33 @@ class Frontier:
             self.db.execute("BEGIN IMMEDIATE")
             self._save_run(value)
             self._enqueue(
-                value, config, list(config.seeds), depth=0, source=None, redirects=0
+                value,
+                config,
+                list(config.seeds),
+                depth=0,
+                source=None,
+                redirects=0,
+                provenance="seed",
             )
             self._save_run(value)
         return run_id
 
-    def enqueue_candidates(self, run_id, config, owner, urls):
+    def enqueue_candidates(self, run_id, config, owner, urls, *, provenance="wordlist"):
         """Trusted recon adapter; the normal scope, effect and frontier caps apply."""
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
             run = self.run(run_id)
             if run["status"] != "running" or run["owner"] != str(owner):
                 raise ValueError("Active owned discovery required")
-            self._enqueue(run, config, urls, depth=1, source=None, redirects=0)
+            self._enqueue(
+                run,
+                config,
+                urls,
+                depth=1,
+                source=None,
+                redirects=0,
+                provenance=provenance,
+            )
             self._save_run(run)
 
     def _enqueue(
@@ -199,6 +234,8 @@ class Frontier:
         source: dict | None,
         redirects: int,
         browser_source: dict | None = None,
+        references: list[dict] | None = None,
+        provenance: str = "html",
     ):
         routes = self.routes(UUID(run["id"]))
         existing = {route["url"]: route for route in routes}
@@ -251,6 +288,9 @@ class Frontier:
                 variant=variant,
                 has_query=bool(parts.query),
                 observation_sha256=None,
+                provenance=[origin_reference]
+                if kind != "probe"
+                else [dict(kind="control", relation="probe", source_request_id=None)],
             )
             if browser_source is not None and kind == "page":
                 item["browser_source"] = browser_source
@@ -261,10 +301,15 @@ class Frontier:
             if reason in GAPS:
                 limit(reason)
 
-        for candidate in links:
-            if len(existing) >= config.execution.max_urls:
-                limit("max_urls")
-                break
+        for index, candidate in enumerate(links):
+            reference = references[index] if references is not None else {}
+            origin_reference = dict(
+                kind=reference.get(
+                    "provenance", "browser" if browser_source else provenance
+                ),
+                relation=reference.get("relation", "link"),
+                source_request_id=source["request_id"] if source else None,
+            )
             try:
                 url = config.scope.normalize_url(candidate)
                 if len(url.encode()) > config.execution.url_bytes:
@@ -273,6 +318,18 @@ class Frontier:
                 limit("invalid_url")
                 continue
             if url in existing:
+                item = existing[url]
+                origins = item.setdefault("provenance", [])
+                if origin_reference not in origins:
+                    if len(origins) < 8:
+                        origins.append(origin_reference)
+                    else:
+                        limit("provenance_limit")
+                if item["reason"] == "static_reference" and reference.get(
+                    "verify", True
+                ):
+                    item.update(state="queued", reason="pending")
+                self._save_route(item)
                 if redirects and source:
                     ancestor = source
                     by_id = {item["id"]: item for item in existing.values()}
@@ -281,6 +338,27 @@ class Frontier:
                             limit("redirect_cycle")
                             break
                         ancestor = by_id.get(ancestor["source"])
+                continue
+            if reference.get("provenance") in {"javascript", "openapi"}:
+                # Keep room for actionable reads and later enumeration. Full static
+                # references remain in the source's bounded, evidenced capture.
+                category = (
+                    "excluded"
+                    if not config.scope.permits_url(url)
+                    else "static_reference"
+                    if not reference.get("verify", True)
+                    else None
+                )
+                if category and sum(
+                    r["state"] == "excluded"
+                    if category == "excluded"
+                    else r["reason"] == category
+                    for r in existing.values()
+                ) >= max(1, config.execution.max_urls // 4):
+                    limit("static_reference_limit")
+                    continue
+            if len(existing) >= config.execution.max_urls:
+                limit("max_urls")
                 continue
             reason = None
             if not config.scope.permits_url(url):
@@ -300,6 +378,8 @@ class Frontier:
                     _check_effects(WebRequest(UUID(run["mission_id"]), url))
                 except WebPolicyError:
                     reason = "effect_denied"
+            if reason is None and not reference.get("verify", True):
+                reason = "static_reference"
             parts = urlsplit(url)
             origin = f"{parts.scheme}://{parts.netloc}"
             if (
@@ -388,20 +468,38 @@ class Frontier:
                     and urlsplit(probe["url"]).scheme == origin.scheme
                 ):
                     control = self.capture(UUID(probe["request_id"]))
-                    if control and control["fingerprint"] == capture["fingerprint"]:
-                        reason = "suspected_soft_404"
+                    if control and (
+                        control["fingerprint"] == capture["fingerprint"]
+                        or capture.get("content_fingerprint") is not None
+                        and control.get("content_fingerprint")
+                        == capture["content_fingerprint"]
+                    ):
+                        reason = (
+                            "spa_shell"
+                            if origin.path == "/"
+                            and not origin.query
+                            and reason == "html"
+                            else "suspected_soft_404"
+                        )
                         break
         route.update(state="blocked" if reason in BLOCKED else "visited", reason=reason)
         self._save_route(route)
         if capture["public"]["parser_limited"]:
             run["limits"]["parser_limit"] = run["limits"].get("parser_limit", 0) + 1
-        if route["kind"] == "page" and reason in ("html", "redirect"):
+        if route["kind"] == "page" and reason in (
+            "html",
+            "spa_shell",
+            "javascript",
+            "openapi",
+            "redirect",
+        ):
             self._enqueue(
                 run,
                 config,
                 capture["links"],
                 depth=route["depth"] + (reason != "redirect"),
                 source=route,
+                references=capture.get("references"),
                 redirects=route["redirects"] + 1 if reason == "redirect" else 0,
             )
         self._save_run(run)

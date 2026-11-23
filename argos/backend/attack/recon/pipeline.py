@@ -68,6 +68,9 @@ def run_pipeline(
             "no_dns_or_vhost_bruteforce",
             "no_browser_rendering",
             "no_universal_coverage",
+            "static_javascript_no_execution",
+            "unresolved_templates_static_only",
+            "openapi_json_only",
         ],
     )
     with RuntimeLock(str(database) + ".recon"), ReconStore(database) as archive:

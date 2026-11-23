@@ -40,7 +40,9 @@ pytestmark = pytest.mark.skipif(
 
 
 @contextmanager
-def application(*, wildcard=False, redirect=None, slow=False, entered=None):
+def application(
+    *, wildcard=False, redirect=None, slow=False, entered=None, scripts=False
+):
     requested = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -60,6 +62,16 @@ def application(*, wildcard=False, redirect=None, slow=False, entered=None):
                 "/deeper": b"deeper-private-body",
                 "/openapi.json": b'{"private-body": true}',
             }
+            if scripts:
+                pages.update(
+                    {
+                        "/": b'<a href="/visible">visible</a>'
+                        b'<script src="/main.js"></script>',
+                        "/main.js": b'import "./chunk.js";',
+                        "/chunk.js": b'fetch("/public-api");',
+                        "/public-api": b"<p>Public API response</p>",
+                    }
+                )
             payload = pages.get(self.path, b"missing")
             self.send_response(
                 302
@@ -70,7 +82,12 @@ def application(*, wildcard=False, redirect=None, slow=False, entered=None):
             )
             if redirect and self.path == "/unlinked":
                 self.send_header("Location", redirect)
-            self.send_header("Content-Type", "text/html")
+            self.send_header(
+                "Content-Type",
+                "application/javascript"
+                if scripts and self.path.endswith(".js")
+                else "text/html",
+            )
             self.send_header("Set-Cookie", "private-cookie")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
@@ -151,7 +168,7 @@ def test_real_nmap_gobuster_ffuf_pipeline(tmp_path):
     assert all(
         Path("/usr/bin", name).is_file() for name in ("nmap", "gobuster", "ffuf")
     )
-    with application() as (url, requested, port):
+    with application(scripts=True) as (url, requested, port):
         database, verifier, mid, nid = missions(tmp_path, url)
         public = tmp_path / "reviewer.pub.pem"
         public.write_bytes(
@@ -209,7 +226,14 @@ def test_real_nmap_gobuster_ffuf_pipeline(tmp_path):
             assert "-sT" in evidence.record.arguments
             assert evidence.record.stdout_xml is not None
             assert b"<!DOCTYPE nmaprun>" in evidence.record.stdout_xml
-        assert {"/unlinked", "/openapi.json", "/deeper"} <= set(requested)
+        assert {
+            "/unlinked",
+            "/openapi.json",
+            "/deeper",
+            "/main.js",
+            "/chunk.js",
+            "/public-api",
+        } <= set(requested)
         for secret in ("private-cookie", "deeper-private-body", "private-body"):
             assert secret not in json.dumps(result)
         with ReconStore(database, readonly=True) as store:
@@ -220,6 +244,11 @@ def test_real_nmap_gobuster_ffuf_pipeline(tmp_path):
                 route["url"] == url + "deeper" and route["state"] == "visited"
                 for route in routes
             )
+            api_route = next(
+                route for route in routes if route["url"] == url + "public-api"
+            )
+            assert api_route["provenance"][0]["kind"] == "javascript"
+            assert api_route["request_id"] is not None
             for stage in result["stages"]:
                 for request in stage.get("requests", []):
                     proof = store.evidence(UUID(request["request_id"]))
