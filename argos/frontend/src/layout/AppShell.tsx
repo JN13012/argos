@@ -11,9 +11,7 @@ interface AppShellProps {
   query: string;
   onQueryChange(query: string): void;
   ready: boolean;
-  onOpenChat(): void;
-  onAbout(): void;
-  modalOpen: boolean;
+  statusText: string;
   searchRef: RefObject<HTMLInputElement | null>;
 }
 
@@ -22,9 +20,7 @@ export function AppShell({
   query,
   onQueryChange,
   ready,
-  onOpenChat,
-  onAbout,
-  modalOpen,
+  statusText,
   searchRef,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,7 +57,7 @@ export function AppShell({
         (event.ctrlKey || event.metaKey) &&
         event.key.toLowerCase() === "k" &&
         ready &&
-        !modalOpen &&
+        !document.querySelector("dialog[open]") &&
         window.innerWidth > 700
       ) {
         event.preventDefault();
@@ -70,7 +66,7 @@ export function AppShell({
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [ready, modalOpen, searchRef]);
+  }, [ready, searchRef]);
 
   return (
     <div className="app-shell" ref={shellRef}>
@@ -91,27 +87,25 @@ export function AppShell({
         >
           <Icon name="menu" />
         </Button>
-        <a
-          className="brand"
-          href="#main-content"
-          aria-label="Argos Sentinel, accueil"
-        >
+        <a className="brand" href="#dashboard" aria-label="ARGOS — accueil">
           <BrandLogo />
-          <span>ARGOS SENTINEL</span>
+          <span>ARGOS</span>
         </a>
         <div className="environment">
           <span className="status-dot" />
-          <span>Espace local</span>
+          <span>
+            <small>Environnement</small>Local · Archives
+          </span>
         </div>
         <label className="global-search">
           <Icon name="search" />
           <input
             ref={searchRef}
-            className="w-full min-w-0 border-none border-current bg-transparent p-0 text-[18px] text-foreground outline-none"
+            className="search-input"
             id="global-search"
             type="search"
-            placeholder="Rechercher dans le dossier…"
-            aria-label="Rechercher dans le dashboard"
+            placeholder="Rechercher une mission, une cible…"
+            aria-label="Rechercher une mission ou une cible"
             autoComplete="off"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
@@ -120,32 +114,23 @@ export function AppShell({
           <kbd>Ctrl K</kbd>
         </label>
         <div className="header-actions">
-          <Button
-            variant="icon"
-            id="chat-focus"
-            aria-label="Ouvrir Argos Chat"
-            onClick={onOpenChat}
-            disabled={!ready}
+          <a
+            href="#argos-chat"
+            className="chat-shortcut"
+            aria-label="Argos Chat · À venir"
           >
             <Icon name="chat" />
-          </Button>
-          <div className="profile">
-            <span className="profile-avatar">J</span>
-            <span>
-              <strong>Jérémie</strong>
-              <small>Espace local</small>
-            </span>
-          </div>
+          </a>
+          <span className="readonly-label">
+            <Icon name="lock" /> Lecture seule
+          </span>
         </div>
       </header>
       <Sidebar
         open={sidebarOpen}
         hiddenOnMobile={isMobile && !sidebarOpen}
         onNavigate={closeSidebar}
-        onAbout={() => {
-          closeSidebar();
-          onAbout();
-        }}
+        statusText={statusText}
       />
       {sidebarOpen && (
         <button

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("shows the minimal home and verifies the local API", async ({ page }) => {
+test("shows the SOC shell and verifies the local API", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
 
@@ -10,15 +10,28 @@ test("shows the minimal home and verifies the local API", async ({ page }) => {
     page.getByRole("heading", { name: "Bienvenue sur ARGOS" }),
   ).toBeVisible();
   await expect(page.getByRole("status")).toHaveText("API disponible");
+  if (test.info().project.name === "mobile")
+    await page.getByRole("button", { name: "Ouvrir la navigation" }).click();
+  const navigation = page.getByRole("navigation", { name: "Espaces Argos" });
   await expect(
-    page.getByRole("link", { name: "Accueil", exact: true }),
-  ).toHaveAttribute("aria-current", "page");
-  for (const domain of ["ATTACK", "INTEL", "DEFEND"]) {
-    await expect(page.getByText(`${domain} · à venir`)).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    navigation.getByRole("link", { name: "Dashboard" }),
+  ).toHaveAttribute("aria-current", "location");
+  for (const domain of ["Red Team", "OSINT", "Blue Team", "Agents"]) {
+    await expect(
+      navigation.getByRole("button", { name: `${domain} · À venir` }),
+    ).toBeDisabled();
   }
+  await navigation.getByRole("link", { name: "Rapports" }).click();
+  await expect(page).toHaveURL(/#reports$/);
+  await expect(
+    page.getByRole("heading", { name: "RAPPORTS DISPONIBLES" }),
+  ).toBeVisible();
+  await expect(page.getByText("Aucune réponse IA simulée.")).toBeAttached();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -84,6 +97,14 @@ test("opens archived results with explicit classifications and closes with Escap
     }),
   );
   await page.goto("/");
+  const search = page.getByRole("searchbox", {
+    name: "Rechercher une mission ou une cible",
+  });
+  await search.fill("absent");
+  await expect(
+    page.getByText("Aucune mission ne correspond à la recherche."),
+  ).toBeVisible();
+  await search.fill("archivée");
   const open = page.getByRole("button", { name: "Ouvrir la mission web" });
   await open.click();
   const dialog = page.getByRole("dialog");

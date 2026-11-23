@@ -1,23 +1,21 @@
 import type { IconName } from "../components/Icon";
-
 interface NavigationItem {
   label: string;
   icon: IconName;
-  available: boolean;
+  href?: string;
 }
-
-// Only implemented destinations are interactive.
 export const navigationGroups: readonly (readonly NavigationItem[])[] = [
   [
-    { label: "Accueil", icon: "grid", available: true },
-    { label: "Red Team", icon: "target", available: false },
-    { label: "OSINT", icon: "globe", available: false },
-    { label: "Blue Team", icon: "shield", available: false },
+    { label: "Dashboard", icon: "grid", href: "#dashboard" },
+    { label: "Missions", icon: "target", href: "#missions" },
+    { label: "Preuves", icon: "folder", href: "#evidence" },
+    { label: "Rapports", icon: "file", href: "#reports" },
+    { label: "Journal", icon: "terminal", href: "#events" },
   ],
   [
-    { label: "Preuves", icon: "folder", available: false },
-    { label: "Rapports", icon: "file", available: false },
-    { label: "Agents", icon: "users", available: false },
-    { label: "Paramètres", icon: "gear", available: false },
+    { label: "Red Team", icon: "shield" },
+    { label: "OSINT", icon: "globe" },
+    { label: "Blue Team", icon: "monitor" },
+    { label: "Agents", icon: "users" },
   ],
 ];

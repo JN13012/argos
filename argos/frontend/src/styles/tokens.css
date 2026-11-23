@@ -9,15 +9,15 @@
       BlinkMacSystemFont,
       sans-serif;
     font-synthesis: none;
-    --canvas: #090c12;
-    --surface: #10151e;
-    --surface-raised: #171e2a;
-    --border: #28303e;
-    --border-soft: #1e2633;
-    --text: #eef1f8;
-    --muted: #a8b2c4;
-    --subtle: #929eb2;
-    --cyan: #81baff;
+    --canvas: #020b13;
+    --surface: #061521;
+    --surface-raised: #0b2437;
+    --border: #10415b;
+    --border-soft: #0a2b40;
+    --text: #e2edf7;
+    --muted: #a2b4c8;
+    --subtle: #8099b1;
+    --cyan: #00c8f8;
     --green: #71d5a3;
     --amber: #e9c177;
     --orange: #f7a66c;
@@ -26,9 +26,9 @@
     --domain-red: #ef98a5;
     --domain-blue: var(--cyan);
     --domain-osint: var(--purple);
-    --radius: 14px;
-    --header-height: 54px;
-    --sidebar-width: 224px;
+    --radius: 6px;
+    --header-height: 70px;
+    --sidebar-width: 196px;
     --space-1: 4px;
     --space-2: 8px;
     --space-3: 12px;

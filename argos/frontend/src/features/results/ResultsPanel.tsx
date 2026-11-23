@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import { Badge } from "../../components/Badge";
 import { Button, buttonClassName } from "../../components/Button";
+import { BrandLogo } from "../../components/BrandLogo";
+import { Icon } from "../../components/Icon";
+import { ResultsOverview, stamp } from "./ResultsOverview";
 import { Modal } from "../../components/Modal";
 import "./ResultsPanel.css";
 
-type Mission = {
+export type Mission = {
   id: string;
   title: string;
   state: string;
   kind: string;
   targets: string[];
 };
-type Source = {
+export type Source = {
   id: string;
   label: string;
   state: string;
@@ -102,11 +105,6 @@ const provenance: Record<string, string> = {
   unspecified: "Provenance non renseignée",
   not_applicable: "Exploration HTTP",
 };
-function stamp(value: string | null) {
-  return value
-    ? new Date(value).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
-    : "Non archivé";
-}
 async function read<T>(url: string, signal: AbortSignal): Promise<T> {
   const response = await fetch(url, {
     signal,
@@ -342,7 +340,7 @@ function MissionContent({ result }: { result: MissionResult }) {
   );
 }
 
-export function ResultsPanel() {
+export function ResultsPanel({ query = "" }: { query?: string }) {
   const [sources, setSources] = useState<Source[] | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -350,112 +348,251 @@ export function ResultsPanel() {
     source: string;
     mission: Mission;
   } | null>(null);
-  const [detail, setDetail] = useState<MissionResult | null>(null);
-  const [detailError, setDetailError] = useState("");
+  const [results, setResults] = useState<Record<string, MissionResult>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    read<{ sources: Source[] }>("/api/v1/results", controller.signal)
-      .then((value) => {
-        if (!controller.signal.aborted) {
-          setSources(value.sources);
-          setError("");
+    async function load() {
+      setLoading(true);
+      try {
+        const value = await read<{ sources: Source[] }>(
+          "/api/v1/results",
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setSources(value.sources);
+        const pending = value.sources
+          .filter((s) => s.state === "available")
+          .flatMap((source) =>
+            source.missions.map((mission) => ({ source: source.id, mission })),
+          );
+        // Bounded read-only loading: no scan, no unbounded request fan-out.
+        async function worker() {
+          while (pending.length && !controller.signal.aborted) {
+            const item = pending.shift()!;
+            const key = `${item.source}/${item.mission.id}`;
+            try {
+              const result = await read<MissionResult>(
+                `/api/v1/results/${item.source}/missions/${item.mission.id}`,
+                controller.signal,
+              );
+              if (!controller.signal.aborted)
+                setResults((previous) => ({ ...previous, [key]: result }));
+            } catch (reason: unknown) {
+              if (!controller.signal.aborted)
+                setErrors((previous) => ({
+                  ...previous,
+                  [key]:
+                    reason instanceof Error
+                      ? reason.message
+                      : "Résultat indisponible",
+                }));
+            }
+          }
         }
-      })
-      .catch(() => {
+        await Promise.all(
+          Array.from({ length: Math.min(4, pending.length) }, worker),
+        );
+      } catch {
         if (!controller.signal.aborted)
           setError("Impossible de charger les missions.");
-      });
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void load();
     return () => controller.abort();
   }, [retry]);
-  useEffect(() => {
-    const controller = new AbortController();
-    if (selected)
-      read<MissionResult>(
-        `/api/v1/results/${selected.source}/missions/${selected.mission.id}`,
-        controller.signal,
-      )
-        .then((value) => {
-          if (!controller.signal.aborted) setDetail(value);
-        })
-        .catch((reason: unknown) => {
-          if (!controller.signal.aborted)
-            setDetailError(
-              reason instanceof Error
-                ? reason.message
-                : "Résultat indisponible",
-            );
-        });
-    return () => controller.abort();
-  }, [selected]);
-  function select(source: string, mission: Mission) {
-    setDetail(null);
-    setDetailError("");
-    setSelected({ source, mission });
-  }
+  const detail = selected
+    ? results[`${selected.source}/${selected.mission.id}`]
+    : null;
+  const detailError = selected
+    ? errors[`${selected.source}/${selected.mission.id}`]
+    : null;
+  const count = sources?.reduce((n, s) => n + s.missions.length, 0) ?? 0;
+  const filtered = sources?.map((source) => ({
+    ...source,
+    missions: source.missions.filter((m) =>
+      [m.title, m.id, m.state, m.kind, ...m.targets, source.label]
+        .join(" ")
+        .toLocaleLowerCase("fr")
+        .includes(query.trim().toLocaleLowerCase("fr")),
+    ),
+  }));
   return (
-    <section
-      id="missions"
-      className="results-panel panel"
-      aria-labelledby="results-title"
-    >
-      <div className="panel-heading">
-        <h2 id="results-title">Missions persistées</h2>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setSources(null);
-            setError("");
-            setRetry((v) => v + 1);
-          }}
-        >
-          Actualiser les missions
-        </Button>
-      </div>
-      <div className="results-body">
-        <p>
-          Consultation en lecture seule des emplacements autorisés. Aucun scan
-          n’est lancé.
-        </p>
-        {error && <p role="alert">{error}</p>}
-        {!sources && !error && <p>Chargement des missions…</p>}
-        {sources?.length === 0 && (
+    <div className="results-dashboard" id="dashboard">
+      <section className="welcome-panel panel">
+        <div className="welcome-emblem">
+          <BrandLogo />
+        </div>
+        <div className="welcome-copy">
+          <p className="eyebrow">CONSOLE DE RECONNAISSANCE</p>
+          <h1>Bienvenue sur ARGOS</h1>
+          <p>Vos missions. Vos découvertes. Leurs preuves.</p>
+          <span className="welcome-tag">
+            <Icon name="lock" /> Archives autorisées · Lecture seule
+          </span>
+        </div>
+        <div className="welcome-situation">
+          <h2>SITUATION ACTUELLE</h2>
           <p>
-            Aucune source configurée. Renseigner ARGOS_RESULT_SOURCES côté
-            serveur.
+            <Icon name="target" /> <strong>{sources ? count : "—"}</strong>{" "}
+            missions enregistrées
           </p>
-        )}
-        {sources?.map((source) => (
-          <div key={source.id}>
-            <h3>{source.label}</h3>
-            {source.state !== "available" && (
-              <p role="alert">Source indisponible.</p>
-            )}
-            {source.truncated && (
-              <p>Liste limitée aux 500 premières missions de cette source.</p>
-            )}
-            {source.state === "available" && source.missions.length === 0 && (
-              <p>Aucune mission enregistrée.</p>
-            )}
-            {source.missions.map((m) => (
-              <article key={m.id} className="results-mission">
-                <div>
-                  <h4>{m.title}</h4>
-                  <p>
-                    {m.targets.join(", ")} · {m.kind} · <Badge>{m.state}</Badge>
-                  </p>
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={() => select(source.id, m)}
-                >
-                  Ouvrir{" "}
-                  {m.kind === "web" ? "la mission web" : "la mission réseau"}
-                </Button>
-              </article>
-            ))}
+          <p>
+            <Icon name="shield" /> Observations de reconnaissance
+          </p>
+          <a href="#missions">
+            Consulter les résultats <Icon name="arrow" />
+          </a>
+        </div>
+      </section>
+      <ResultsOverview
+        sources={sources}
+        results={results}
+        errors={errors}
+        loading={loading}
+      >
+        <section
+          id="missions"
+          className="results-panel panel"
+          aria-labelledby="results-title"
+        >
+          <div className="panel-heading">
+            <div className="panel-heading-label">
+              <Icon name="target" />
+              <h2 id="results-title">MISSIONS ENREGISTRÉES</h2>
+            </div>
+            <Button
+              variant="quiet"
+              disabled={loading}
+              onClick={() => {
+                setSources(null);
+                setResults({});
+                setErrors({});
+                setError("");
+                setSelected(null);
+                setRetry((v) => v + 1);
+              }}
+            >
+              Actualiser les missions <Icon name="arrow" />
+            </Button>
           </div>
-        ))}
-      </div>
+          {error && (
+            <p className="empty-message" role="alert">
+              {error}
+            </p>
+          )}
+          {!sources && !error && (
+            <p className="empty-message">Chargement des missions…</p>
+          )}
+          {sources?.length === 0 && (
+            <p className="empty-message">
+              Aucune source configurée. Renseigner ARGOS_RESULT_SOURCES côté
+              serveur.
+            </p>
+          )}
+          {filtered?.map((source) => (
+            <div className="source-group" key={source.id}>
+              <div className="source-heading">
+                <h3>{source.label}</h3>
+                <span>{source.missions.length} mission(s)</span>
+              </div>
+              {source.state !== "available" && (
+                <p role="alert" className="empty-message">
+                  Source indisponible.
+                </p>
+              )}
+              {source.truncated && (
+                <p className="empty-message">
+                  Liste limitée aux 500 premières missions de cette source.
+                </p>
+              )}
+              {source.state === "available" && source.missions.length === 0 && (
+                <p className="empty-message">
+                  {query.trim()
+                    ? "Aucune mission ne correspond à la recherche."
+                    : "Aucune mission enregistrée."}
+                </p>
+              )}
+              {source.missions.length > 0 && (
+                <div
+                  className="results-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label={`Missions · ${source.label}`}
+                >
+                  <table className="mission-table">
+                    <thead>
+                      <tr>
+                        <th>Mission / cible</th>
+                        <th>Type</th>
+                        <th>Mandat / pipeline</th>
+                        <th>Outils archivés</th>
+                        <th>Résultats</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {source.missions.map((m) => {
+                        const key = `${source.id}/${m.id}`;
+                        const r = results[key];
+                        return (
+                          <tr key={m.id}>
+                            <td>
+                              <strong>{m.title}</strong>
+                              <span className="cell-secondary">
+                                {m.targets.join(", ")}
+                              </span>
+                            </td>
+                            <td>
+                              <Badge tone="blue">
+                                {m.kind === "web" ? "Web / API" : "Réseau"}
+                              </Badge>
+                            </td>
+                            <td>
+                              <Badge>{m.state}</Badge>
+                              <span className="cell-secondary">
+                                {r?.runs.map((run) => run.status).join(", ") ||
+                                  (errors[key]
+                                    ? "Lecture impossible"
+                                    : loading
+                                      ? "Chargement…"
+                                      : "Aucun bilan")}
+                              </span>
+                            </td>
+                            <td>
+                              {r
+                                ? [...new Set(r.tools.map((t) => t.tool))].join(
+                                    " · ",
+                                  ) || "Aucune exécution"
+                                : "—"}
+                            </td>
+                            <td>
+                              <Button
+                                variant="quiet"
+                                onClick={() =>
+                                  setSelected({ source: source.id, mission: m })
+                                }
+                              >
+                                Ouvrir{" "}
+                                {m.kind === "web"
+                                  ? "la mission web"
+                                  : "la mission réseau"}
+                                <Icon name="arrow" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      </ResultsOverview>
       <Modal
         id="real-mission-dialog"
         open={selected !== null}
@@ -472,6 +609,6 @@ export function ResultsPanel() {
           <p>Vérification et chargement des preuves…</p>
         )}
       </Modal>
-    </section>
+    </div>
   );
 }

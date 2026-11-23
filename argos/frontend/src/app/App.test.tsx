@@ -27,22 +27,20 @@ describe("ARGOS application shell", () => {
       "/api/v1/health",
       expect.objectContaining({ headers: { Accept: "application/json" } }),
     );
-    expect(screen.getByRole("link", { name: "Accueil" })).toHaveAttribute(
-      "aria-current",
-      "page",
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "#dashboard",
     );
-    expect(screen.getByText("ATTACK · à venir")).toHaveAttribute(
-      "aria-disabled",
-      "true",
+    expect(screen.getByRole("link", { name: /^Missions$/ })).toHaveAttribute(
+      "href",
+      "#missions",
     );
-    expect(screen.getByText("INTEL · à venir")).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
-    expect(screen.getByText("DEFEND · à venir")).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    for (const label of ["Red Team", "OSINT", "Blue Team", "Agents"]) {
+      expect(
+        screen.getByRole("button", { name: `${label} · À venir` }),
+      ).toBeDisabled();
+    }
+    expect(screen.queryByText("Jérémie")).not.toBeInTheDocument();
   });
 
   it("reports an unavailable API and allows a retry", async () => {
