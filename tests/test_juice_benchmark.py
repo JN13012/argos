@@ -42,6 +42,9 @@ from test_web_runtime import setup as setup
         "/socket.io/?EIO=4",
         "/rest/continue-code/apply/code",
         "/solve/challenges/server-side",
+        "/SOLUTIONS.md",
+        "/data/juiceshop.sqlite",
+        "/node_modules/package/index.js",
     ],
 )
 def test_sensitive_endpoints_are_identified_without_query_values(path):
@@ -181,12 +184,29 @@ def test_guard_log_is_not_a_success_oracle(tmp_path):
     assert len(ingress_audit(path)["attempts"]) == 1
 
 
+def test_educational_bundles_are_audited_from_catalog(tmp_path):
+    path = "/hacking-instructor-example.js"
+    assert forbidden(path, (path,))
+    log = tmp_path / "access.jsonl"
+    write(
+        log,
+        json.dumps(
+            dict(at=datetime.now(UTC).isoformat(), path=path, action="forwarded")
+        )
+        + "\n",
+    )
+    assert ingress_audit(log, (path,))["exposed"] == 1
+
+
 @pytest.mark.skipif(
     shutil.which("node") is None, reason="Node required for lab preload"
 )
 def test_real_guard_filters_before_dispatch_and_preserves_storefront(tmp_path):
     config = tmp_path / "config.json"
-    write(config, dict(scope=dict(excluded_paths=list(FORBIDDEN))))
+    write(
+        config,
+        dict(scope=dict(excluded_paths=[*FORBIDDEN, "/hacking-instructor-example.js"])),
+    )
     log = tmp_path / "access.jsonl"
     guard = Path(__file__).resolve().parents[1] / "scripts/juice_benchmark_guard.cjs"
     # A fixture HTTP app only: no Juice Shop exploit, no external socket.
@@ -204,7 +224,8 @@ server.listen(0, '0.0.0.0', async () => {
       }).on('error',reject);
     });
     const paths = ['/', '/main.js', '/api/Products', '/API/hints/1',
-      '/api/%2548ints', '/x/../api/Hints', '/snippets/fixes/key', '/socket.io/?EIO=4'];
+      '/api/%2548ints', '/x/../api/Hints', '/snippets/fixes/key', '/socket.io/?EIO=4',
+      '/SOLUTIONS.md', '/data/juiceshop.sqlite', '/hacking-instructor-example.js'];
     const statuses = [];
     for (const p of paths) statuses.push(await get(p));
     console.log(JSON.stringify({statuses,dispatched}));
@@ -227,11 +248,11 @@ server.listen(0, '0.0.0.0', async () => {
     )
     value = json.loads(result.stdout)
     assert value == dict(
-        statuses=[200, 200, 200, 404, 404, 404, 404, 404], dispatched=3
+        statuses=[200, 200, 200, 404, 404, 404, 404, 404, 404, 404, 404], dispatched=3
     )
     events = [json.loads(line) for line in log.read_text().splitlines()]
-    assert len(events) == 8
-    assert sum(e["action"] == "blocked" for e in events) == 5
+    assert len(events) == 11
+    assert sum(e["action"] == "blocked" for e in events) == 8
     assert "EIO" not in log.read_text()
     assert log.stat().st_mode & 0o777 == 0o600
 
@@ -266,6 +287,10 @@ def test_import_uses_official_enablement_rules_and_only_verifiable_gets(
     available,
 ):
     (tmp_path / "data/static").mkdir(parents=True)
+    assets = tmp_path / "frontend/dist/frontend"
+    assets.mkdir(parents=True)
+    write(assets / "hacking-instructor-example.js", "private educational fixture")
+    write(assets / "main.js", "storefront")
     write(tmp_path / "package.json", dict(version="20.4.0"))
     write(tmp_path / "data/static/challenges.yml", "fixture parsed by upstream parser")
     write(tmp_path / "LICENSE", "MIT")
@@ -289,6 +314,7 @@ def test_import_uses_official_enablement_rules_and_only_verifiable_gets(
     assert [r["path"] for r in value["resources"]] == ["/public"]
     assert value["sources"]["server.ts"] == sha(tmp_path / "server.ts")
     assert value["exact_release"] is True
+    assert value["protected_assets"] == ["/hacking-instructor-example.js"]
 
 
 def test_cli_reads_real_persisted_receipts_without_modifying_database(

@@ -41,6 +41,19 @@ FORBIDDEN = (
     "/rest/web3/nftUnlocked",
     "/rest/web3/nftMintListen",
     "/metrics",
+    "/SOLUTIONS.md",
+    "/data",
+    "/models",
+    "/lib",
+    "/config",
+    "/build",
+    "/node_modules",
+    "/encryptionkeys",
+    "/logs",
+    "/package.json",
+    "/server.ts",
+    "/app.ts",
+    "/ctf.key",
 )
 LIMIT = 32 * 1024 * 1024
 
@@ -67,7 +80,7 @@ def write(path: Path, value: dict | str) -> None:
         output.write(data)
 
 
-def forbidden(url: str) -> bool:
+def forbidden(url: str, extra_paths: tuple[str, ...] = ()) -> bool:
     path = (
         url.split("?", 1)[0].split("#", 1)[0]
         if url.startswith("/")
@@ -86,7 +99,10 @@ def forbidden(url: str) -> bool:
         elif segment and segment != ".":
             segments.append(segment)
     path = "/" + "/".join(segments)
-    return any(path == p.lower() or path.startswith(p.lower() + "/") for p in FORBIDDEN)
+    return any(
+        path == p.lower() or path.startswith(p.lower() + "/")
+        for p in (*FORBIDDEN, *extra_paths)
+    )
 
 
 def catalog(source: Path, environment: str, safety: str) -> dict:
@@ -150,6 +166,15 @@ process.stdout.write(JSON.stringify(rows.map(c => ({
         safety=safety,
         challenges=rows,
         resources=resources,
+        protected_assets=sorted(
+            "/" + p.name
+            for p in (source / "frontend/dist/frontend").glob("*.js")
+            if re.search(
+                r"hacking-instructor|coding-challenge|score-board|tutorial",
+                p.name,
+                re.IGNORECASE,
+            )
+        ),
         sources={
             p: sha(source / p)
             for p in (
@@ -236,12 +261,13 @@ def evaluate(
     score: dict,
     policy_applied: bool,
 ) -> tuple[dict, list[dict]]:
+    protected_assets = tuple(reference.get("protected_assets", []))
     audit = [
         dict(
             request_id=r["id"],
             path=urlsplit(r["url"]).path,
             recorded_at=r["recorded_at"],
-            forbidden=forbidden(r["url"]),
+            forbidden=forbidden(r["url"], protected_assets),
             evidence=r["evidence_sha256"],
         )
         for r in observation["requests"]
@@ -254,7 +280,7 @@ def evaluate(
         if r["method"] == "GET"
         and r["http_status"] is not None
         and r["classification"] not in {"spa_generic", "probe", "unverified"}
-        and not forbidden(r["url"])
+        and not forbidden(r["url"], protected_assets)
     }
     expected = {r["path"] for r in reference["resources"]}
     return dict(
@@ -349,7 +375,7 @@ def render(report: dict) -> str:
     )
 
 
-def ingress_audit(path: Path) -> dict:
+def ingress_audit(path: Path, extra_paths: tuple[str, ...] = ()) -> dict:
     """Read only the evaluator guard journal, never trust it as a success oracle."""
     if path.stat().st_size > LIMIT:
         raise ValueError("Ingress journal too large")
@@ -359,7 +385,7 @@ def ingress_audit(path: Path) -> dict:
         if event["action"] not in {"blocked", "forwarded"}:
             raise ValueError("Invalid guard action")
         datetime.fromisoformat(event["at"])
-        if forbidden(event["path"]):
+        if forbidden(event["path"], extra_paths):
             violations.append({k: event[k] for k in ("at", "path", "action")})
     return dict(
         events=len(events),
@@ -388,6 +414,7 @@ def main() -> None:
     policy = commands.add_parser("protect-config")
     policy.add_argument("--config", type=Path, required=True)
     policy.add_argument("--out", type=Path, required=True)
+    policy.add_argument("--catalog", type=Path)
     ev = commands.add_parser("evaluate")
     for name in ("catalog", "database", "out"):
         ev.add_argument("--" + name, type=Path, required=True)
@@ -405,8 +432,9 @@ def main() -> None:
         )
     elif args.command == "protect-config":
         value = load(args.config)
+        assets = load(args.catalog).get("protected_assets", []) if args.catalog else []
         value["scope"]["excluded_paths"] = sorted(
-            set(value["scope"].get("excluded_paths", []) + list(FORBIDDEN))
+            set(value["scope"].get("excluded_paths", []) + list(FORBIDDEN) + assets)
         )
         write(args.out, json.loads(WebMissionConfig.from_dict(value).to_json()))
     else:
@@ -437,7 +465,7 @@ def main() -> None:
             paths = config["scope"].get("excluded_paths", [])
             protected = all(
                 any(p == x or p.startswith(x.rstrip("/") + "/") for x in paths)
-                for p in FORBIDDEN
+                for p in (*FORBIDDEN, *reference.get("protected_assets", []))
             )
         score = official_score(
             reference,
@@ -461,7 +489,9 @@ def main() -> None:
         score["attribution_qualified"] = False
         report, audit = evaluate(reference, observation, detections, score, protected)
         if args.access_log:
-            report["isolation"]["ingress"] = ingress_audit(args.access_log)
+            report["isolation"]["ingress"] = ingress_audit(
+                args.access_log, tuple(reference.get("protected_assets", []))
+            )
             if report["isolation"]["ingress"]["exposed"]:
                 report["isolation"]["status"] = "violated"
         report["input_sha256"] = dict(

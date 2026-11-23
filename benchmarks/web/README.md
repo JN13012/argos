@@ -153,7 +153,8 @@ conservées ; `20.4.0-SNAPSHOT` est accepté mais explicitement distinct de `20.
 .venv/bin/python -m scripts.juice_benchmark import --source /lab/juice-shop \
   --environment Linux --safety auto --out /private/catalog.json
 .venv/bin/python -m scripts.juice_benchmark protect-config \
-  --config /private/mission.json --out /private/mission-protected.json
+  --config /private/mission.json --catalog /private/catalog.json \
+  --out /private/mission-protected.json
 ```
 
 Signer/activer cette configuration avec les commandes de mission existantes.
@@ -175,6 +176,9 @@ chat. Aucun filtrage des API boutique ou assets usuels. Les fonctions pédagogiq
 concernées sont volontairement indisponibles ; la compatibilité complète avec
 l'interface Juice Shop n'est pas qualifiée. Les bundles publics peuvent encore
 contenir des métadonnées pédagogiques. Le filtre n'est pas une isolation hôte.
+Les racines de fichiers internes sont aussi exclues. Le catalogue identifie les
+bundles pédagogiques nommés (instructor/coding challenge/tutorial/score-board) ;
+`protect-config --catalog` ajoute leurs chemins exacts avant signature et filtrage.
 
 Pour chaque répétition : nouvelle installation/instance et identifiant UUID
 distinct, démarrage officiel réinitialisant SQLite, nettoyage des autres états
@@ -209,3 +213,32 @@ HTTP réel sur fixture loopback et exports ; relecture des archives M2.1 sans
 nouveau scan. Aucun test offensif, aucune exécution notée sur instance réinitialisée.
 29 tests ciblés réussis sous Python 3.12 et 3.14 ; suite régulière Python 3.14 :
 1 074 réussis, 94 ignorés, aucun échec. Ruff/formatage et Pyright réussis.
+
+### M2.0.1 — Première mesure locale, 23 novembre 2026
+
+Image officielle `v20.4.0` amd64 figée par manifeste
+`sha256:6b58d89575bde8a992907a066ddf22213bcaab7e55c26b17702ca0a8e5b28c57`.
+Elle déclare intérieurement **20.4.0-SNAPSHOT** ; aucune réécriture de version.
+Projection OCI exécutée via Bubblewrap (Docker indisponible), système de fichiers
+séparé et namespace réseau sans route, relais Unix exposé seulement sur loopback.
+Copie fraîche après les essais préalables ; état initial : 118 défis non résolus.
+Les ressources attendues et états officiels restent hors des entrées du pipeline.
+
+En 70,66 s : 44 reçus vérifiés, 5 ressources hors HTML en HTTP 200, 15 JavaScript,
+25 références statiques. Correspondance exacte : 5/37 GET du sous-référentiel
+(2 réponses 200, 2 réponses 401, 1 réponse 500), pas une couverture globale.
+Deux nouveaux états officiels résolus ; aucun constat de vulnérabilité confirmé.
+Pipeline partiel : Gobuster refuse la SPA générique, extraction bornée.
+
+Contrôles réels : 33 chemins bloqués, 5 fichiers privés illisibles dans un worker,
+31 refus de politique ; aucun accès protégé délivré pendant la mesure. Laboratoire
+arrêté, port fermé, mandats révoqués. Les métadonnées des autres bundles publics
+ne sont pas exhaustivement auditées ; l'isolation d'un futur agent disposant du
+shell hôte reste non qualifiée. Les 118 disponibilités sont déclarées selon
+Linux/auto, sans validation complète des prérequis LLM/Alchemy ou des permissions.
+Les alias de chemins Express ne sont pas fusionnés par cette première métrique.
+
+Validation des seules corrections de filtre : 33 tests ciblés réussis sous
+Python 3.12/3.14 ; suite régulière 3.14 : 1 078 réussis, 94 ignorés, aucun échec.
+Ruff/formatage/Pyright réussis. Journaux, états, image figée et exports privés
+conservés hors Git ; aucun moteur de reconnaissance modifié, aucun test offensif.
