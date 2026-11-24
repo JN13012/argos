@@ -12,6 +12,7 @@ from uuid import UUID
 
 from .isolated_worker import IsolationError, OfflineWorker, WorkerLimits, WorkerResult
 from .network_policy import NETWORK_VERSION, NetworkPolicy
+from .tool_registry import ToolInstallation, ToolRegistry, ToolRegistryError
 from .worker_guardian import nmap_library_aliases
 
 
@@ -45,10 +46,22 @@ class NetworkTools:
 
 class NetworkWorker(OfflineWorker):
     def __init__(
-        self, limits: WorkerLimits | None = None, tools: NetworkTools | None = None
+        self,
+        limits: WorkerLimits | None = None,
+        tools: NetworkTools | None = None,
+        *,
+        registry: ToolRegistry | None = None,
     ) -> None:
         super().__init__(limits)
         self.tools = tools or NetworkTools()
+        self._registry = registry
+
+    @property
+    def registry(self) -> ToolRegistry:
+        # HTTP workers do not need or load the external-tool registry.
+        if self._registry is None:
+            self._registry = ToolRegistry.load()
+        return self._registry
 
     def profile(
         self,
@@ -58,9 +71,14 @@ class NetworkWorker(OfflineWorker):
         policy: NetworkPolicy,
     ) -> dict[str, object]:
         executable = Path(arguments[0]).resolve()
-        if not executable.is_file() or not executable.is_relative_to("/usr"):
-            raise IsolationError("Network tools must be system executables")
+        if not executable.is_file():
+            raise IsolationError("Missing network executable")
+        try:
+            installation = self.registry.installation_for(arguments[0])
+        except (ToolRegistryError, OSError) as error:
+            raise IsolationError(str(error)) from error
         return {
+            **({"tool_installation": installation.identity()} if installation else {}),
             "version": NETWORK_VERSION,
             "job_id": str(job_id),
             "mission_id": str(mission_id),
@@ -84,6 +102,8 @@ class NetworkWorker(OfflineWorker):
                         "network_anchor.py",
                         "network_worker.py",
                         "http_sandbox.py",
+                        "tool_sandbox.py",
+                        "tool_registry.py",
                     )
                 )
             ).hexdigest(),
@@ -106,14 +126,32 @@ class NetworkWorker(OfflineWorker):
         cancel: Event | None = None,
         active: Callable[[], bool] | None = None,
         input_data: bytes | None = None,
+        installation: ToolInstallation | None = None,
     ) -> WorkerResult:
+        try:
+            if installation is not None and (
+                not self.registry.configured
+                or self.registry.get(installation.identifier) != installation
+            ):
+                raise ToolRegistryError(
+                    "Installation is not approved by worker registry"
+                )
+            installation = installation or self.registry.installation_for(arguments[0])
+        except (ToolRegistryError, OSError) as error:
+            raise IsolationError(str(error)) from error
         network: dict[str, object] = {
             "target_ip": policy.target_ip,
             "ports": list(policy.ports),
             "tools": self.tools.identity(),
         }
         if input_data is None:
-            return self._run(arguments, cancel=cancel, active=active, network=network)
+            return self._run(
+                arguments,
+                cancel=cancel,
+                active=active,
+                network=network,
+                installation=installation,
+            )
         if len(input_data) > 65536:
             raise ValueError("Worker input exceeds private input limit")
         with tempfile.NamedTemporaryFile(prefix="argos-tool-") as source:
@@ -123,4 +161,10 @@ class NetworkWorker(OfflineWorker):
                 input=source.name,
                 input_sha256=hashlib.sha256(input_data).hexdigest(),
             )
-            return self._run(arguments, cancel=cancel, active=active, network=network)
+            return self._run(
+                arguments,
+                cancel=cancel,
+                active=active,
+                network=network,
+                installation=installation,
+            )

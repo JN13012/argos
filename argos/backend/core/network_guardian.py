@@ -12,6 +12,7 @@ from pathlib import Path
 
 from http_sandbox import http_command, private_input
 from network_policy import GUEST_CIDR, NetworkPolicy
+from tool_sandbox import tool_command
 from worker_guardian import sandbox_command, verify_controls
 
 
@@ -108,6 +109,14 @@ def main() -> int:
             command, input_fd = http_command(command, network["http"])
         elif "input" in network:
             input_fd = private_input(network["input"])
+        tool_fds = []
+        if "tool_installation" in limits:
+            command, tool_fds = tool_command(
+                command,
+                limits["tool_installation"],
+                limits["output_bytes"],
+                limits["file_descriptors"],
+            )
         try:
             child = subprocess.Popen(
                 [
@@ -119,8 +128,11 @@ def main() -> int:
                 ],
                 stdin=input_fd if input_fd is not None else subprocess.DEVNULL,
                 close_fds=True,
+                pass_fds=tuple(tool_fds),
             )
         finally:
+            for fd in tool_fds:
+                os.close(fd)
             if input_fd is not None:
                 os.close(input_fd)
         processes.append(child)

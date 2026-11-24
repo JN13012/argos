@@ -12,6 +12,7 @@ from threading import Event
 from argos.backend.core.isolated_worker import IsolationError, WorkerLimits
 from argos.backend.core.network_policy import NetworkPolicy
 from argos.backend.core.network_worker import NetworkTools, NetworkWorker
+from argos.backend.core.tool_registry import ToolRegistryError
 
 DIRECTORIES = (
     "api",
@@ -55,7 +56,7 @@ FILES = (
 BOOTSTRAP = """
 import hashlib, json, os, pathlib, sys
 p = json.load(sys.stdin)
-binary = pathlib.Path('/usr/bin/' + p['tool'])
+binary = pathlib.Path(p['binary'])
 if hashlib.sha256(binary.read_bytes()).hexdigest() != p['sha256']:
     raise RuntimeError('Tool identity changed')
 pathlib.Path('/work/words').write_text('\\n'.join(p['words']) + '\\n')
@@ -114,11 +115,15 @@ class EnumerationWorker:
     def identity(self, tool: str) -> dict:
         if tool not in {"gobuster", "ffuf"}:
             raise ValueError("Unsupported enumeration tool")
-        binary = Path("/usr/bin") / tool
-        if not binary.is_file():
-            raise IsolationError(f"Missing tool: {tool}")
+        try:
+            installation = self.worker.registry.get(tool)
+            identity = installation.identity()
+        except (OSError, ToolRegistryError) as error:
+            raise IsolationError(str(error)) from error
+        binary = installation.path
         return dict(
             tool=tool,
+            installation=identity,
             binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
             bootstrap_sha256=hashlib.sha256(BOOTSTRAP.encode()).hexdigest(),
         )
@@ -132,6 +137,11 @@ class EnumerationWorker:
         policy = NetworkPolicy("127.0.0.1", (port,))
         payload = dict(
             tool=tool,
+            binary=(
+                identity["installation"]["worker_path"]
+                if self.worker.registry.configured
+                else str(self.worker.registry.get(tool).path)
+            ),
             words=words(entries),
             sha256=identity["binary_sha256"],
             url=f"http://{policy.connect_ip}:{port}/{token}/",
@@ -143,6 +153,9 @@ class EnumerationWorker:
             active=active,
             cancel=cancel,
             input_data=json.dumps(payload).encode(),
+            installation=self.worker.registry.get(tool)
+            if self.worker.registry.configured
+            else None,
         )
         return dict(
             **identity,
@@ -173,6 +186,8 @@ class EnumerationWorker:
                         "network_anchor.py",
                         "network_policy.py",
                         "http_sandbox.py",
+                        "tool_sandbox.py",
+                        "tool_registry.py",
                     )
                 )
             ).hexdigest(),

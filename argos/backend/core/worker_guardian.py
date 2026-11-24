@@ -39,9 +39,17 @@ def verify_controls(limits: dict[str, int]) -> None:
     if "NoNewPrivs:\t1" not in Path("/proc/self/status").read_text():
         raise RuntimeError("NoNewPrivileges is not active")
     for kind, maximum in (
-        (resource.RLIMIT_FSIZE, limits["output_bytes"]),
+        (
+            resource.RLIMIT_FSIZE,
+            64 * 1024 * 1024
+            if "tool_installation" in limits
+            else limits["output_bytes"],
+        ),
         (resource.RLIMIT_CORE, 0),
-        (resource.RLIMIT_NOFILE, limits["file_descriptors"]),
+        (
+            resource.RLIMIT_NOFILE,
+            1024 if "tool_installation" in limits else limits["file_descriptors"],
+        ),
     ):
         if resource.getrlimit(kind)[1] != maximum:
             raise RuntimeError("Required process limit is not active")
@@ -131,6 +139,16 @@ def main() -> int:
         if readable and not os.read(0, 1):
             return 125
         command = sandbox_command(limits, sys.argv[2:])
+        tool_fds = []
+        if "tool_installation" in limits:
+            from tool_sandbox import tool_command
+
+            command, tool_fds = tool_command(
+                command,
+                limits["tool_installation"],
+                limits["output_bytes"],
+                limits["file_descriptors"],
+            )
         input_fd = None
         if "browser" in limits:
             # Import only for this fixed entry point; ordinary workers stay unchanged.
@@ -142,9 +160,12 @@ def main() -> int:
                 command,
                 stdin=input_fd if input_fd is not None else subprocess.DEVNULL,
                 close_fds=True,
+                pass_fds=tuple(tool_fds),
                 shell=False,
             )
         finally:
+            for fd in tool_fds:
+                os.close(fd)
             if input_fd is not None:
                 os.close(input_fd)
         try:

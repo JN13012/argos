@@ -30,6 +30,7 @@ from argos.backend.core.missions import Mission
 from argos.backend.core.network_worker import NetworkTools
 from argos.backend.core.policy import Action
 from argos.backend.core.scope import TargetScope
+from argos.backend.core.tool_registry import ToolRegistry
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -107,7 +108,9 @@ def application(
         thread.join(timeout=2)
 
 
-def missions(tmp_path, url, *, limits=None, excluded=(), execution=None):
+def missions(
+    tmp_path, url, *, limits=None, excluded=(), execution=None, identify_versions=False
+):
     tmp_path.chmod(0o700)
     database = tmp_path / "missions.db"
     key = Ed25519PrivateKey.generate()
@@ -135,7 +138,10 @@ def missions(tmp_path, url, *, limits=None, excluded=(), execution=None):
         MissionRecord(
             network,
             TargetScope(("127.0.0.1/32",)),
-            frozenset({Action.TCP_CONNECT_SCAN}),
+            frozenset(
+                {Action.TCP_CONNECT_SCAN}
+                | ({Action.SERVICE_IDENTIFICATION} if identify_versions else set())
+            ),
         ),
     ]
     with MissionStore(database) as store:
@@ -164,12 +170,25 @@ def tools():
     )
 
 
-def test_real_nmap_gobuster_ffuf_pipeline(tmp_path):
+@pytest.mark.parametrize("registry_mode", ["system", "configured"])
+@pytest.mark.parametrize("identify_versions", [False, True])
+def test_real_nmap_gobuster_ffuf_pipeline(
+    tmp_path, monkeypatch, registry_mode, identify_versions
+):
+    monkeypatch.delenv("ARGOS_TOOL_REGISTRY", raising=False)
+    if registry_mode == "configured":
+        config = os.environ.get("ARGOS_TEST_TOOL_REGISTRY")
+        if not config:
+            pytest.skip("Requires administrator ARGOS_TEST_TOOL_REGISTRY")
+        monkeypatch.setenv("ARGOS_TOOL_REGISTRY", config)
+    expected_binary = str(ToolRegistry.load().get("nmap").path)
     assert all(
         Path("/usr/bin", name).is_file() for name in ("nmap", "gobuster", "ffuf")
     )
     with application(scripts=True) as (url, requested, port):
-        database, verifier, mid, nid = missions(tmp_path, url)
+        database, verifier, mid, nid = missions(
+            tmp_path, url, identify_versions=identify_versions
+        )
         public = tmp_path / "reviewer.pub.pem"
         public.write_bytes(
             verifier._public_key.public_bytes(
@@ -197,6 +216,7 @@ def test_real_nmap_gobuster_ffuf_pipeline(tmp_path):
                 "127.0.0.1",
                 "--ports",
                 str(port),
+                *(["--identify-versions"] if identify_versions else []),
                 "--public-key",
                 str(public),
                 "--wordlist",
@@ -222,7 +242,7 @@ def test_real_nmap_gobuster_ffuf_pipeline(tmp_path):
         with EvidenceStore(database) as store:
             evidence = store.get_verified(UUID(result["stages"][0]["job_id"]))
             assert evidence is not None
-            assert evidence.record.arguments[0] == "/usr/bin/nmap"
+            assert evidence.record.arguments[0] == expected_binary
             assert "-sT" in evidence.record.arguments
             assert evidence.record.stdout_xml is not None
             assert b"<!DOCTYPE nmaprun>" in evidence.record.stdout_xml

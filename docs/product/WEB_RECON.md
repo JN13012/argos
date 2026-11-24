@@ -188,3 +188,81 @@ slirp ci-dessus et `pytest -q tests/test_recon_network.py` donne **8 réussis,
 0 échec, 0 ignoré sous chaque version**, dont HTML → modules JS → route publique,
 budgets, périmètre, redirection, timeout et annulation. Ruff, formatage et
 Pyright passent. Aucune modification du frontend ou dépendance ajoutée.
+
+## M2.1.1 — Registre administrateur et diagnostic
+
+Le registre TOML version 1 est optionnel, chargé exclusivement depuis
+`ARGOS_TOOL_REGISTRY` (ou `doctor --registry`). Aucun chargement depuis une
+mission, une cible, le modèle ou un `.env` automatique. Sans configuration,
+les adaptateurs utilisent les installations `/usr/bin`, indépendamment du PATH.
+Avec un registre explicite, un outil absent/modifié ne choisit aucun repli.
+Les anciens reçus et la baseline Juice Shop restent inchangés.
+
+```toml
+schema_version = 1
+[tools.gobuster]
+path = "gobuster/gobuster" # relatif au registre, ou chemin absolu administrateur
+version = "3.8.2"
+source = "https://github.com/OJ/gobuster"
+binary_sha256 = "REMPLACER_PAR_64_CHIFFRES_HEXADECIMAUX"
+data_directory = "gobuster"
+```
+
+Les métadonnées supplémentaires du registre d'installation sont conservables.
+Seuls les cinq identifiants connus sont admis. Le fichier doit être régulier,
+appartenir à l'administrateur courant/root et ne pas être remplaçable par un
+autre compte via ses permissions ou celles de ses parents. Les chemins relatifs
+et `~` sont supportés ; aucun chemin personnel n'est intégré au moteur.
+
+Nmap, Gobuster et ffuf sont les seuls outils opérationnels. Hashcat/John sont
+inventoriés avec leur empreinte, sans adaptateur d'attaque. Pour Nmap,
+`data_directory` désigne le répertoire de données de son installation : bases
+services/probes, moteur NSE, scripts de catégorie **version** nécessaires au
+`-sV` existant et bibliothèques Lua/données. Cela n'ajoute ni `-sC`, ni arguments
+libres. Le registre épingle les données à son chargement, les profils/preuves
+conservent les empreintes avant lancement ; chaque ressource est revérifiée
+lors de la création des instantanés scellés montés en lecture seule.
+Voir la [décision de montage](../architecture/adr/0003-recon-tool-relay.md).
+
+```bash
+export ARGOS_TOOL_REGISTRY=/chemin/admin/tools/registry.toml
+export ARGOS_WORDLIST_HOME=/chemin/admin/wordlists
+python -m argos doctor
+# Les options --slirp et --slirp-library réutilisent les dépendances réseau
+# configurables du CLI recon, si elles ne sont pas aux emplacements système.
+```
+
+`doctor` produit du JSON lisible et ne lance ni outil recensé, ni scan, ni
+requête réseau. Versions déclarées par le registre (ou métadonnées du paquet
+système), SHA-256, données, dépendances ELF directes et prérequis sont affichés.
+`readelf`/`ldconfig` inspectent les dépendances sans exécuter le binaire examiné.
+Une compatibilité d'adaptateur n'est pas une qualification de tous les backends,
+des dépendances transitives, du GPU ou des namespaces. Les bibliothèques hors
+`/usr` ne sont pas ajoutées aux montages des trois adaptateurs opérationnels.
+`ARGOS_WORDLIST_HOME` indique seulement la présence du corpus ; la sélection
+reste explicite via les deux options wordlist existantes et leurs bornes.
+
+Les paquets système restent installés. Avant suppression : qualifier les trois
+adaptateurs, `-sV`, leurs données, arrêt/révocation, budgets et confinement avec
+les installations choisies ; vérifier les autres consommateurs du poste et la
+stratégie de déploiement. Les nouvelles versions des outils doivent être
+séparées de tout effet du moteur dans une future comparaison de couverture.
+
+Validation M2.1.1 (24 novembre 2026) : **1 097 réussis, 0 échec, 98 ignorés**
+pour la suite régulière sous chacun de Python 3.12/3.14 ; les cas hôte optionnels
+ne sont pas tous activés par cette suite. Séparément, **86 réussis, 0 échec,
+0 ignoré par version** sur `test_tool_registry.py`, `test_recon_network.py`,
+`test_network_worker.py` et `test_isolated_worker.py`, avec
+`ARGOS_TEST_ISOLATION=1 ARGOS_TEST_NETWORK=1 ARGOS_TEST_TOOL_REGISTRY=<registre>`
+et les deux chemins slirp configurés. Les quatre variantes pipeline utilisent
+les binaires système/manuels et avec/sans `-sV`, sur une fixture locale signée.
+Les assertions hôte contrôlent aussi FSIZE/NOFILE effectifs après préparation,
+les montages scellés et l'absence d'accès aux fichiers privés.
+
+Installations manuelles exercées : Nmap 7.992 (NPSL 0.95, fichier LICENSE de
+l'archive officielle), Gobuster 3.8.2 (Apache-2.0) et ffuf 2.3.0 (MIT) ; leurs
+sources, versions et empreintes sont dans le registre administrateur, non dans
+une mission. Hashcat 8.0.0 et John Jumbo figé sont seulement vérifiés par
+inventaire. Ruff, formatage et Pyright passent. Les 73 fichiers du manifeste
+M2.0.1 sont identiques ; aucun nouveau scan Juice Shop, test externe ou gain de
+couverture attribué au moteur. Aucun paquet système désinstallé.

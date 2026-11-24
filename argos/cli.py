@@ -59,6 +59,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--output-dir", default="outputs", help="Readable reports directory"
     )
     report.add_argument("--name", help="Readable research name for the output folder")
+    doctor = commands.add_parser(
+        "doctor", help="Read-only local tool/environment diagnostics"
+    )
+    doctor.set_defaults(action="doctor")
+    doctor.add_argument(
+        "--registry", help="Trusted administrator TOML (or ARGOS_TOOL_REGISTRY)"
+    )
+    doctor.add_argument(
+        "--wordlist-home", help="Wordlist directory (or ARGOS_WORDLIST_HOME)"
+    )
+    doctor.add_argument("--slirp", default="/usr/bin/slirp4netns")
+    doctor.add_argument(
+        "--slirp-library", default="/usr/lib/x86_64-linux-gnu/libslirp.so.0"
+    )
     add_web_parser(commands)
     add_recon_parser(commands)
     return parser
@@ -111,6 +125,10 @@ def _print_search(storage: SQLiteStorage, search: Search, coverage: Coverage) ->
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.action == "doctor":
+        from .backend.core.doctor import doctor
+
+        return doctor(args)
     if args.action.startswith(("web_", "recon_")):
         return execute_web(args)
     try:

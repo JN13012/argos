@@ -1,6 +1,6 @@
 # Argos — Roadmap de référence
 
-État du dépôt vérifié le 23 novembre 2026. Cette page porte les statuts et la
+État du dépôt vérifié le 24 novembre 2026. Cette page porte les statuts et la
 priorité active. Le [scope](SCOPE.md) décrit le périmètre produit ; le
 [plan web](WEB_PENTEST_PLAN.md) organise la réalisation ; le
 [catalogue](WEB_CAPABILITIES.md) définit les capacités et preuves à construire.
@@ -53,7 +53,7 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Découverte HTML | Liens et paramètres observés, frontière persistante, raisons de refus et états partiels |
 | Premier oracle web | Redirection externe pilotée par un paramètre découvert : référence, deux marqueurs et recontrôle ; impact métier à qualifier |
 | Navigateur | Chromium → HTTP/TLS depuis le CLI ; redirections document/script/API en v5 avec preuve par saut, URL finale et liens DOM ; GET/HEAD, même origine, sans sessions |
-| Reconnaissance par outils | [Pipeline Nmap → Gobuster → ffuf](WEB_RECON.md) validé localement sous Python 3.12/3.14 avec les vrais binaires ; énumération de chemins GET, extraction statique JavaScript/OpenAPI et provenance ; shell SPA distinct des soft 404, sans couverture universelle |
+| Reconnaissance par outils | [Pipeline Nmap → Gobuster → ffuf](WEB_RECON.md) validé localement sous Python 3.12/3.14 avec les vrais binaires ; énumération de chemins GET, extraction statique JavaScript/OpenAPI et provenance ; shell SPA distinct des soft 404, sans couverture universelle ; M2.1.1 : registre administrateur optionnel, outils locaux isolés et `doctor` hors réseau |
 | Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |

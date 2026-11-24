@@ -31,3 +31,31 @@ La fin du worker annule une requête HTTP encore active. Aucun échec d’isolat
 ne choisit une exécution directe sur l’hôte. Les états interrompus sont conservés,
 sans reprise ou répétition automatique. Les empreintes locales détectent les
 incohérences ; elles ne sont pas une attestation contre un rédacteur de la base.
+
+### Extension M2.1.1 — Installations administrateur (24 novembre 2026)
+
+Le registre standard-library TOML complète les installations système ; il
+n'élargit pas les capacités ni les permissions de mission. Une installation
+administrateur ne permet l'exécution externe à `/usr` que pour les trois
+identifiants existants, avec binaire ELF vérifié et ressources Nmap bornées.
+Les helpers réseau et le socle `/usr` en lecture seule restent inchangés.
+
+Les fichiers choisis sont copiés dans des memfd scellés, revérifiés par SHA-256,
+puis remis à Bubblewrap par `--ro-bind-data` vers des destinations fixes sous
+`/opt/argos-tools/<id>`. Aucun montage du HOME, du dossier Pentest entier ou de
+ses résultats. Nmap reçoit uniquement ses données de reconnaissance et son
+runtime NSE de catégorie version, déjà implicite avec `-sV` ; Gobuster/ffuf
+reçoivent leur seul exécutable. Les profils lient ces ressources à l'exécution.
+
+Le guardian de confiance dispose de 64 Mio par fichier et 1 024 descripteurs
+pour préparer ces instantanés (au plus 512 ressources Nmap). Avant toute
+exécution d'outil/bootstrap, `prlimit` rétablit **les plafonds soft et hard**
+FSIZE/NOFILE du WorkerLimits initial, dans le sandbox. Cgroups, CPU, mémoire,
+échéances, surveillance des sorties et règles réseau restent identiques.
+Les constantes de scellement suivent l'ABI Linux quand Python ne les exporte
+pas ; un noyau sans scellement bloque l'exécution, sans repli hôte.
+
+Cette préparation locale ne prouve pas une authenticité signée de la distribution
+ni une résistance à l'administrateur qui contrôle le registre et le runtime.
+Les scripts NSE hors catégorie version, les bibliothèques privées additionnelles
+et les outils Hashcat/John n'acquièrent aucune nouvelle capacité opérationnelle.

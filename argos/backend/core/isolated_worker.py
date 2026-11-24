@@ -18,6 +18,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from uuid import uuid4
 
+from .tool_registry import ToolInstallation, ToolRegistry
+
 
 class IsolationError(RuntimeError):
     """Isolation could not be established or cleanup could not be confirmed."""
@@ -80,33 +82,47 @@ class OfflineWorker:
         active: Callable[[], bool] | None = None,
         network: dict[str, object] | None = None,
         browser: dict[str, object] | None = None,
+        installation: ToolInstallation | None = None,
     ) -> WorkerResult:
         if sys.platform != "linux":
             raise IsolationError("Offline workers require Linux")
         if not arguments or any("\0" in item for item in arguments):
             raise ValueError("Invalid worker arguments")
         executable = Path(arguments[0])
-        if not executable.is_absolute() or not executable.resolve().is_relative_to(
-            "/usr"
-        ):
-            raise ValueError(
-                "Worker executable must be an absolute system path under /usr"
+        if not executable.is_absolute():
+            raise ValueError("Worker executable must be absolute")
+        if not executable.resolve().is_relative_to("/usr"):
+            installation = installation or ToolRegistry.load().installation_for(
+                str(executable)
             )
+            if (
+                installation is None
+                or installation.identifier != "nmap"
+                or executable != installation.path
+            ):
+                raise ValueError("Worker executable is not approved")
+        if installation is not None and installation.identifier not in {
+            "nmap",
+            "gobuster",
+            "ffuf",
+        }:
+            raise ValueError("Tool has no operational capability")
         for binary in ("/usr/bin/systemd-run", "/usr/bin/bwrap", "/usr/bin/python3"):
             if not Path(binary).is_file():
                 raise IsolationError(f"Missing isolation dependency: {binary}")
         if cancel is not None and cancel.is_set():
             return WorkerResult("cancelled", -1, b"", b"")
         unit = f"argos-worker-{uuid4().hex}.service"
+        file_limit = 64 * 1024 * 1024 if installation else self.limits.output_bytes
         properties = (
             f"MemoryMax={self.limits.memory_bytes}",
             "MemorySwapMax=0",
             f"TasksMax={self.limits.tasks}",
             f"CPUQuota={self.limits.cpu_percent}%",
             f"RuntimeMaxSec={self.limits.wall_seconds + 2}",
-            f"LimitFSIZE={self.limits.output_bytes}",
+            f"LimitFSIZE={file_limit}",
             "LimitCORE=0",
-            f"LimitNOFILE={self.limits.file_descriptors}",
+            f"LimitNOFILE={1024 if installation else self.limits.file_descriptors}",
             "KillMode=control-group",
             "TimeoutStopSec=1",
             "SendSIGKILL=yes",
@@ -115,6 +131,8 @@ class OfflineWorker:
             "UMask=0077",
         )
         configuration: dict[str, object] = asdict(self.limits)
+        if installation is not None:
+            configuration["tool_installation"] = installation.identity()
         if browser is not None:
             if network is not None:
                 raise IsolationError("Browser workers cannot enable network access")
@@ -123,6 +141,9 @@ class OfflineWorker:
         if network is not None:
             configuration["network"] = network
             guardian = "network_guardian.py"
+        encoded = json.dumps(configuration)
+        if len(encoded.encode()) > 120000:
+            raise IsolationError("Worker configuration exceeds bounded launch size")
         command = [
             "/usr/bin/systemd-run",
             "--user",
@@ -134,7 +155,7 @@ class OfflineWorker:
             *(f"--property={item}" for item in properties),
             "/usr/bin/python3",
             str(Path(__file__).with_name(guardian)),
-            json.dumps(configuration),
+            encoded,
             *arguments,
         ]
         read_fd, write_fd = os.pipe()
