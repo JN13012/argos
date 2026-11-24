@@ -115,3 +115,35 @@ def test_failed_scan_evidence_without_xml(tmp_path):
         restored = store.get_verified(record.job_id)
         assert restored is not None
         assert restored.record == record
+
+
+def test_pre_m23_observation_receipt_remains_readable(tmp_path, monkeypatch):
+    from dataclasses import asdict
+
+    def historical_observation(observation):
+        decoded = asdict(observation)
+        decoded.pop("host_state")
+        decoded.pop("host_reason")
+        decoded["ports"] = [
+            {
+                key: value
+                for key, value in p.items()
+                if key in {"host", "port", "protocol", "state", "service", "version"}
+            }
+            for p in decoded["ports"]
+        ]
+        return decoded
+
+    record = sample()
+    db = tmp_path / "historical.db"
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            "argos.backend.attack.pentest.evidence_store.asdict", historical_observation
+        )
+        with EvidenceStore(db) as store:
+            receipt = store.save(record)
+    with EvidenceStore(db) as store:
+        restored = store.get_verified(record.job_id)
+        assert restored is not None
+        assert restored.record == record
+        assert restored.receipt == receipt
