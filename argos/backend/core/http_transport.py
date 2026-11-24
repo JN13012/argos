@@ -213,6 +213,16 @@ def exchange(config: dict) -> tuple[dict, bytes]:
             connection = context.wrap_socket(
                 connection, server_hostname=config["tls_hostname"]
             )
+            negotiated = connection.cipher()
+            certificate = connection.getpeercert(binary_form=True)
+            if negotiated is None or certificate is None:
+                raise ProtocolError("tls_metadata")
+            result["tls"] = {
+                "version": connection.version(),
+                "cipher": negotiated[0],
+                "alpn": connection.selected_alpn_protocol(),
+                "peer_certificate_sha256": hashlib.sha256(certificate).hexdigest(),
+            }
         phase = "protocol_failed"
         connection.settimeout(max(0.001, deadline - time.monotonic()))
         connection.sendall(wire)

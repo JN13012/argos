@@ -149,6 +149,18 @@ def receipt(
         },
     }
 
+    if state == "completed" and exchange is not None:
+        from argos.backend.attack.recon.fingerprint_signals import http_indicators
+
+        value["response"]["technology"] = http_indicators(
+            exchange.headers,
+            exchange.body,
+            complete=exchange.body_complete,
+            tls=exchange.tls,
+        )
+    if exchange is not None and exchange.tls is not None:
+        value["response"]["tls"] = exchange.tls
+
     from .interaction import StructuredWebRequest, request_summary
 
     if isinstance(request, StructuredWebRequest):

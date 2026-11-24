@@ -616,3 +616,27 @@ def test_cancelled_literal_does_not_resolve(tmp_path, monkeypatch):
     with pytest.raises(WebPolicyError) as error:
         WebResolver().resolve(preflight, cancel=event)
     assert error.value.code is WebErrorCode.CANCELLED
+
+
+def test_tls_frame_is_bounded_and_backwards_compatible():
+    metadata = dict(status=200, headers=[], error=None, body_complete=True)
+    assert decode_frame(http_transport.frame(metadata, b""), 32).tls is None
+    tls = dict(
+        version="TLSv1.3",
+        cipher="TLS_AES_256_GCM_SHA384",
+        alpn="http/1.1",
+        peer_certificate_sha256="a" * 64,
+    )
+    assert (
+        decode_frame(http_transport.frame(dict(metadata, tls=tls), b""), 32).tls == tls
+    )
+    for changes in [
+        dict(version="OpenSSL 3.0"),
+        dict(peer_certificate_sha256="secret"),
+        dict(cipher="x" * 129),
+        dict(issuer="private-subject"),
+    ]:
+        with pytest.raises(IsolationError):
+            decode_frame(
+                http_transport.frame(dict(metadata, tls=dict(tls, **changes)), b""), 32
+            )

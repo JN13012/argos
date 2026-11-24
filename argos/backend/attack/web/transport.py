@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import struct
 import tempfile
 from collections.abc import Callable
@@ -39,6 +40,7 @@ class HTTPExchange:
     headers: tuple[tuple[str, str], ...]
     body: bytes
     body_complete: bool
+    tls: dict | None = None
 
 
 def decode_frame(data: bytes, body_limit: int) -> HTTPExchange:
@@ -49,14 +51,15 @@ def decode_frame(data: bytes, body_limit: int) -> HTTPExchange:
         if not 1 <= length <= 65536 or len(data) < 4 + length:
             raise ValueError
         metadata = json.loads(data[4 : 4 + length])
-        if set(metadata) != {
+        base_fields = {
             "status",
             "headers",
             "error",
             "body_complete",
             "body_bytes",
             "body_sha256",
-        }:
+        }
+        if set(metadata) not in (base_fields, base_fields | {"tls"}):
             raise ValueError
         body = data[4 + length :]
         if (
@@ -102,6 +105,19 @@ def decode_frame(data: bytes, body_limit: int) -> HTTPExchange:
             raise ValueError
         if error is None and (status is None or not metadata["body_complete"]):
             raise ValueError
+        tls = metadata.get("tls")
+        if tls is not None:
+            if (
+                not isinstance(tls, dict)
+                or set(tls) != {"version", "cipher", "alpn", "peer_certificate_sha256"}
+                or tls["version"] not in {"TLSv1.2", "TLSv1.3"}
+                or not isinstance(tls["cipher"], str)
+                or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", tls["cipher"]) is None
+                or tls["alpn"] not in (None, "http/1.1")
+                or not isinstance(tls["peer_certificate_sha256"], str)
+                or re.fullmatch(r"[a-f0-9]{64}", tls["peer_certificate_sha256"]) is None
+            ):
+                raise ValueError("Invalid TLS metadata")
         return HTTPExchange(
             "completed" if error is None else "partial" if status else "failed",
             error,
@@ -109,6 +125,7 @@ def decode_frame(data: bytes, body_limit: int) -> HTTPExchange:
             tuple(tuple(pair) for pair in fields),
             body,
             metadata["body_complete"],
+            tls,
         )
     except (ValueError, TypeError, KeyError, struct.error):
         raise IsolationError("Invalid HTTP worker frame") from None
