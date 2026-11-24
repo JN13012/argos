@@ -192,3 +192,52 @@ Aucune nouvelle dépendance ou installation. CI distante M2.3 non exécutée,
 branche non publiée ; les suites navigateur/isolation complètes optionnelles
 n'ont pas été relancées pour cette tranche sans changement de leur code.
 Aucun changement frontend, scan externe ou exploitation. M2.4 non commencé.
+
+## Consolidation M2.3 — investigation du crash 3.12
+
+Base : `056a6ae`, arbre propre. L'archive du processus arrêté au code 139 se
+termine au milieu du second dump différé `faulthandler`, dans `tomllib`, sans
+message Python fatal complet, pile C ou core exploitable (`ulimit -c` vaut 0).
+Cela situe l'arrêt pendant le diagnostic ; cela ne prouve ni un défaut de
+`tomllib`, ni la cause racine. Les courses connues du watchdog CPython, par
+exemple [gh-140815](https://github.com/python/cpython/issues/140815), constituent
+une piste seulement : son scénario de finalisation n'est pas celui démontré
+ici. Aucun changement arbitraire de version ou retrait de `faulthandler`.
+
+L'archive exacte de Deep contient deux jobs `completed`, reçus et profils
+vérifiés, puis une étape sans UUID de job, réconciliée `interrupted/runtime_lost`.
+Aucun job en cours ni observation fabriquée à cet endroit. Les huit bases
+archivées contiennent 19 jobs terminés ; leurs reçus et liaisons aux profils
+passent tous la relecture `JobStore.get`. Une base Quick refusée en amont ne
+contient aucun job. Le grant de l'essai interrompu reste révoqué.
+
+Reproduction ciblée : Deep sous Python 3.12.15 avec `PYTHONMALLOC=debug`,
+`-X dev` et `faulthandler_timeout=30` : **un réussi**, 65,41 s ; crash non
+reproduit. La qualification réseau 3.12 renouvelée donne **32 réussis, zéro
+ignoré**, 12,59 s. Le test de mort du parent couvre maintenant `SIGKILL` et
+`SIGSEGV` : le processus s'arrête au signal attendu, le cgroup devient vide,
+helpers et descendant détaché disparaissent, sans attendre la limite worker.
+Il simule les conséquences d'un crash, sans prétendre en reproduire la cause.
+Les refus d'autres IP/ports/protocoles, les échecs setup, arrêt/révocation et
+absence de repli sont exercés par la même sélection.
+
+Commandes : configuration administrateur permanente, `ARGOS_TEST_NETWORK=1`,
+puis Python 3.12 `pytest -q tests/test_network_worker.py`, et
+`PYTHONMALLOC=debug python -X dev -m pytest -q tests/test_network_recon_host.py
+-k deep -o faulthandler_timeout=30`. Les suites régulières 3.12/3.14, lint,
+formatage et typage sont renouvelés avant intégration. Les journaux restent
+privés dans `.argos/qualifications/m23-consolidation/`.
+
+Conclusion bornée : aucune atteinte à l'isolation, aux preuves ou au nettoyage
+n'est démontrée ; les conséquences testées du crash sont prises en charge.
+La cause native reste non établie faute de core/reproduction. Elle reste une
+limite documentée, pas une qualification universelle de l'interpréteur.
+Les limites réseau du contrat restent inchangées : TCP/IP explicites, plafonds
+par exécution non signés, absence d'UDP/DNS/sweep, maxima non qualifiés en charge
+et aucune qualification externe. Aucun blocage produit identifié dans ce lot.
+
+Validation de consolidation : **1 131 réussis, zéro échec, 110 ignorés** pour
+la suite régulière sous 3.12 (90,13 s) et 3.14 (89,76 s) ; le cas supplémentaire
+ignoré est le nouveau SIGSEGV hôte, qualifié séparément. Ruff, formatage,
+Pyright et `git diff --check` passent. Intégration M2.3 autorisée par cette
+consolidation ; la qualification reste locale et limitée aux scénarios décrits.

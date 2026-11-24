@@ -2,6 +2,7 @@
 
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -335,6 +336,7 @@ def test_non_loopback_ipv4_destination_and_other_address_witness():
         policy = NetworkPolicy(target, (port,))
         code = f"""
 import socket
+import signal
 sock=socket.create_connection(({target!r}, {port}), timeout=2)
 sock.close()
 try: socket.create_connection(('10.253.0.2', {port}), timeout=0.2)
@@ -395,7 +397,8 @@ def test_failed_network_setup_never_launches_the_tool(tmp_path):
 
 
 @real_network
-def test_runtime_death_removes_network_helpers_and_detached_tool():
+@pytest.mark.parametrize("fatal_signal", [signal.SIGKILL, signal.SIGSEGV])
+def test_runtime_death_removes_network_helpers_and_detached_tool(fatal_signal):
     token = uuid4()
     unit = f"argos-worker-{token.hex}.service"
     configured_worker = worker()
@@ -406,6 +409,8 @@ subprocess.Popen([sys.executable, '-c', 'import time;time.sleep(20)',
 time.sleep(20)
 """
     source = f"""
+import resource
+resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 from uuid import UUID
 from unittest.mock import patch
 from argos.backend.core.network_worker import NetworkWorker, NetworkTools
@@ -458,8 +463,8 @@ with patch(
             time.sleep(0.02)
         else:
             pytest.fail("Network descendant did not start")
-        process.kill()
-        process.wait(timeout=2)
+        process.send_signal(fatal_signal)
+        assert process.wait(timeout=2) == -fatal_signal
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
             if (
