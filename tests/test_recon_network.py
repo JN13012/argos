@@ -42,7 +42,13 @@ pytestmark = pytest.mark.skipif(
 
 @contextmanager
 def application(
-    *, wildcard=False, redirect=None, slow=False, entered=None, scripts=False
+    *,
+    wildcard=False,
+    redirect=None,
+    slow=False,
+    entered=None,
+    scripts=False,
+    release=None,
 ):
     requested = []
 
@@ -52,10 +58,13 @@ def application(
 
         def do_GET(self):
             requested.append(self.path)
-            if slow and self.path == "/unlinked":
+            if self.path == "/unlinked":
                 if entered is not None:
                     entered.set()
-                time.sleep(20)
+                if release is not None:
+                    assert release.wait(15)
+                elif slow:
+                    time.sleep(20)
             pages = {
                 "/": b'<a href="/visible">visible</a>',
                 "/visible": b"visible",
@@ -435,3 +444,134 @@ def test_real_enumerator_timeout_or_cancel_stops_pending_http(tmp_path, cancel):
                 ]
                 assert "running" not in states and "pending" not in states
                 assert "cancelled" in states
+
+
+@pytest.mark.parametrize("profile", ["quick", "standard", "deep"])
+def test_cli_profiles_are_consumed_by_real_adapters(tmp_path, profile):
+    with application() as (url, requested, _):
+        database, verifier, mid, _ = missions(
+            tmp_path,
+            url,
+            limits=dict(
+                max_requests=150, duration_seconds=900, requests_per_second=100
+            ),
+        )
+        key = tmp_path / "public.pem"
+        key.write_bytes(
+            verifier._public_key.public_bytes(
+                serialization.Encoding.PEM,
+                serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+        )
+        d, f = tmp_path / "directories.txt", tmp_path / "files.txt"
+        d.write_text("unlinked\n")
+        f.write_text("openapi.json\n")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "argos",
+                "recon",
+                "run",
+                "--db",
+                str(database),
+                "--mission-id",
+                str(mid),
+                "--public-key",
+                str(key),
+                "--wordlist-profile",
+                profile,
+                "--wordlist",
+                str(d),
+                "--ffuf-wordlist",
+                str(f),
+                "--slirp",
+                tools().slirp,
+                "--slirp-library",
+                tools().library,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+        assert completed.returncode == 3, completed.stderr + completed.stdout
+        result = json.loads(completed.stdout)
+        assert result["wordlists"]["profile"] == profile
+        assert result["wordlists"]["mode"] == "profile"
+        for stage in result["stages"]:
+            if stage["tool"] in {"gobuster", "ffuf"}:
+                assert (
+                    stage["state"] == "completed"
+                    and stage["entries_with_response"] == 1
+                )
+                assert (
+                    result["wordlists"]["lists"][stage["tool"]]["selected_entries"] == 1
+                )
+        assert {"/unlinked", "/openapi.json", "/deeper"} <= set(requested)
+        coverage = result["coverage"]
+        assert 0 < coverage["requests_used"] < 150
+        assert coverage["requests_remaining"] == 150 - coverage["requests_used"]
+        assert coverage["stage_stop_reasons"] == {"nmap": "no_signed_ip_mission"}
+        assert coverage["automatic_wordlist_continuation"] is False
+        with ReconStore(database, readonly=True) as store:
+            assert store.get(UUID(result["id"])) == result
+
+
+@pytest.mark.parametrize("cancel_pending", [False, True])
+def test_disconnected_tool_does_not_stop_verified_mission(tmp_path, cancel_pending):
+    import http.client
+    import socket
+    import struct
+
+    entered, release = threading.Event(), threading.Event()
+    with application(entered=entered, release=release) as (url, requested, _):
+        database, verifier, mid, _ = missions(tmp_path, url)
+        with WebRuntime(database, verifier, worker=HTTPWorker(tools())) as runtime:
+            with EnumerationRelay(
+                runtime,
+                mid,
+                url,
+                active=lambda: True,
+                maximum=5,
+                entries=("unlinked", "openapi.json"),
+            ) as relay:
+                client = socket.create_connection(
+                    ("127.0.0.1", relay.server.server_port)
+                )
+                client.sendall(
+                    (
+                        f"GET /{relay.token}/unlinked HTTP/1.0\r\nHost: relay\r\n\r\n"
+                    ).encode()
+                )
+                assert entered.wait(15)
+                client.setsockopt(
+                    socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0)
+                )
+                client.close()
+                if cancel_pending:
+                    assert relay.pending_request is not None
+                    assert runtime.cancel(relay.pending_request)
+                release.set()
+                deadline = time.monotonic() + 15
+                while (
+                    "tool_disconnected" not in relay.errors
+                    and time.monotonic() < deadline
+                ):
+                    time.sleep(0.05)
+                assert "tool_disconnected" in relay.errors
+                assert "relay_failed" not in relay.errors
+                if cancel_pending:
+                    assert "cancelled" in relay.errors
+                assert not runtime.stop.is_set()
+                next_client = http.client.HTTPConnection(
+                    "127.0.0.1", relay.server.server_port, timeout=15
+                )
+                next_client.request("GET", f"/{relay.token}/openapi.json")
+                reply = next_client.getresponse()
+                assert reply.status == 200 and reply.read()
+                next_client.close()
+                assert not runtime.stop.is_set()
+            assert {"/unlinked", "/openapi.json"} <= set(requested)
+            with WebStore(database, readonly=True) as store:
+                for row in relay.observations:
+                    assert store.evidence(UUID(row["request_id"]))

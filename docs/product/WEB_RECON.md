@@ -402,3 +402,79 @@ observée, isolation globale toujours non qualifiée comme précédemment.
 Archives privées : `.argos/benchmarks/m22-final/qualification.{json,html}` et
 `comparison.json` ; pilote dans `m22/`. Laboratoires arrêtés, grants révoqués.
 Aucune qualification universelle, aucun merge/push, M2.3/M3 non commencés.
+
+## M2.2.4 — Couverture effective
+
+Le protocole M2.2 n'avait aucun `--wordlist-profile`, `--wordlist` ou
+`--ffuf-wordlist` : il utilisait les 17/15 entrées intégrées, sans profil actif.
+Quick explicite conserve ces mêmes listes (32 est un plafond par outil).
+Standard sélectionne les 128 premiers chemins compatibles de SecLists common
+et Assetnote txt ; Deep en sélectionne 256 dans Raft small directories et
+Assetnote API. Ces profils remplacent les listes Quick ; leur couverture n'est
+pas cumulative. L'inventaire de 383 listes n'est pas une sélection automatique.
+
+Le résolveur de listes est maintenant utilisé même en mode historique, dont
+le contenu reste identique. Le bilan enregistre mode, sources, tailles et SHA
+effectifs, et refuse un SHA de sélection incompatible avec l'entrée adaptateur.
+Le plan affiche les plafonds signés et le nombre d'entrées prévues ; le bilan
+expose tickets utilisés/restants, frontière, limites et motifs d'arrêt. Les
+profils ne relèvent aucun mandat, débit, concurrence ou budget.
+
+Les 62 tickets M2.2 se décomposent en 27 explorations initiales, 19 appels
+Gobuster (dont deux précontrôles), 15 ffuf et une expansion. La frontière n'a
+plus d'URL en attente : 84/100 lignes, 18 visitées, 54 bloquées, 12 exclues.
+Les 88 tickets restants ne provoquent ni changement automatique de liste ni
+nouvelle passe. Le taux global de faux positifs n'est pas mesurable sur les
+37 chemins du référentiel partiel ; les SPA restent des observations génériques.
+
+Diagnostic évaluateur isolé : sur les 32 chemins non appariés, 30 n'ont aucun
+candidat/référence archivé, un est un préfixe de template non vérifié et un a
+une variante avec slash final. Les 15 bundles publics déjà observés reproduisent
+l'extraction archivée. Les six flags parser correspondent notamment à des
+chaînes dépassant 8 192 caractères ; aucune référence n'est omise par le
+plafond de capture dans ces données. Dix-neuf des 30 chemins absents apparaissent
+comme sous-chaînes des artefacts, ce qui ne prouve pas des lectures GET sûres.
+Aucun document OpenAPI n'a été observé. Le lexer reste heuristique, sans AST,
+exécution JS, authentification ou reconstruction générale d'expressions.
+
+Un défaut du relais a été reproduit : une fermeture du client outil pouvait
+arrêter toute la mission après un timeout local. La remise d'une réponse déjà
+vérifiée, ou d'une erreur de ticket déjà enregistrée, traite maintenant cette
+fermeture comme `tool_disconnected`. Arrêt explicite, révocation et échecs
+d'intégrité restent bloquants. Fixtures réelles : trois profils CLI et deux
+cas de fermeture/annulation réussis sous chacun de Python 3.12/3.14.
+
+Comparaison locale, mêmes outils et protections, débit 10/s et concurrence 1 :
+
+| Profil | Plafonds HTTP / URL | Sélection G/F | Tickets | Réponses G/F | GET exacts |
+| --- | --- | --- | --- | --- | --- |
+| Quick | 150 / 100 | 17 / 15 | 62 | 16 / 15 | 5/37 |
+| Standard corrigé | 150 / 100 | 128 / 128 | 78 | 49 / 0 | 5/37 |
+| Deep corrigé | 150 / 100 | 256 / 256 | 77 | 47 / 0 | 5/37 |
+| Standard élargi | 1 000 / 500 | 128 / 128 | 109 | 49 / 30 | 5/37 |
+| Deep élargi | 5 000 / 1 000 | 256 / 256 | 109 | 48 / 30 | 5/37 |
+
+À 100 URL, la frontière empêche les requêtes ffuf vers la cible. À 500/1 000,
+Gobuster atteint 120 s ; ffuf sort avec code 0 mais une couverture incomplète,
+compatible avec son plafond natif 110 s. Les plafonds HTTP ne sont pas atteints.
+Les deux essais élargis ont 108 réponses complètes et un ticket annulé, tous
+les reçus vérifiés ; un doublon HTTP de précontrôle par essai. Les 81/58 réponses
+SPA et 4/27 erreurs HTTP restent distinctes des endpoints confirmés. Durées
+observées 280,06/287,52 s ; essais uniques, charge hôte variable, sans conclusion
+de vitesse. Quick précède le correctif socket et n'avait pas cette déconnexion ;
+les profils affectés ont été rejoués. Les pilotes sont conservés.
+
+L'analyse postérieure de l'évaluateur trouve zéro chemin exact du référentiel
+dans les sélections Quick/Standard et deux dans Deep, aux positions 135/240 de
+la liste répertoires, non vérifiés pendant ces passes écourtées. Aucun chemin
+attendu n'a guidé les listes, l'extraction ou une relance. Aucun gain GET sur le
+référentiel n'est démontré ; les prochaines limites sont composition/séquencement
+des listes, coût des tickets/temps adaptateur et lexer statique générique.
+
+Validation finale par Python 3.12/3.14 : **1 112 réussis, 0 échec, 103 ignorés** ;
+qualification ciblée hôte **5 réussis, 0 échec, 0 ignoré** par version. Ruff,
+formatage et Pyright passent. Les quatre anciennes baselines et les 383 listes
+sont SHA-identiques. Sept essais mesurés, instances réinitialisées, contrôles
+anti-cheat réappliqués, processus arrêtés et grants révoqués ; isolation globale
+reste non qualifiée. Bilan privé `.argos/qualifications/m224/report.{json,html}`.
+Aucun changement frontend, scan externe, exploitation, merge ou push.

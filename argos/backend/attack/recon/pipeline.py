@@ -27,7 +27,7 @@ from argos.backend.core.network_worker import NetworkWorker
 from .relay import EnumerationRelay
 from .store import ReconStore
 from .tools import EnumerationWorker, words
-from .wordlists import check_budget
+from .wordlists import check_budget, effective_selection
 
 
 def run_pipeline(
@@ -47,6 +47,7 @@ def run_pipeline(
     stop=None,
 ):
     directories, files = words(directories), words(files)
+    wordlist_selection = effective_selection(directories, files, wordlist_selection)
     stop = stop if stop is not None else threading.Event()
     config = WebPolicy(database, verifier).configuration(mission_id)
     check_budget(config, wordlist_selection["profile"] if wordlist_selection else None)
@@ -287,6 +288,31 @@ def run_pipeline(
                 )
                 finish.update(state=report["status"], reason=report["reason"])
                 value["discovery"] = report
+                with WebStore(database, readonly=True) as store:
+                    used = store.db.execute(
+                        "SELECT count(*) FROM web_http_tickets t "
+                        "JOIN web_http_requests r ON r.id=t.request_id "
+                        "WHERE r.mission_id=?",
+                        (str(mission_id),),
+                    ).fetchone()[0]
+                value["coverage"] = dict(
+                    requests_used=used,
+                    request_limit=config.limits.max_requests,
+                    requests_remaining=max(0, config.limits.max_requests - used),
+                    frontier_routes=report["routes"],
+                    frontier_limit=config.execution.max_urls,
+                    frontier_states=report["states"],
+                    internal_limits=report["limits"],
+                    discovery_reason=report["reason"],
+                    stage_stop_reasons={
+                        s["tool"]: s.get("reason", s["state"])
+                        for s in value["stages"]
+                        if s["state"] != "completed"
+                    },
+                    enumeration_passes=1,
+                    automatic_wordlist_continuation=False,
+                    exhaustive=False,
+                )
                 value["status"] = (
                     "completed"
                     if all(s["state"] == "completed" for s in value["stages"])

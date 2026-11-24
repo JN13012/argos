@@ -95,3 +95,29 @@ def test_inventory_cli_is_offline_and_does_not_export_entries(
     output = capsys.readouterr().out
     assert "not-exported-entry" not in output
     assert '"network_requests_sent": 0' in output
+
+
+def test_legacy_selection_is_explicit_and_preserves_literal_contract(tmp_path):
+    from argos.backend.attack.recon.tools import DIRECTORIES, FILES
+
+    d, f, metadata = selection(None, None)
+    assert (d, f) == (DIRECTORIES, FILES)
+    assert metadata["profile"] is None and metadata["mode"] == "legacy"
+    assert metadata["lists"]["gobuster"]["source"] == "builtin"
+    assert metadata["lists"]["ffuf"]["selected_entries"] == 15
+    path = tmp_path / "literal.txt"
+    path.write_text("/api/read\n")
+    with pytest.raises(ValueError, match="literal relative"):
+        selection(None, None, str(path), None)
+    # Explicit profiles alone opt in to corpus normalization.
+    d, _, meta = selection("quick", None, str(path), None)
+    assert d == ("api/read",) and meta["mode"] == "profile"
+
+
+def test_effective_selection_rejects_misleading_metadata():
+    from argos.backend.attack.recon.wordlists import effective_selection
+
+    d, f, metadata = selection("quick", None)
+    with pytest.raises(ValueError, match="differs from adapter"):
+        effective_selection(("changed",), f, metadata)
+    assert effective_selection(d, f, metadata)["lists"] == metadata["lists"]

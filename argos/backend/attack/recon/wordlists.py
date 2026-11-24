@@ -6,7 +6,7 @@ import hashlib
 import os
 from pathlib import Path
 
-from .tools import DIRECTORIES, FILES, words
+from .tools import DIRECTORIES, FILES, load_words, words
 
 PROFILES = {
     "quick": dict(entries_per_tool=32, max_requests=150, duration_seconds=900),
@@ -130,8 +130,16 @@ def inventory(root: Path) -> dict:
 
 
 def selection(
-    profile: str, root: Path | None, directories=None, files=None
+    profile: str | None, root: Path | None, directories=None, files=None
 ) -> tuple[tuple[str, ...], tuple[str, ...], dict]:
+    if profile is None:
+        selected = (load_words(directories, DIRECTORIES), load_words(files, FILES))
+        metadata: dict = dict(profile=None, mode="legacy", budgets=None, lists={})
+        for tool, path in (("gobuster", directories), ("ffuf", files)):
+            metadata["lists"][tool] = dict(source="literal_file" if path else "builtin")
+            if path:
+                metadata["lists"][tool]["path"] = str(Path(path).expanduser().resolve())
+        return selected[0], selected[1], effective_selection(*selected, metadata)
     settings = PROFILES[profile]
     if profile != "quick" and root is None and (directories is None or files is None):
         root = home()
@@ -178,6 +186,7 @@ def selection(
         results[1],
         dict(
             profile=profile,
+            mode="profile",
             budgets=settings,
             lists=metadata,
             note=(
@@ -197,3 +206,23 @@ def check_budget(config, profile):
             "Signed mission exceeds selected profile envelope; "
             "use an appropriately reviewed mission"
         )
+
+
+def effective_selection(directories, files, metadata=None) -> dict:
+    """Bind declared selections to the exact entries handed to the two adapters."""
+    result: dict = dict(
+        metadata or dict(profile=None, mode="caller_supplied", lists={})
+    )
+    if result.get("profile") not in (None, *PROFILES):
+        raise ValueError("Unknown wordlist profile")
+    result["lists"] = {
+        tool: dict(item) for tool, item in result.get("lists", {}).items()
+    }
+    for tool, entries in (("gobuster", directories), ("ffuf", files)):
+        sha = hashlib.sha256(("\n".join(entries) + "\n").encode()).hexdigest()
+        item = result["lists"].setdefault(tool, dict(source="caller_supplied"))
+        if item.get("selected_sha256", sha) != sha:
+            raise ValueError("Selected wordlist metadata differs from adapter input")
+        item.update(selected_entries=len(entries), selected_sha256=sha)
+    result["overlap_entries"] = len(set(directories) & set(files))
+    return result

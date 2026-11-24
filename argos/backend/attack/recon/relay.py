@@ -139,17 +139,27 @@ class EnumerationRelay:
                     relay.observations.append(item)
                     if not responses or not relay.active():
                         relay.errors.append(snapshot.error or "response_unavailable")
-                        self.send_error(502)
+                        try:
+                            self.send_error(502)
+                        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+                            relay.errors.append("tool_disconnected")
+                            self.close_connection = True
                         return
                     response = responses[0]
                     assert response.status is not None
                     if relative in relay.entries:
                         relay.served_entries.add(relative)
-                    # Only status and body are handed to tools.
-                    self.send_response(response.status)
-                    self.send_header("Content-Length", str(len(response.body)))
-                    self.end_headers()
-                    self.wfile.write(response.body)
+                    # The target response is already committed and verified. A
+                    # stopped tool can close its private socket during delivery;
+                    # that is a local consumer failure, not a mission stop.
+                    try:
+                        self.send_response(response.status)
+                        self.send_header("Content-Length", str(len(response.body)))
+                        self.end_headers()
+                        self.wfile.write(response.body)
+                    except (BrokenPipeError, ConnectionResetError, TimeoutError):
+                        relay.errors.append("tool_disconnected")
+                        self.close_connection = True
                 except WebPolicyError as error:
                     relay.errors.append(error.code.value)
                     self.send_error(403)

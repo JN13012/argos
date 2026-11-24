@@ -6,6 +6,7 @@ import ipaddress
 import os
 import signal
 import threading
+from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -20,7 +21,6 @@ from argos.backend.core.scope import TargetScope
 
 from .pipeline import run_pipeline
 from .store import ReconStore
-from .tools import DIRECTORIES, FILES, load_words
 from .wordlists import PROFILES, check_budget, home, inventory, selection
 
 
@@ -45,7 +45,11 @@ def add_parser(commands):
             item.add_argument("--reference", required=True)
         else:
             item.add_argument("--mission-id", type=UUID, required=True)
-            item.add_argument("--wordlist-profile", choices=tuple(PROFILES))
+            item.add_argument(
+                "--wordlist-profile",
+                choices=tuple(PROFILES),
+                help="Opt in to a corpus profile; otherwise use legacy lists",
+            )
             item.add_argument("--wordlist-home", help="Administrator corpus root")
             item.add_argument(
                 "--wordlist", help="Gobuster relative paths, max 256 entries"
@@ -107,17 +111,12 @@ def dispatch(args):
         with ReconStore(path, readonly=True) as store:
             emit(store.get(args.run_id), True)
         return 0
-    metadata = None
-    if args.wordlist_profile:
-        directories, files, metadata = selection(
-            args.wordlist_profile,
-            home(args.wordlist_home) if args.wordlist_home else None,
-            args.wordlist,
-            args.ffuf_wordlist,
-        )
-    else:
-        directories = load_words(args.wordlist, DIRECTORIES)
-        files = load_words(args.ffuf_wordlist, FILES)
+    directories, files, metadata = selection(
+        args.wordlist_profile,
+        home(args.wordlist_home) if args.wordlist_home else None,
+        args.wordlist,
+        args.ffuf_wordlist,
+    )
     ports = (
         tuple(sorted({int(port) for port in args.ports.split(",")}))
         if args.ports
@@ -138,6 +137,13 @@ def dispatch(args):
                 ),
                 seeds=len(config.seeds),
                 wordlists=metadata,
+                signed_limits=asdict(config.limits),
+                signed_execution_limits=asdict(config).get("execution"),
+                planned_enum_entries=len(config.seeds)
+                * (len(directories) + len(files)),
+                enum_entries_exceed_http_budget=len(config.seeds)
+                * (len(directories) + len(files))
+                > config.limits.max_requests,
                 directory_entries=len(directories),
                 file_entries=len(files),
                 network_requests_sent=0,
