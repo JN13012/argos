@@ -73,7 +73,9 @@ def application(
                         "/public-api": b"<p>Public API response</p>",
                     }
                 )
-            payload = pages.get(self.path, b"missing")
+            if wildcard:
+                pages["/equal-size"] = b"real page".ljust(len(pages["/"]))
+            payload = pages.get(self.path, pages["/"] if wildcard else b"missing")
             self.send_response(
                 302
                 if redirect and self.path == "/unlinked"
@@ -307,7 +309,7 @@ def test_real_wildcard_is_not_reported_as_confirmed_surface(tmp_path):
             database,
             verifier,
             mid,
-            directories=("unlinked",),
+            directories=("unlinked", "equal-size"),
             files=("not-a-real-file",),
             tools=tools(),
         )
@@ -315,8 +317,25 @@ def test_real_wildcard_is_not_reported_as_confirmed_surface(tmp_path):
         assert result["confirmed_findings"] == 0
         assert (
             next(s for s in result["stages"] if s["tool"] == "gobuster")["state"]
-            == "partial"
+            == "completed"
         )
+        with WebStore(database, readonly=True) as store:
+            routes = Frontier(store.db).routes(UUID(result["discovery_run_id"]))
+            assert any(r["reason"] == "spa_generic" for r in routes)
+            assert (
+                next(r for r in routes if r["url"].endswith("not-a-real-file"))[
+                    "reason"
+                ]
+                == "spa_generic"
+            )
+            assert (
+                next(r for r in routes if r["url"].endswith("unlinked"))["reason"]
+                == "html"
+            )
+
+            equal = next(r for r in routes if r["url"].endswith("equal-size"))
+            assert equal["reason"] == "html" and equal["state"] == "visited"
+            assert equal["request_id"] is not None
 
 
 def test_recon_redirect_never_reaches_other_origin(tmp_path):

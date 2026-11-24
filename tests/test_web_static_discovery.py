@@ -43,7 +43,7 @@ def test_root_spa_shell_is_not_soft404_and_its_scripts_are_explored(setup):
             routes = {r["url"]: r for r in Frontier(store.db).routes(run_id)}
             assert routes["http://target/"]["reason"] == "spa_shell"
             assert routes["http://target/"]["state"] == "visited"
-            assert routes["http://target/unknown"]["reason"] == "suspected_soft_404"
+            assert routes["http://target/unknown"]["reason"] == "spa_generic"
             endpoint = routes["http://target/api/public"]
             assert endpoint["reason"] == "non_html"
             assert endpoint["provenance"][0]["kind"] == "javascript"
@@ -290,3 +290,20 @@ def test_provenance_bytes_are_charged_before_the_first_http_request(setup):
         with WebStore(runtime.database) as store:
             assert Frontier(store.db).provenance_quota(mid) > 0
             assert len(Frontier(store.db).routes(run_id)) == 2
+
+
+def test_equal_length_real_page_is_not_hidden_by_spa_filter(setup):
+    runtime, mid, worker, _, _ = setup()
+    shell = '<a href="/valid">shell</a>'
+    real = "different".ljust(len(shell))
+    assert len(shell) == len(real)
+    site(worker, {"_missing": html(shell), "/": html(shell), "/valid": html(real)})
+    with runtime:
+        run_id, _ = result(runtime, mid)
+        with WebStore(runtime.database) as store:
+            route = next(
+                r
+                for r in Frontier(store.db).routes(run_id)
+                if r["url"].endswith("/valid")
+            )
+            assert route["reason"] == "html" and route["state"] == "visited"

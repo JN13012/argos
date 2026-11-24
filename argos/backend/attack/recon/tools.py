@@ -65,10 +65,14 @@ if p['tool'] == 'gobuster':
     args = [str(binary), 'dir', '-u', url, '-w', '/work/words',
             '-t', '1', '--delay', '100ms', '--timeout', '15s',
             '--no-progress', '--no-color', '-q']
+    if p['exclude_lengths']:
+        args += ['--exclude-length', ','.join(map(str, p['exclude_lengths']))]
 elif p['tool'] == 'ffuf':
     args = [str(binary), '-u', url + 'FUZZ', '-w', '/work/words',
             '-t', '1', '-rate', '10', '-timeout', '15', '-maxtime', '110',
             '-noninteractive', '-s', '-mc', 'all']
+    if p['exclude_lengths']:
+        args += ['-fs', ','.join(map(str, p['exclude_lengths']))]
 else:
     raise RuntimeError('Unsupported tool')
 os.execv(args[0], args)
@@ -129,14 +133,24 @@ class EnumerationWorker:
         )
 
     def run(
-        self, tool, entries, port, token, *, active, cancel: Event, expected_profile
+        self,
+        tool,
+        entries,
+        port,
+        token,
+        *,
+        active,
+        cancel: Event,
+        expected_profile,
+        exclude_lengths=(),
     ):
-        if self.profile(tool, port) != expected_profile:
+        if self.profile(tool, port, exclude_lengths) != expected_profile:
             raise IsolationError("Enumeration profile changed before launch")
         identity = self.identity(tool)
         policy = NetworkPolicy("127.0.0.1", (port,))
         payload = dict(
             tool=tool,
+            exclude_lengths=self.filter_lengths(exclude_lengths),
             binary=(
                 identity["installation"]["worker_path"]
                 if self.worker.registry.configured
@@ -165,11 +179,20 @@ class EnumerationWorker:
             stderr_sha256=hashlib.sha256(result.stderr).hexdigest(),
         )
 
-    def profile(self, tool, port):
+    @staticmethod
+    def filter_lengths(values):
+        if len(values) > 4 or any(
+            type(v) is not int or not 0 <= v <= 2 * 1024 * 1024 for v in values
+        ):
+            raise ValueError("Invalid bounded calibration lengths")
+        return tuple(sorted(set(values)))
+
+    def profile(self, tool, port, exclude_lengths=()):
         policy = NetworkPolicy("127.0.0.1", (port,))
         core = Path(__file__).parents[2] / "core"
         return dict(
-            version="argos-enumeration-v1",
+            version="argos-enumeration-v2",
+            exclude_lengths=self.filter_lengths(exclude_lengths),
             **self.identity(tool),
             limits=asdict(self.worker.limits),
             network_helpers=self.worker.tools.identity(),

@@ -314,3 +314,16 @@ version ; qualification hôte distincte **88 réussis, 0 échec, 0 ignoré** par
 version, dont vrais adaptateurs, confinement, timeouts et annulation. Ruff,
 formatage et Pyright passent. Les cas hôte optionnels de la suite régulière ne
 sont pas tous qualifiés. Aucun test externe ni changement frontend/moteur.
+
+## M2.2.1 — Fiabilité
+
+Après retrait des paquets APT, 84 essais hôte passent ; les deux variantes
+système sont explicitement ignorées. La calibration HTTP déjà archivée fournit
+aux filtres de sortie natifs Gobuster/ffuf une longueur bornée et traçable.
+Toutes les réponses passent néanmoins par le relais et la classification par
+empreinte : une vraie page de même taille reste conservée. La racine SPA reste
+un shell ; ses copies sont `spa_generic`, distinctes des soft 404 suspectés.
+Les interruptions/timeouts restent des états explicites, avec nombres d'entrées
+sans réponse, erreurs, profils et horodatages. Validation ciblée : 94 réussis,
+deux variantes système ignorées ; témoin réel de même taille : un réussi.
+Les budgets signés et le confinement restent inchangés.

@@ -95,7 +95,7 @@ def classification(route, response, *, probe=False):
     status = response.get("status") or 0
     if status >= 400:
         return "http_error"
-    if route and route["reason"] == "suspected_soft_404":
+    if route and route["reason"] in {"suspected_soft_404", "spa_generic"}:
         return "spa_generic"
     if route and route["reason"] in {"non_html", "javascript", "openapi", "spa_shell"}:
         return "response_observed"

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from datetime import UTC, datetime
-from uuid import uuid4
+from urllib.parse import urlsplit
+from uuid import UUID, uuid4
 
 from argos.backend.attack.pentest.authorized_execution import AuthorizedNmapRunner
 from argos.backend.attack.pentest.execution_manager import ExecutionManager, JobState
@@ -79,11 +81,14 @@ def run_pipeline(
         archive.save(value)
 
         def stage(name):
-            item: dict = dict(tool=name, state="running")
+            item: dict = dict(
+                tool=name, state="running", started_at=datetime.now(UTC).isoformat()
+            )
             value["stages"].append(item)
             archive.save(value)
             return item
 
+        started = time.monotonic()
         try:
             nmap = stage("nmap")
             if plan is None:
@@ -181,8 +186,52 @@ def run_pipeline(
                                 run_id=run_id,
                                 entries=entries,
                             ) as relay:
+                                calibration = []
+                                with WebStore(database, readonly=True) as store:
+                                    for control in Frontier(store.db).routes(run_id):
+                                        if (
+                                            control["kind"] != "probe"
+                                            or not control["request_id"]
+                                        ):
+                                            continue
+                                        if (
+                                            urlsplit(control["url"]).netloc
+                                            != urlsplit(seed).netloc
+                                            or urlsplit(control["url"]).scheme
+                                            != urlsplit(seed).scheme
+                                        ):
+                                            continue
+                                        capture = Frontier(store.db).capture(
+                                            UUID(control["request_id"])
+                                        )
+                                        proof = store.evidence(
+                                            UUID(control["request_id"])
+                                        )
+                                        if (
+                                            capture
+                                            and capture.get("fingerprint")
+                                            and proof
+                                            and proof.get("response")
+                                        ):
+                                            response = proof["response"]
+                                            if 200 <= response["status"] < 300:
+                                                calibration.append(
+                                                    dict(
+                                                        request_id=control[
+                                                            "request_id"
+                                                        ],
+                                                        length=response[
+                                                            "retained_bytes"
+                                                        ],
+                                                    )
+                                                )
+                                # Native filters never remove relay evidence.
+                                exclude_lengths = tuple(
+                                    sorted({c["length"] for c in calibration})
+                                )[:4]
+                                item["calibration"] = calibration[:4]
                                 item["profile"] = enumerator.profile(
-                                    tool, relay.server.server_port
+                                    tool, relay.server.server_port, exclude_lengths
                                 )
                                 archive.save(value)
                                 result = enumerator.run(
@@ -195,20 +244,30 @@ def run_pipeline(
                                     ),
                                     cancel=stop,
                                     expected_profile=item["profile"],
+                                    exclude_lengths=exclude_lengths,
                                 )
                             item.update(result)
+                            item["finished_at"] = datetime.now(UTC).isoformat()
                             item["requests"] = relay.observations
                             item["errors"] = sorted(set(relay.errors))
                             item["entries_with_response"] = len(relay.served_entries)
-                            # Only a received, evidenced response counts as execution.
-                            if (
+                            item["entries_without_response"] = len(
+                                set(entries) - relay.served_entries
+                            )
+                            # Keep the actual terminal state and stop reason.
+                            if result["state"] != "completed":
+                                item["reason"] = f"worker_{result['state']}"
+                            elif (
                                 result["exit_code"] != 0
                                 or relay.errors
                                 or not relay.observations
                                 or not set(entries) <= relay.served_entries
                             ):
                                 item.update(
-                                    state="partial", reason="tool_or_request_incomplete"
+                                    state="partial",
+                                    reason="tool_exit_error"
+                                    if result["exit_code"] != 0
+                                    else "request_or_coverage_incomplete",
                                 )
                         except IsolationError:
                             item.update(state="blocked", reason="isolation_unavailable")
@@ -228,7 +287,13 @@ def run_pipeline(
                     if all(s["state"] == "completed" for s in value["stages"])
                     else "partial"
                 )
-                value["reason"] = "bounded_pipeline_finished"
+                value["reason"] = (
+                    "stop_requested" if stop.is_set() else "bounded_pipeline_finished"
+                )
+                if stop.is_set():
+                    value["status"] = "stopped"
+                value["finished_at"] = datetime.now(UTC).isoformat()
+                value["elapsed_seconds"] = round(time.monotonic() - started, 3)
                 archive.save(value)
         except BaseException:
             value.update(status="interrupted", reason="pipeline_interrupted")

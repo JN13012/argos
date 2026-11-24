@@ -16,6 +16,7 @@ from argos.backend.attack.web.receipts import WebIntegrityError, WebPersistenceE
 from argos.backend.attack.web.store import WebStore
 from argos.backend.core import worker_guardian
 from argos.backend.core.isolated_worker import WorkerResult
+from argos.backend.core.tool_registry import ToolInstallation, ToolRegistry
 from argos.cli import main
 
 from test_web_runtime import setup as setup
@@ -200,6 +201,13 @@ def test_tool_handoff_rejects_mixed_dns_without_dispatch(setup, monkeypatch):
 
 def test_enumerator_inputs_are_private_not_process_arguments(monkeypatch):
     enumerator = EnumerationWorker()
+    enumerator.worker._registry = ToolRegistry(
+        {
+            "gobuster": ToolInstallation(
+                "gobuster", Path("/usr/bin/true"), "fixture", "unit test", "0" * 64
+            )
+        }
+    )
     monkeypatch.setattr(enumerator, "profile", lambda *args: {"profile": "fixed"})
     monkeypatch.setattr(
         enumerator, "identity", lambda tool: {"tool": tool, "binary_sha256": "binary"}

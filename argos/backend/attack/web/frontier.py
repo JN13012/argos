@@ -34,6 +34,7 @@ BLOCKED = frozenset(
         "access_denied",
         "login_page",
         "suspected_soft_404",
+        "spa_generic",
         "non_html",
         "html_limit",
         "origin_busy",
@@ -474,11 +475,28 @@ class Frontier:
                         and control.get("content_fingerprint")
                         == capture["content_fingerprint"]
                     ):
+                        root = next(
+                            (
+                                r
+                                for r in self.routes(UUID(run["id"]))
+                                if r["url"] == f"{origin.scheme}://{origin.netloc}/"
+                                and r["reason"] == "spa_shell"
+                            ),
+                            None,
+                        )
+                        root_capture = (
+                            self.capture(UUID(root["request_id"])) if root else None
+                        )
                         reason = (
                             "spa_shell"
                             if origin.path == "/"
                             and not origin.query
                             and reason == "html"
+                            else "spa_generic"
+                            if reason == "html"
+                            and root_capture
+                            and capture.get("content_fingerprint")
+                            == root_capture.get("content_fingerprint")
                             else "suspected_soft_404"
                         )
                         break
