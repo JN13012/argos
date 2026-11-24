@@ -207,3 +207,20 @@ pas été requalifiés par cette tranche sans changement de leur code.
 Décision : tranche validée sur les fixtures et le laboratoire décrits, avec
 les faux positifs, manques et contradictions ci-dessus. Validation opérateur
 avant merge/publication de `feat/m24-fingerprinting`. M2.5 non commencé.
+
+
+## Consolidation M2.4 — 25 novembre 2026
+
+Base `6298e8d` : manifeste privé inchangé, six rapports archivés revalidés
+contre leurs reçus HTTP/Nmap et leur projection. Les quatre occurrences de
+candidats contradictoires gardent `contradictory`, confiance 0, version non
+sélectionnée et état de version contradictoire. Le catalogue et ses limitations
+restent ceux de cette tranche ; aucune nouvelle signature.
+
+Validation renouvelée : Ruff, formatage, Pyright et `git diff --check` passent.
+Suite régulière complète : 1 140 réussis, 111 ignorés, zéro échec sous Python
+3.14 (89,78 s) et 3.12 (90,49 s). Journaux privés
+`.argos/qualifications/m24-consolidation/`. Les essais hôte qualifiés ci-dessus
+ne sont pas réexécutés pour cette consolidation sans changement de runtime.
+Décision : intégration fast-forward et publication main autorisées ; CI vérifiée
+sur le commit intégré, résultat consigné dans le lot suivant.

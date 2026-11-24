@@ -1,6 +1,6 @@
 # Argos — Roadmap de référence
 
-État du dépôt vérifié le 24 novembre 2026. Cette page porte les statuts et la
+État du dépôt vérifié le 25 novembre 2026. Cette page porte les statuts et la
 priorité active. Le [scope](SCOPE.md) décrit le périmètre produit ; le
 [plan web](WEB_PENTEST_PLAN.md) organise la réalisation ; le
 [catalogue](WEB_CAPABILITIES.md) définit les capacités et preuves à construire.
@@ -34,10 +34,11 @@ de la même exécution. La [vérification groupée des exports](WEB_CLIENT_REPOR
 compare la couverture, les constats et l’index des preuves au même instantané
 de la base privée, avant la remise du rapport.
 
-**Priorité active : validation de M2.4, [Fingerprinting Engine](FINGERPRINTING.md)**.
-M2.3 est consolidé, intégré par fast-forward et publié sur main (`b8f7e80`),
-avec CI verte. M2.4 est validé sur fixtures/laboratoire local dans sa branche
-dédiée ; aucun merge/push avant validation opérateur. M2.5 non commencé.
+**Priorité active : M2.5, Application Mapping Engine**.
+M2.4 est consolidé depuis `6298e8d` : intégrité des observations revalidée,
+contradictions conservées et suites Python 3.12/3.14 vertes. Intégration et
+publication main autorisées ; M2.5 réutilise ces observations hors ligne.
+M2.6 non commencé.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
