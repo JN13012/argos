@@ -185,12 +185,14 @@ def add_parser(commands):
         if name in ("run", "resume", "check", "retest", "browse", "request"):
             parser.add_argument(
                 "--slirp",
-                default="/usr/bin/slirp4netns",
+                default=os.environ.get("ARGOS_SLIRP_PATH", "/usr/bin/slirp4netns"),
                 help="Administrator network helper",
             )
             parser.add_argument(
                 "--slirp-library",
-                default="/usr/lib/x86_64-linux-gnu/libslirp.so.0",
+                default=os.environ.get(
+                    "ARGOS_SLIRP_LIBRARY", "/usr/lib/x86_64-linux-gnu/libslirp.so.0"
+                ),
                 help="Administrator libslirp path",
             )
             parser.add_argument(

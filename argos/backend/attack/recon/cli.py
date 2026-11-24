@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import os
 import signal
 import threading
 from datetime import UTC, datetime, timedelta
@@ -52,9 +53,15 @@ def add_parser(commands):
             item.add_argument("--identify-versions", action="store_true")
             if name == "run":
                 item.add_argument("--public-key", required=True)
-                item.add_argument("--slirp", default="/usr/bin/slirp4netns")
                 item.add_argument(
-                    "--slirp-library", default="/usr/lib/x86_64-linux-gnu/libslirp.so.0"
+                    "--slirp",
+                    default=os.environ.get("ARGOS_SLIRP_PATH", "/usr/bin/slirp4netns"),
+                )
+                item.add_argument(
+                    "--slirp-library",
+                    default=os.environ.get(
+                        "ARGOS_SLIRP_LIBRARY", "/usr/lib/x86_64-linux-gnu/libslirp.so.0"
+                    ),
                 )
                 item.add_argument(
                     "--ca-bundle", default="/etc/ssl/certs/ca-certificates.crt"

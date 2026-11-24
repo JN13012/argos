@@ -266,3 +266,51 @@ une mission. Hashcat 8.0.0 et John Jumbo figé sont seulement vérifiés par
 inventaire. Ruff, formatage et Pyright passent. Les 73 fichiers du manifeste
 M2.0.1 sont identiques ; aucun nouveau scan Juice Shop, test externe ou gain de
 couverture attribué au moteur. Aucun paquet système désinstallé.
+
+## M2.1.2 — Environnement local permanent
+
+Le lanceur `scripts/argos`, lié depuis `~/.local/bin/argos`, résout le dépôt
+sans changer le répertoire courant et exécute exclusivement `.venv/bin/python
+-I -m argos`. La venv doit être installée en mode éditable ; après déplacement
+du dépôt, actualiser son installation et le lien. Aucun environnement Python
+extérieur n'est activé. Le lanceur charge explicitement la configuration
+administrateur privée `${XDG_CONFIG_HOME:-$HOME/.config}/argos/environment.sh`.
+Ne jamais y placer du contenu provenant d'une cible.
+
+Cette configuration exporte `ARGOS_TOOL_REGISTRY`, `ARGOS_WORDLIST_HOME`,
+`ARGOS_SLIRP_PATH` et `ARGOS_SLIRP_LIBRARY`. Les trois CLI `doctor`, `recon` et
+`web` utilisent ces helpers par défaut ; les options CLI explicites priment.
+Les valeurs système restent disponibles sans configuration. Les wordlists
+restent sélectionnées explicitement par mission, sans agrandissement implicite.
+Les chemins personnels restent hors Git. Installation utilisateur du lanceur :
+
+```bash
+mkdir -p "$HOME/.local/bin"
+ln -s "$PWD/scripts/argos" "$HOME/.local/bin/argos"
+# Avec la configuration administrateur locale et ~/.local/bin dans PATH :
+argos doctor
+```
+
+Les helpers figés slirp4netns **1.3.3** / libslirp **4.9.1**, avec licences,
+paquets d'origine et SHA-256, sont conservés dans le répertoire utilisateur
+permanent `~/.local/share/argos/network-tools` ; aucun chemin `/tmp` n'est
+nécessaire au lanceur. Le guardian conserve son chargement privé de libslirp,
+sans variable LD_LIBRARY_PATH globale.
+
+La nouvelle baseline privée `.argos/benchmarks/m212/qualification.{json,html}`
+reprend l'image, les budgets, exclusions, wordlists et contrôles M2.0.1 sur une
+application entièrement réextraite. Résultat identique : 44 preuves HTTP,
+93 routes, 15 JS, 25 références statiques, 5/37 chemins GET du référentiel
+partiel, deux changements d'état officiels et aucune vulnérabilité confirmée.
+Gobuster/wildcard et exploration bornée restent partiels (CLI code 3 attendu).
+L'isolation globale de l'agent reste non qualifiée, comme dans M2.0.1 ; les
+33 filtres HTTP, cinq fichiers privés et 31 rejets de politique passent.
+Les 73 fichiers de l'ancien manifeste restent identiques. Nmap 7.98 → 7.992,
+ffuf 2.1.0 système → 2.3.0, Gobuster 3.8.2 inchangé : cette mesure ne démontre
+aucun gain du moteur ni comparaison de vitesse contrôlée.
+
+Validation : Python 3.12 et 3.14, **1 099 réussis, 0 échec, 98 ignorés** par
+version ; qualification hôte distincte **88 réussis, 0 échec, 0 ignoré** par
+version, dont vrais adaptateurs, confinement, timeouts et annulation. Ruff,
+formatage et Pyright passent. Les cas hôte optionnels de la suite régulière ne
+sont pas tous qualifiés. Aucun test externe ni changement frontend/moteur.

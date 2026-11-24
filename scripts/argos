@@ -1,0 +1,16 @@
+#!/bin/sh
+# Resolve the installed symlink; keep the caller's working directory.
+set -eu
+ARGOS_PROJECT_HOME=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")/.." && pwd)
+export ARGOS_PROJECT_HOME
+config=${XDG_CONFIG_HOME:-$HOME/.config}/argos/environment.sh
+if [ -f "$config" ]; then
+    # Explicit administrator shell configuration, never a target/project .env.
+    . "$config"
+fi
+if [ ! -x "$ARGOS_PROJECT_HOME/.venv/bin/python" ]; then
+    echo "argos: missing project .venv/bin/python in $ARGOS_PROJECT_HOME" >&2
+    exit 1
+fi
+# Isolated Python ignores PYTHONPATH/PYTHONHOME and user site packages.
+exec "$ARGOS_PROJECT_HOME/.venv/bin/python" -I -m argos "$@"

@@ -1,6 +1,7 @@
 """Terminal interface to the existing OSINT discovery engine."""
 
 import argparse
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -69,9 +70,14 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument(
         "--wordlist-home", help="Wordlist directory (or ARGOS_WORDLIST_HOME)"
     )
-    doctor.add_argument("--slirp", default="/usr/bin/slirp4netns")
     doctor.add_argument(
-        "--slirp-library", default="/usr/lib/x86_64-linux-gnu/libslirp.so.0"
+        "--slirp", default=os.environ.get("ARGOS_SLIRP_PATH", "/usr/bin/slirp4netns")
+    )
+    doctor.add_argument(
+        "--slirp-library",
+        default=os.environ.get(
+            "ARGOS_SLIRP_LIBRARY", "/usr/lib/x86_64-linux-gnu/libslirp.so.0"
+        ),
     )
     add_web_parser(commands)
     add_recon_parser(commands)

@@ -60,8 +60,12 @@ def test_system_fallback_does_not_follow_path(tmp_path, monkeypatch):
     monkeypatch.delenv("ARGOS_TOOL_REGISTRY", raising=False)
     monkeypatch.setenv("PATH", str(tmp_path))
     registry = ToolRegistry.load()
-    assert registry.get("nmap").path == Path("/usr/bin/nmap").resolve()
     assert not registry.configured
+    if Path("/usr/bin/nmap").is_file():
+        assert registry.get("nmap").path == Path("/usr/bin/nmap").resolve()
+    else:
+        with pytest.raises(ToolRegistryError, match="Tool unavailable"):
+            registry.get("nmap")
 
 
 @pytest.mark.parametrize(

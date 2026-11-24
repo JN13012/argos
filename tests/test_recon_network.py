@@ -181,9 +181,14 @@ def test_real_nmap_gobuster_ffuf_pipeline(
         if not config:
             pytest.skip("Requires administrator ARGOS_TEST_TOOL_REGISTRY")
         monkeypatch.setenv("ARGOS_TOOL_REGISTRY", config)
-    expected_binary = str(ToolRegistry.load().get("nmap").path)
-    assert all(
+    if registry_mode == "system" and not all(
         Path("/usr/bin", name).is_file() for name in ("nmap", "gobuster", "ffuf")
+    ):
+        pytest.skip("Requires optional system reconnaissance packages")
+    registry = ToolRegistry.load()
+    expected_binary = str(registry.get("nmap").path)
+    assert all(
+        registry.get(name).path.is_file() for name in ("nmap", "gobuster", "ffuf")
     )
     with application(scripts=True) as (url, requested, port):
         database, verifier, mid, nid = missions(
