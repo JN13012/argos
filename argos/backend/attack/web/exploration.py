@@ -44,6 +44,9 @@ def summary(store: WebStore, run_id: UUID, *, details: bool = False) -> dict:
                     "http_response" if proof.get("response") else "http_failed"
                 )
                 item["observations"] = proof.get("discovery", {})
+                capture = frontier.capture(request_id)
+                if capture and "analysis" in capture:
+                    item["analysis"] = capture["analysis"]
         observations.append(item)
     value: dict = dict(
         version=1,

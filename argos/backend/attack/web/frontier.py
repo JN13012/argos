@@ -41,6 +41,7 @@ BLOCKED = frozenset(
         "response_error",
         "ambiguous_location",
         "static_limit",
+        "response_incomplete",
         "static_reference",
     }
 )
@@ -207,7 +208,9 @@ class Frontier:
             self._save_run(value)
         return run_id
 
-    def enqueue_candidates(self, run_id, config, owner, urls, *, provenance="wordlist"):
+    def enqueue_candidates(
+        self, run_id, config, owner, urls, *, provenance="wordlist", relation="link"
+    ):
         """Trusted recon adapter; the normal scope, effect and frontier caps apply."""
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
@@ -222,6 +225,10 @@ class Frontier:
                 source=None,
                 redirects=0,
                 provenance=provenance,
+                references=[
+                    dict(provenance=provenance, relation=relation, verify=True)
+                    for _ in urls
+                ],
             )
             self._save_run(run)
 
@@ -355,7 +362,7 @@ class Frontier:
                     if category == "excluded"
                     else r["reason"] == category
                     for r in existing.values()
-                ) >= max(1, config.execution.max_urls // 4):
+                ) >= max(1, config.execution.max_urls // 8):
                     limit("static_reference_limit")
                     continue
             if len(existing) >= config.execution.max_urls:

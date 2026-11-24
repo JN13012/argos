@@ -205,7 +205,10 @@ def test_static_candidate_can_be_verified_by_a_later_wordlist_without_duplicatio
             'http.post("/write",{}); fetch("/other",{method:"POST"});',
             [("/write", False), ("/other", False)],
         ),
-        ('http.get("/items/"+id); const x=`/api/${id}`;', [("/items/", False)]),
+        (
+            'http.get("/items/"+id); const x=`/api/${id}`;',
+            [("/items/", False), ("/api/", False)],
+        ),
         ('const x="\\x2fapi\\u002finfo";', [("/api/info", False)]),
         (
             'import "./chunk.js"; import("./next.js");',
@@ -307,3 +310,124 @@ def test_equal_length_real_page_is_not_hidden_by_spa_filter(setup):
                 if r["url"].endswith("/valid")
             )
             assert route["reason"] == "html" and route["state"] == "visited"
+
+
+def test_inline_scripts_constants_and_preload_keep_verified_provenance(setup):
+    runtime, mid, worker, _, _ = setup()
+    site(
+        worker,
+        {
+            "/": html(
+                '<link rel="preload" as="script" href="/app.js">'
+                '<script>const endpoint="/inline";fetch(endpoint)</script>'
+            ),
+            "/app.js": resource('client.get("/from-module");'),
+            "/inline": resource("{}", "application/json"),
+            "/from-module": resource("{}", "application/json"),
+        },
+    )
+    with runtime:
+        rid, summary = result(runtime, mid)
+        with WebStore(runtime.database) as store:
+            routes = {r["url"]: r for r in Frontier(store.db).routes(rid)}
+            assert routes["http://target/inline"]["reason"] == "non_html"
+            assert (
+                routes["http://target/inline"]["provenance"][0]["kind"] == "javascript"
+            )
+            assert routes["http://target/from-module"]["request_id"]
+            assert any("analysis" in row for row in summary["surface"])
+
+
+def test_fetch_options_are_local_and_dynamic_methods_stay_static():
+    capture = inspect_response(
+        "http://target/app.js",
+        resource(
+            'fetch("/read");fetch("/write",{method:`POST`});'
+            'fetch("/dynamic",{method:verb});fetch("/explicit",{"method":"GET"});'
+            'const endpoint="/comment"; // fetch(endpoint)\n'
+            'const a="/read";client.get("/read");'
+        ),
+    )
+    refs = {r["url"].removeprefix("http://target"): r for r in capture["references"]}
+    assert refs["/read"]["verify"] and refs["/explicit"]["verify"]
+    assert not refs["/write"]["verify"] and not refs["/dynamic"]["verify"]
+    assert not refs["/comment"]["verify"]
+    from argos.backend.attack.web.static_discovery import javascript_references
+
+    extra, _ = javascript_references(
+        "http://target/app.js",
+        b'fetch("/spread",{...options});fetch("/duplicate",{method:"GET",method:"POST"})',
+    )
+    assert all(not r["verify"] for r in extra)
+    assert sum(r["url"].endswith("/read") for r in capture["references"]) == 1
+
+
+def test_openapi_local_refs_are_bounded_and_remote_refs_never_fetched():
+    spec = {
+        "openapi": "3.1.0",
+        "components": {"pathItems": {"Read": {"get": {}}}},
+        "paths": {
+            "/read": {"$ref": "#/components/pathItems/Read"},
+            "/remote": {"$ref": "https://outside/spec"},
+            "/cycle": {"$ref": "#/paths/~1cycle"},
+        },
+    }
+    capture = inspect_response(
+        "http://target/spec", resource(json.dumps(spec), "application/json")
+    )
+    refs = {r["url"].removeprefix("http://target"): r for r in capture["references"]}
+    assert refs["/read"]["verify"]
+    assert not refs["/remote"]["verify"] and not refs["/cycle"]["verify"]
+    assert capture["public"]["parser_limited"]
+
+
+def test_openapi_read_candidates_survive_static_prefix_and_incomplete_is_explicit():
+    paths = {f"/write/{i}": {"post": {}} for i in range(260)}
+    paths["/read"] = {"get": {}}
+    capture = inspect_response(
+        "http://target/spec",
+        resource(json.dumps({"openapi": "3.0.0", "paths": paths}), "application/json"),
+    )
+    assert capture["references"][0]["url"] == "http://target/read"
+    assert capture["references"][0]["verify"]
+    assert capture["public"]["parser_limited"]
+    incomplete = HTTPExchange(
+        "completed",
+        None,
+        200,
+        (("Content-Type", "text/html"),),
+        b"<html>partial",
+        False,
+    )
+    capture = inspect_response("http://target/", incomplete)
+    assert capture["reason"] == "response_incomplete"
+    assert capture["public"]["parser_limited"] and capture["fingerprint"] is None
+
+
+def test_static_frontier_quota_preserves_capture_and_room_for_reads(setup):
+    runtime, mid, worker, _, _ = setup(execution=dict(max_urls=16))
+    script = (
+        ";".join(f'const p{i}="/static/{i}"' for i in range(40)) + ';fetch("/api/live")'
+    )
+    site(
+        worker,
+        {
+            "/": html('<script src="/app.js"></script>'),
+            "/app.js": resource(script),
+            "/api/live": resource("{}", "application/json"),
+        },
+    )
+    with runtime:
+        run_id, _ = result(runtime, mid)
+        with WebStore(runtime.database) as store:
+            frontier = Frontier(store.db)
+            routes = frontier.routes(run_id)
+            assert len(routes) <= 16
+            assert sum(r["reason"] == "static_reference" for r in routes) == 2
+            assert next(r for r in routes if r["url"].endswith("/api/live"))[
+                "request_id"
+            ]
+            source = next(r for r in routes if r["url"].endswith("/app.js"))
+            capture = frontier.capture(UUID(source["request_id"]))
+            assert capture and len(capture["references"]) == 41
+            assert frontier.run(run_id)["limits"]["static_reference_limit"] == 38

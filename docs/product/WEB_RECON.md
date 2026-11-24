@@ -354,3 +354,51 @@ est converti en chemin relatif au seed ; URLs, paramètres, traversées et ligne
 invalides sont rejetés et comptés. SHA source/sélection, troncature et provenance
 sont archivés dans le bilan recon. Aucun téléchargement ni fichier dérivé.
 Validation ciblée : 29 réussis ; limites, intégrité, profils et CLI hors réseau.
+
+## M2.2.3 — Extraction et résultats centralisés
+
+Scripts inline HTML et preload JavaScript sont analysés statiquement. Les
+lectures explicites sont prioritaires avant modules/littéraux, les références
+JS dédupliquées par URL conservent leur forme la plus vérifiable. Constantes
+locales simples et préfixes de templates sont distingués ; méthodes fetch
+dynamiques, objets d'options ambigus et écritures restent statiques. Aucun JS
+n'est exécuté. OpenAPI résout uniquement les références JSON locales de path
+items (huit sauts, cycles refusés), conserve les références distantes sans les
+charger et privilégie les opérations GET littérales ; overrides de serveurs
+ambigus restent non vérifiés.
+
+Les captures liées aux reçus ajoutent taille/complétude de l'entrée, références
+retenues/omises et références statiques. Ces compteurs sont visibles dans le
+bilan détaillé existant ; une réponse incomplète marque une limite de couverture.
+La frontière SQLite reste le point de centralisation/déduplication HTML, JS,
+OpenAPI et wordlists, avec source Gobuster/ffuf distinguée dans la provenance.
+Aucun nouveau stockage, service, framework ou composant frontend.
+
+Qualification finale M2.2 : mêmes binaires/configuration signée/image/exclusions
+et listes intégrées que M2.1.2. Les sous-quotas de références statiques/exclues
+passent chacun de 1/4 à **1/8** de `max_urls`, sans augmenter son total. Les
+captures sources conservent les références omises de la frontière. Le pilote
+avec 1/4 est conservé : il épuisait les 100 places avant ffuf.
+
+Résultat : **62 tickets HTTP / 150**, 62 reçus intègres (61 réponses complètes,
+une partielle), 58 URL distinctes avec réponse complète hors contrôles contre
+41 ; Gobuster 16/17 contre 0/17, ffuf 15/15 inchangé. Le référentiel GET partiel
+reste **5/37** ; cinq ressources non HTML 200 et 15 JS restent inchangés.
+Les captures contiennent 124 références même origine distinctes contre 116 ;
+ces références ne prouvent pas des endpoints. Frontière 84/100, dont 12
+références statiques ; limites d'extraction/provenance toujours atteintes.
+Temps 96,35 s contre 80,15 s, essais uniques sans conclusion de vitesse.
+Aucune interruption ; `protocol_failed` sur `/.well-known` (200 incomplet,
+cause non établie sans trame brute). Gobuster et le bilan restent partiels.
+Les témoins SPA/même taille passent ; taux global de faux positifs non mesurable
+avec ce référentiel partiel. Deux deltas officiels, zéro vulnérabilité confirmée.
+
+Python 3.12/3.14 : **1 110 réussis, 0 échec, 98 ignorés** par version ; essais
+hôte distincts : **91 réussis, deux variantes APT ignorées** par version.
+Le sous-quota final est vérifié par fixture et laboratoire réel. Ruff, formatage,
+Pyright et intégrité des 383 wordlists/M2.0.1/M2.1.2 passent. Les 33 filtres,
+cinq fichiers privés et 31 rejets de politique passent ; aucune sortie réseau
+observée, isolation globale toujours non qualifiée comme précédemment.
+Archives privées : `.argos/benchmarks/m22-final/qualification.{json,html}` et
+`comparison.json` ; pilote dans `m22/`. Laboratoires arrêtés, grants révoqués.
+Aucune qualification universelle, aucun merge/push, M2.3/M3 non commencés.

@@ -37,6 +37,8 @@ def _priority(base: str, reference: dict) -> tuple:
     return (
         not same_origin,
         not reference["verify"],
+        reference["relation"]
+        not in {"http_reference", "constant_read_reference", "operation"},
         reference["relation"] == "literal_path",
     )
 
@@ -48,7 +50,7 @@ def javascript_references(url: str, body: bytes) -> tuple[list[dict], bool]:
     Parameters, dynamic suffixes and declared non-GET calls stay static-only.
     """
     text = body.decode("utf-8", errors="replace")
-    references: dict[tuple[str, str, bool], dict] = {}
+    references: dict[str, dict] = {}
     limited = False
     worst = None
     for token in _TOKEN.finditer(text):
@@ -61,9 +63,12 @@ def javascript_references(url: str, body: bytes) -> tuple[list[dict], bool]:
         template = "${" in raw
         if template:
             prefix_match = re.match(r"^\$\{[\w.$]+\}(/[^$]*)", raw)
-            if not prefix_match:
+            if prefix_match:
+                raw = prefix_match.group(1).split("?", 1)[0]
+            elif raw.startswith("/"):
+                raw = raw.split("${", 1)[0].split("?", 1)[0]
+            else:
                 continue
-            raw = prefix_match.group(1).split("?", 1)[0]
             if raw == "/":
                 continue
         value = _unescape(raw)
@@ -101,17 +106,38 @@ def javascript_references(url: str, body: bytes) -> tuple[list[dict], bool]:
                 method in {"get", "head", "fetch"}
                 and not re.match(r"\s*\+", suffix)
                 and not any(c in path for c in "{}:")
-                and not (
-                    method == "fetch"
-                    and re.search(
-                        r"method\s*:\s*[\"\'](?:POST|PUT|PATCH|DELETE|OPTIONS)[\"\']",
-                        suffix,
-                        re.I,
-                    )
-                )
             )
             if method in {"get", "head", "fetch"}:
                 relation = "http_reference"
+            if method == "fetch" and re.match(r"\s*,", suffix):
+                options = re.match(r"\s*,\s*\{([^{}]{0,128})\}", suffix)
+                # Dynamic/nested options cannot establish a read-only method.
+                if (
+                    options is None
+                    or "..." in options.group(1)
+                    or "[" in options.group(1)
+                ):
+                    verify = False
+                elif re.search(r"\bmethod\b", options.group(1)):
+                    read = re.search(
+                        r"""["']?method["']?\s*:\s*(["'`])(GET|HEAD)\1""",
+                        options.group(1),
+                        re.I,
+                    )
+                    verify = (
+                        verify
+                        and read is not None
+                        and len(re.findall(r"\bmethod\b", options.group(1))) == 1
+                    )
+            constant = re.search(r"\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*$", prefix)
+            if constant and _PATH.fullmatch(value):
+                following = re.split(r"[{}]", suffix, maxsplit=1)[0]
+                following = _TOKEN.sub(" ", following)
+                name = re.escape(constant.group(1))
+                if re.search(
+                    r"(?:\bfetch|\.(?:get|head))\s*\(\s*" + name + r"\s*\)", following
+                ):
+                    verify, relation = True, "constant_read_reference"
             # A bounded local property assignment followed by an explicit read:
             # host=prefix+"/api/items"; get(this.host+"/"). Do not resolve code,
             # parameters or arbitrary expressions, and never cross a class marker.
@@ -137,10 +163,14 @@ def javascript_references(url: str, body: bytes) -> tuple[list[dict], bool]:
             continue
         if template:
             relation, verify = "template_prefix", False
-        key = (target, relation, verify)
+        key = target
         reference = dict(
             url=target, provenance="javascript", relation=relation, verify=verify
         )
+        if key in references and _priority(url, references[key]) <= _priority(
+            url, reference
+        ):
+            continue
         if key not in references and len(references) >= MAX_REFERENCES:
             limited = True
             if worst is None:
@@ -150,6 +180,8 @@ def javascript_references(url: str, body: bytes) -> tuple[list[dict], bool]:
             del references[worst]
             worst = None
         references[key] = reference
+        if key == worst:
+            worst = None
     return sorted(references.values(), key=lambda r: _priority(url, r)), limited
 
 
@@ -189,22 +221,58 @@ def openapi_references(url: str, body: bytes) -> tuple[list[dict], bool]:
                 return [], True
             base = base.rstrip("/") + base_path.rstrip("/") + "/"
         references = []
+        limited = len(spec.get("servers", [])) > 1
         for path, operations in spec["paths"].items():
             if not isinstance(path, str) or not _PATH.fullmatch(path):
                 continue
-            if len(references) >= MAX_REFERENCES:
-                return references, True
+            seen = set()
+            while isinstance(operations, dict) and "$ref" in operations:
+                pointer = operations["$ref"]
+                if (
+                    not isinstance(pointer, str)
+                    or not pointer.startswith("#/")
+                    or pointer in seen
+                    or len(seen) >= 8
+                ):
+                    limited = True
+                    operations = None
+                    break
+                seen.add(pointer)
+                node = spec
+                for part in pointer[2:].split("/"):
+                    node = (
+                        node.get(part.replace("~1", "/").replace("~0", "~"))
+                        if isinstance(node, dict)
+                        else None
+                    )
+                operations = node
+                if node is None:
+                    limited = True
+            overrides = isinstance(operations, dict) and (
+                operations.get("servers")
+                or isinstance(operations.get("get"), dict)
+                and operations["get"].get("servers")
+            )
+            if overrides:
+                limited = True  # Do not verify a path against an ambiguous server.
             references.append(
                 dict(
                     url=base.rstrip("/") + path,
                     provenance="openapi",
                     relation="operation",
                     verify=isinstance(operations, dict)
-                    and "get" in operations
+                    and isinstance(operations.get("get"), dict)
+                    and not overrides
                     and "{" not in path
                     and "}" not in path,
                 )
             )
-        return references, False
+            if len(references) > MAX_REFERENCES:
+                limited = True
+                worst = max(
+                    range(len(references)), key=lambda i: not references[i]["verify"]
+                )
+                references.pop(worst)
+        return sorted(references, key=lambda r: not r["verify"]), limited
     except (ValueError, TypeError, KeyError, IndexError, RecursionError):
         return [], True

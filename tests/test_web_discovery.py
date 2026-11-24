@@ -194,7 +194,8 @@ def test_untrusted_markup_is_data(setup, body):
     site(worker, {"/": html(body)})
     with runtime:
         _, value = result(runtime, mid)
-        assert len(worker.calls) == 2
+        assert len(worker.calls) == (3 if "<script>" in body else 2)
+        assert all(call[0].preflight.request.method == "GET" for call in worker.calls)
         assert value["confirmed_findings"] == 0
         assert set(resolver.calls) == {"target"}
 

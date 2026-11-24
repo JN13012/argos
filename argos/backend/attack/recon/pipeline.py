@@ -189,6 +189,7 @@ def run_pipeline(
                                 maximum=len(entries) + 4,
                                 run_id=run_id,
                                 entries=entries,
+                                tool=tool,
                             ) as relay:
                                 calibration = []
                                 with WebStore(database, readonly=True) as store:

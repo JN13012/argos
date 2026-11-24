@@ -30,6 +30,8 @@ class PageParser(HTMLParser):
         self.links: list[str] = []
         self.base: str | None = None
         self.scripts: list[str] = []
+        self.inline: list[str] = []
+        self._script = False
         self.forms = 0
         self.parameters = 0
         self.password = False
@@ -40,6 +42,10 @@ class PageParser(HTMLParser):
             self.limited = True
             return
         values = dict(attrs)
+        if tag == "script":
+            self._script = not values.get("src") and (
+                values.get("type") or ""
+            ).lower() in {"", "module", "text/javascript", "application/javascript"}
         if len(values) != len(attrs):
             self.limited = True
             return
@@ -66,7 +72,11 @@ class PageParser(HTMLParser):
                 self.limited = True
         if (
             tag == "link"
-            and "modulepreload" in (values.get("rel") or "").split()
+            and (
+                "modulepreload" in (values.get("rel") or "").split()
+                or "preload" in (values.get("rel") or "").split()
+                and values.get("as") == "script"
+            )
             and values.get("href")
         ):
             if (
@@ -82,6 +92,14 @@ class PageParser(HTMLParser):
             self.parameters += bool(values.get("name"))
         if tag == "input" and (values.get("type") or "").lower() == "password":
             self.password = True
+
+    def handle_data(self, data):
+        if self._script:
+            self.inline.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self._script = False
 
 
 def inspect_response(url: str, exchange: HTTPExchange) -> dict:
@@ -140,7 +158,7 @@ def inspect_response(url: str, exchange: HTTPExchange) -> dict:
         elif media_type not in ("text/html", "application/xhtml+xml"):
             reason = "non_html"
         elif len(exchange.body) > HTML_BYTES:
-            reason = "html_limit"
+            reason, limited = "html_limit", True
         else:
             parser = PageParser()
             text = exchange.body.decode("utf-8", errors="replace")
@@ -169,6 +187,20 @@ def inspect_response(url: str, exchange: HTTPExchange) -> dict:
                     )
                     for value in parser.scripts
                 ]
+                for script in parser.inline:
+                    extracted, script_limited = javascript_references(
+                        url, script.encode()
+                    )
+                    references.extend(extracted)
+                    limited = limited or script_limited
+                # Verify explicit reads/modules before non-actionable static references.
+                references.sort(
+                    key=lambda r: (
+                        not r["verify"],
+                        r["relation"]
+                        not in {"http_reference", "constant_read_reference"},
+                    )
+                )
                 links = [r["url"] for r in references]
             # Private fingerprint only. Remove echoed request spelling and whitespace;
             # an exact match is a suspicion, never a vulnerability or certain absence.
@@ -188,11 +220,30 @@ def inspect_response(url: str, exchange: HTTPExchange) -> dict:
             dict(url=link, provenance="html", relation="redirect", verify=True)
             for link in links
         ]
+    # Keep one strongest reference per URL/provenance within this source capture.
+    unique = {}
+    for reference in references:
+        key = (reference["url"], reference["provenance"])
+        if key not in unique or reference["verify"] and not unique[key]["verify"]:
+            unique[key] = reference
+    references = list(unique.values())
+    extracted_count = len(references)
     references = references[:MAX_LINKS]
     limited = limited or len(links) > MAX_LINKS
     links = [r["url"] for r in references]
+    if not exchange.body_complete:
+        reason, limited = "response_incomplete", True
+        fingerprint = content_fingerprint = None
     capture = {
         "version": 1,
+        "analysis": {
+            "input_bytes": len(exchange.body),
+            "body_complete": exchange.body_complete,
+            "bounded_extracted_references": extracted_count,
+            "retained_references": len(references),
+            "capture_omitted": extracted_count - len(references),
+            "static_only_references": sum(not r["verify"] for r in references),
+        },
         "reason": reason,
         "links": links,
         "references": references,
@@ -210,5 +261,15 @@ def inspect_response(url: str, exchange: HTTPExchange) -> dict:
         capture["links"].pop()
         capture["references"].pop()
         capture["public"]["parser_limited"] = True
+        capture["analysis"]["retained_references"] = len(capture["links"])
+        capture["analysis"]["capture_omitted"] = extracted_count - len(capture["links"])
+        capture["analysis"]["static_only_references"] = sum(
+            not r["verify"] for r in capture["references"]
+        )
+    capture["analysis"]["retained_references"] = len(capture["links"])
+    capture["analysis"]["capture_omitted"] = extracted_count - len(capture["links"])
+    capture["analysis"]["static_only_references"] = sum(
+        not r["verify"] for r in capture["references"]
+    )
     capture["public"]["link_count"] = len(capture["links"])
     return capture

@@ -23,8 +23,20 @@ class RelayServer(HTTPServer):
 
 class EnumerationRelay:
     def __init__(
-        self, runtime, mission_id, seed, *, active, maximum, run_id=None, entries=()
+        self,
+        runtime,
+        mission_id,
+        seed,
+        *,
+        active,
+        maximum,
+        run_id=None,
+        entries=(),
+        tool=None,
     ):
+        if tool not in {None, "gobuster", "ffuf"}:
+            raise ValueError("Unsupported enumeration provenance")
+        self.tool = tool or "link"
         self.runtime = runtime
         self.mission_id = mission_id
         parts = urlsplit(seed)
@@ -82,7 +94,11 @@ class EnumerationRelay:
                         with WebStore(relay.runtime.database) as store:
                             frontier = Frontier(store.db)
                             frontier.enqueue_candidates(
-                                relay.run_id, config, relay.runtime.owner, [target]
+                                relay.run_id,
+                                config,
+                                relay.runtime.owner,
+                                [target],
+                                relation=relay.tool,
                             )
                             route = next(
                                 (
