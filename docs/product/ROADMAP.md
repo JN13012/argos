@@ -34,11 +34,11 @@ de la même exécution. La [vérification groupée des exports](WEB_CLIENT_REPOR
 compare la couverture, les constats et l’index des preuves au même instantané
 de la base privée, avant la remise du rapport.
 
-**Priorité active : M2.5, Application Mapping Engine**.
-M2.4 est consolidé depuis `6298e8d` : intégrité des observations revalidée,
-contradictions conservées et suites Python 3.12/3.14 vertes. Intégration et
-publication main autorisées ; M2.5 réutilise ces observations hors ligne.
-M2.6 non commencé.
+**M2.5 livré : [Application Mapping Engine](APPLICATION_MAPPING.md)**.
+M2.4 intégré et publié sur main (`199ba35`), CI vérifiée verte. M2.5 validé
+localement sur trois fixtures et les workers HTTP/TLS 3.12/3.14 ; publication
+et fast-forward autorisés par la consigne finale de livraison.
+**Prochain lot : M2.6 à cadrer, non commencé.**
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -62,6 +62,7 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Reconnaissance par outils | [Pipeline Nmap → Gobuster → ffuf](WEB_RECON.md) validé localement sous Python 3.12/3.14 avec les vrais binaires ; énumération de chemins GET, extraction statique JavaScript/OpenAPI et provenance ; shell SPA distinct des soft 404, sans couverture universelle ; M2.1.1/M2.1.2 : registre administrateur, outils locaux isolés, `doctor`, lanceur et helpers permanents ; baseline locale renouvelée à découvertes identiques ; M2.2.1–3 : calibration SPA, inventaire web local et profils wordlists bornés, extraction statique priorisée et limites traçables ; qualification des profils et limites effectives documentées dans le lot recon (M2.2.4) |
 | Cartographie réseau M2.3 | [Profils et inventaire TCP multi-hôtes explicites](NETWORK_RECON.md), validés sur fixtures et laboratoire TCP local IPv4/IPv6 ; mêmes jobs, preuves et worker isolé, sans expansion du scope ; limites et validation détaillées dans le lot |
 | Fingerprinting M2.4 | [Identification passive et corrélation liées aux preuves](FINGERPRINTING.md), validées localement ; états et versions explicites, catalogue limité, aucun trafic ajouté par le moteur ; faux positifs/manques mesurés dans le lot |
+| Cartographie applicative M2.5 | [Graphe hors ligne lié aux preuves](APPLICATION_MAPPING.md) : hôtes/services/applications, ressources, formulaires, API/méthodes/paramètres attestés ou déclarés, technologies, relations et consultation ; états et limites explicites, aucune nouvelle capacité active |
 | Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |
