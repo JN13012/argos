@@ -19,6 +19,7 @@ from argos.backend.core.network_worker import NetworkTools
 from argos.backend.core.policy import Action
 from argos.backend.core.scope import TargetScope
 
+from .fingerprint import fingerprint, fingerprint_report
 from .network import network_report, run_network
 from .pipeline import run_pipeline
 from .store import ReconStore
@@ -33,6 +34,15 @@ def add_parser(commands):
     )
     catalog.add_argument("--wordlist-home", help="Administrator corpus root")
     catalog.set_defaults(action="recon_wordlists", json=True)
+    for name in ("fingerprint", "fingerprint-report"):
+        item = actions.add_parser(name)
+        item.set_defaults(action="recon_" + name, json=True)
+        item.add_argument("--db", default=DEFAULT_DB)
+        if name == "fingerprint-report":
+            item.add_argument("--run-id", type=UUID, required=True)
+        else:
+            item.add_argument("--mission-id", type=UUID)
+            item.add_argument("--network-run-id", type=UUID)
     for name in ("network-plan", "network-run", "network-report"):
         item = actions.add_parser(name)
         item.set_defaults(action="recon_" + name, json=True)
@@ -150,6 +160,12 @@ def dispatch(args):
             dict(mission_id=str(mission.id), state="draft", approval_required=True),
             True,
         )
+        return 0
+    if action == "fingerprint":
+        emit(fingerprint(path, args.mission_id, args.network_run_id), True)
+        return 0
+    if action == "fingerprint-report":
+        emit(fingerprint_report(path, args.run_id), True)
         return 0
     if action == "network-report":
         emit(network_report(path, args.run_id), True)
