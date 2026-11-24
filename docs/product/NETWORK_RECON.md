@@ -1,7 +1,7 @@
 # M2.3 — Network Recon Engine
 
-Validé sur fixtures et laboratoires locaux le 24 novembre 2026 ; branche dédiée
-non fusionnée et non publiée.
+Validation initiale sur fixtures et laboratoires locaux le 24 novembre 2026 ;
+consolidation et intégration ultérieures détaillées à la fin de ce document.
 
 ## Audit initial (24 novembre 2026)
 
@@ -241,3 +241,9 @@ la suite régulière sous 3.12 (90,13 s) et 3.14 (89,76 s) ; le cas supplémenta
 ignoré est le nouveau SIGSEGV hôte, qualifié séparément. Ruff, formatage,
 Pyright et `git diff --check` passent. Intégration M2.3 autorisée par cette
 consolidation ; la qualification reste locale et limitée aux scénarios décrits.
+
+
+Intégration après investigation : fast-forward et push de main au commit
+`b8f7e80`. La [CI du SHA exact](https://github.com/JN13012/argos/actions/runs/45500313079)
+a terminé avec succès : Python 3.12, Python 3.14 et frontend/navigateur UI.
+Cette CI régulière ne remplace pas les essais hôte ciblés décrits ci-dessus.
