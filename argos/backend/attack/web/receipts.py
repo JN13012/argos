@@ -151,7 +151,14 @@ def receipt(
 
     if state == "completed" and exchange is not None:
         from argos.backend.attack.recon.fingerprint_signals import http_indicators
+        from argos.backend.attack.recon.mapping_signals import application_signals
 
+        value["response"]["application"] = application_signals(
+            request.url,
+            exchange.headers,
+            exchange.body,
+            complete=exchange.body_complete,
+        )
         value["response"]["technology"] = http_indicators(
             exchange.headers,
             exchange.body,
