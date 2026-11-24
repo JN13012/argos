@@ -38,6 +38,7 @@ universelle sur des applications client.
 | Configuration web | [W1 boîte noire](product/WEB_W1_BLACKBOX.md), [configuration W1.1](product/WEB_CONFIG.md), exemples [HTTP v2](development/examples/web-mission-v2.json), [navigateur v3](development/examples/web-mission-v3.json), [interactions v4](development/examples/web-mission-v4.json) et [redirections v5](development/examples/web-mission-v5.json) |
 | HTTP | [Spécification W1.3](product/WEB_HTTP_EXECUTION.md), [politique W2.1](product/WEB_HTTP_POLICY.md), [transport W2.2](product/WEB_HTTP_TRANSPORT.md), [runtime W2.3](product/WEB_HTTP_RUNTIME.md) |
 | Découverte et premier test | [CLI W3.1](product/WEB_CLI_DISCOVERY.md), [redirection/recontrôle W3.2](product/WEB_OPEN_REDIRECT.md) |
+| Cartographie réseau bornée | [M2.3 Network Recon Engine](product/NETWORK_RECON.md) |
 | Reconnaissance par outils | [Pipeline Nmap, Gobuster et ffuf](product/WEB_RECON.md) |
 | Interactions | [W4.3](product/WEB_INTERACTIONS.md) : configuration, méthodes, corps/en-têtes et reprise |
 | Navigateur | [Worker W4.1](product/WEB_BROWSER_WORKER.md), [contrats et intégration W4.2](product/WEB_BROWSER_RUNTIME.md) |
