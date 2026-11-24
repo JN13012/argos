@@ -19,6 +19,12 @@ from argos.backend.core.network_worker import NetworkTools
 from argos.backend.core.policy import Action
 from argos.backend.core.scope import TargetScope
 
+from .application_mapping import (
+    application_report,
+    import_document,
+    map_application,
+    query_application,
+)
 from .fingerprint import fingerprint, fingerprint_report
 from .network import network_report, run_network
 from .pipeline import run_pipeline
@@ -34,6 +40,31 @@ def add_parser(commands):
     )
     catalog.add_argument("--wordlist-home", help="Administrator corpus root")
     catalog.set_defaults(action="recon_wordlists", json=True)
+    for name in ("map", "map-report", "map-query", "map-document"):
+        item = actions.add_parser(
+            name, help="Offline evidence-bound application mapping"
+        )
+        item.set_defaults(action="recon_" + name, json=True)
+        item.add_argument("--db", default=DEFAULT_DB)
+        if name in {"map-report", "map-query"}:
+            item.add_argument("--run-id", type=UUID, required=True)
+            if name == "map-query":
+                item.add_argument("--kind")
+                item.add_argument(
+                    "--state",
+                    choices=("observed", "inferred", "unknown", "contradictory"),
+                )
+                item.add_argument("--node-id")
+        elif name == "map-document":
+            item.add_argument("--mission-id", type=UUID, required=True)
+            item.add_argument("--base-url", required=True)
+            item.add_argument(
+                "--file", required=True, help="Owner-provided JSON OpenAPI"
+            )
+        else:
+            item.add_argument("--mission-id", type=UUID)
+            item.add_argument("--network-run-id", type=UUID)
+            item.add_argument("--document-id", type=UUID, action="append", default=[])
     for name in ("fingerprint", "fingerprint-report"):
         item = actions.add_parser(name)
         item.set_defaults(action="recon_" + name, json=True)
@@ -158,6 +189,35 @@ def dispatch(args):
             store.create(record)
         emit(
             dict(mission_id=str(mission.id), state="draft", approval_required=True),
+            True,
+        )
+        return 0
+    if action == "map-document":
+        emit(import_document(path, args.mission_id, args.base_url, args.file), True)
+        return 0
+    if action == "map":
+        emit(
+            map_application(
+                path,
+                args.mission_id,
+                args.network_run_id,
+                document_ids=args.document_id,
+            ),
+            True,
+        )
+        return 0
+    if action == "map-report":
+        emit(application_report(path, args.run_id), True)
+        return 0
+    if action == "map-query":
+        emit(
+            query_application(
+                path,
+                args.run_id,
+                kind=args.kind,
+                state=args.state,
+                node_id=args.node_id,
+            ),
             True,
         )
         return 0
