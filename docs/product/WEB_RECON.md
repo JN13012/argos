@@ -478,3 +478,25 @@ sont SHA-identiques. Sept essais mesurés, instances réinitialisées, contrôle
 anti-cheat réappliqués, processus arrêtés et grants révoqués ; isolation globale
 reste non qualifiée. Bilan privé `.argos/qualifications/m224/report.{json,html}`.
 Aucun changement frontend, scan externe, exploitation, merge ou push.
+
+## Consolidation M2.2
+
+Base revue : `7ea93d3`, arbre initial propre. M2.2 est une amélioration bornée de
+la reconnaissance web ; aucun gain sur le référentiel GET partiel n'est démontré.
+Les profils ne sont pas cumulatifs ; frontière et délais peuvent interrompre
+l'énumération avant son budget HTTP. L'extraction JS reste heuristique, sans AST,
+sessions ou résolution générale. L'isolation globale de l'agent n'est pas
+qualifiée. Ces limites restent ouvertes ; aucune optimisation supplémentaire
+spécifique à Juice Shop n'est engagée. La suite est M2.3, sur les mêmes
+jobs, autorisations, workers et preuves, sans commencer le fingerprinting M2.4.
+
+Revalidation de consolidation le 24 novembre 2026 : suite régulière complète
+**1 112 réussis, 103 ignorés** sous Python 3.14 (205,28 s) et 3.12 (204,17 s),
+avec la configuration administrateur permanente. Qualification hôte M2.2 sous
+3.14 : `ARGOS_TEST_NETWORK=1 ARGOS_TEST_TOOL_REGISTRY=... pytest -q
+ tests/test_recon_network.py -o faulthandler_timeout=30` : **14 réussis, deux
+variantes APT ignorées**, 196,90 s. Les preuves précédentes sous 3.12 restent
+celles du bilan M2.2.4, sans nouvelle qualification hôte 3.12 de consolidation.
+Ruff, formatage, Pyright et `git diff --check` passent. Les premiers essais dans
+le sandbox, privés de sockets locales, ont été arrêtés et remplacés par ces
+exécutions hôte. Aucun nouvel essai Juice Shop, scan externe ou frontend.
