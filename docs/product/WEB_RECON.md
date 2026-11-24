@@ -327,3 +327,30 @@ Les interruptions/timeouts restent des états explicites, avec nombres d'entrée
 sans réponse, erreurs, profils et horodatages. Validation ciblée : 94 réussis,
 deux variantes système ignorées ; témoin réel de même taille : un réussi.
 Les budgets signés et le confinement restent inchangés.
+
+## M2.2.2 — Wordlists locales
+
+`argos recon wordlists` inventorie hors réseau SecLists `Discovery/Web-Content`
+et Assetnote sous `ARGOS_WORDLIST_HOME` (ou `--wordlist-home`) : catégorie,
+source déclarée, octets/lignes, SHA-256, compatibilité et rejets. Les collections
+de mots de passe sont exclues ; les listes nommées Passwords sont inéligibles.
+Inventaire local : 383 fichiers, 231 839 675 octets ; aucun original modifié.
+
+`recon plan/run --wordlist-profile quick|standard|deep` sélectionne des
+sous-ensembles déterministes en mémoire. Quick conserve les listes intégrées ;
+Standard utilise SecLists common + Assetnote txt ; Deep utilise Raft small
+répertoires + Assetnote API. `--wordlist`/`--ffuf-wordlist` remplacent ces choix.
+
+| Profil | Entrées par outil | Enveloppe maximale de mission HTTP / durée |
+| --- | --- | --- |
+| quick | 32 | 150 / 900 s |
+| standard | 128 | 1 000 / 1 800 s |
+| deep | 256 | 5 000 / 7 200 s |
+
+Une mission signée dépassant cette enveloppe est refusée ; aucun budget n'est
+augmenté. Les autres limites signées restent effectives et peuvent arrêter plus
+tôt. Ce ne sont pas des parcours exhaustifs des corpus. Le préfixe `/` unique
+est converti en chemin relatif au seed ; URLs, paramètres, traversées et lignes
+invalides sont rejetés et comptés. SHA source/sélection, troncature et provenance
+sont archivés dans le bilan recon. Aucun téléchargement ni fichier dérivé.
+Validation ciblée : 29 réussis ; limites, intégrité, profils et CLI hors réseau.

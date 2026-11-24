@@ -21,11 +21,17 @@ from argos.backend.core.scope import TargetScope
 from .pipeline import run_pipeline
 from .store import ReconStore
 from .tools import DIRECTORIES, FILES, load_words
+from .wordlists import PROFILES, check_budget, home, inventory, selection
 
 
 def add_parser(commands):
     parser = commands.add_parser("recon", help="Nmap, HTML, Gobuster and ffuf pipeline")
     actions = parser.add_subparsers(required=True)
+    catalog = actions.add_parser(
+        "wordlists", help="Read-only local web corpus inventory"
+    )
+    catalog.add_argument("--wordlist-home", help="Administrator corpus root")
+    catalog.set_defaults(action="recon_wordlists", json=True)
     for name in ("plan", "run", "report", "network-init"):
         item = actions.add_parser(name)
         item.set_defaults(action="recon_" + name, json=True)
@@ -39,6 +45,8 @@ def add_parser(commands):
             item.add_argument("--reference", required=True)
         else:
             item.add_argument("--mission-id", type=UUID, required=True)
+            item.add_argument("--wordlist-profile", choices=tuple(PROFILES))
+            item.add_argument("--wordlist-home", help="Administrator corpus root")
             item.add_argument(
                 "--wordlist", help="Gobuster relative paths, max 256 entries"
             )
@@ -70,6 +78,9 @@ def add_parser(commands):
 
 def dispatch(args):
     action = args.action.removeprefix("recon_")
+    if action == "wordlists":
+        emit(inventory(home(args.wordlist_home)), True)
+        return 0
     path = private_path(args.db, create=action == "network-init")
     if action == "network-init":
         address = ipaddress.ip_address(args.target_ip)
@@ -96,8 +107,17 @@ def dispatch(args):
         with ReconStore(path, readonly=True) as store:
             emit(store.get(args.run_id), True)
         return 0
-    directories = load_words(args.wordlist, DIRECTORIES)
-    files = load_words(args.ffuf_wordlist, FILES)
+    metadata = None
+    if args.wordlist_profile:
+        directories, files, metadata = selection(
+            args.wordlist_profile,
+            home(args.wordlist_home) if args.wordlist_home else None,
+            args.wordlist,
+            args.ffuf_wordlist,
+        )
+    else:
+        directories = load_words(args.wordlist, DIRECTORIES)
+        files = load_words(args.ffuf_wordlist, FILES)
     ports = (
         tuple(sorted({int(port) for port in args.ports.split(",")}))
         if args.ports
@@ -109,6 +129,7 @@ def dispatch(args):
         if record is None or record.web_configuration is None:
             raise ValueError("Web mission required")
         config = WebMissionConfig.from_json(record.web_configuration)
+        check_budget(config, args.wordlist_profile)
         emit(
             dict(
                 stages=["nmap", "html", "gobuster", "ffuf", "html_expansion"],
@@ -116,6 +137,7 @@ def dispatch(args):
                     args.network_mission_id and args.target_ip and ports
                 ),
                 seeds=len(config.seeds),
+                wordlists=metadata,
                 directory_entries=len(directories),
                 file_entries=len(files),
                 network_requests_sent=0,
@@ -143,6 +165,7 @@ def dispatch(args):
             args.mission_id,
             directories=directories,
             files=files,
+            wordlist_selection=metadata,
             network_mission_id=args.network_mission_id,
             target_ip=args.target_ip,
             ports=ports,

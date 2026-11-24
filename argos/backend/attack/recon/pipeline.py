@@ -27,6 +27,7 @@ from argos.backend.core.network_worker import NetworkWorker
 from .relay import EnumerationRelay
 from .store import ReconStore
 from .tools import EnumerationWorker, words
+from .wordlists import check_budget
 
 
 def run_pipeline(
@@ -36,6 +37,7 @@ def run_pipeline(
     *,
     directories,
     files,
+    wordlist_selection=None,
     network_mission_id=None,
     target_ip=None,
     ports=(),
@@ -47,6 +49,7 @@ def run_pipeline(
     directories, files = words(directories), words(files)
     stop = stop if stop is not None else threading.Event()
     config = WebPolicy(database, verifier).configuration(mission_id)
+    check_budget(config, wordlist_selection["profile"] if wordlist_selection else None)
     if bool(network_mission_id) != bool(target_ip) or bool(target_ip) != bool(ports):
         raise ValueError("Nmap requires a separate signed IP mission, target and ports")
     plan = (
@@ -63,6 +66,7 @@ def run_pipeline(
         reason="running",
         configuration_sha256=digest(json.loads(config.to_json())),
         confirmed_findings=0,
+        wordlists=wordlist_selection,
         stages=[],
         limitations=[
             "bounded_wordlists",
