@@ -10,6 +10,8 @@ from uuid import UUID
 from dotenv import load_dotenv
 
 from .backend.attack.recon.cli import add_parser as add_recon_parser
+from .backend.attack.review.cli import add_parser as add_review_parser
+from .backend.attack.review.cli import execute as execute_review
 from .backend.attack.web.cli import add_parser as add_web_parser
 from .backend.attack.web.cli import execute as execute_web
 from .backend.intel.osint.connectors import SireneConnector
@@ -81,6 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_web_parser(commands)
     add_recon_parser(commands)
+    add_review_parser(commands)
     return parser
 
 
@@ -137,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
         return doctor(args)
     if args.action.startswith(("web_", "recon_")):
         return execute_web(args)
+    if args.action.startswith("review_"):
+        return execute_review(args)
     try:
         if args.action == "report" and not Path(args.db).is_file():
             raise ValueError("Saved search database does not exist")
