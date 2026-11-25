@@ -20,9 +20,11 @@ python -m argos web resume --run-id UUID --public-key reviewer.pub.pem --json
 python -m argos web report --run-id UUID --json
 ```
 
-Toutes acceptent `--db`, par défaut `.argos/web/missions.sqlite3`. Le répertoire
-est créé en 0700, la base en 0600 ; un répertoire existant trop permissif est
-refusé sans modifier ses droits. `init` accepte une URL ou un domaine et crée
+Toutes acceptent `--db`. Dans un clone, la base implicite est
+`data/missions/missions.sqlite3` et suit la
+[configuration du stockage](M351_DATA_ARCHITECTURE.md).
+Le répertoire est créé en 0700 et la base en 0600. Un répertoire explicite
+trop permissif est refusé sans modifier ses droits. `init` accepte une URL ou un domaine et crée
 un brouillon v2 externe. `--config fichier.json` remplace la cible pour une
 configuration v2 explicite, notamment le profil privé d'évaluation. Un format
 v1 n'est jamais converti silencieusement en permission d'exécution.
@@ -73,10 +75,11 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from argos.backend.core.approvals import issue_offline_approval
 from argos.backend.core.mission_store import MissionStore
+from argos.data_paths import data_path
 
 key = load_pem_private_key(Path("reviewer.pem").read_bytes(), password=None)
 assert isinstance(key, Ed25519PrivateKey)
-with MissionStore(".argos/web/missions.sqlite3") as store:
+with MissionStore(data_path("missions", "missions.sqlite3")) as store:
     record = store.get(UUID("REMPLACER_PAR_UUID_MISSION"))
 assert record is not None
 approval = issue_offline_approval(

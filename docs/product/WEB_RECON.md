@@ -35,7 +35,8 @@ python -m argos recon run \
   --ffuf-wordlist /chemin/prive/files.txt
 ```
 
-`--db` permet de choisir la base ; défaut `.argos/web/missions.sqlite3`.
+`--db` permet de choisir la base. Le défaut dans le clone est
+`data/missions/missions.sqlite3` ([configuration](M351_DATA_ARCHITECTURE.md)).
 `recon plan --mission-id UUID_WEB` est hors réseau.
 `recon report --run-id UUID_RECON` relit le bilan JSON enregistré.
 Le bilan contient l’UUID de découverte, utilisable avec les commandes existantes

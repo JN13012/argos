@@ -220,7 +220,7 @@ uv run python -m argos osint discover --help
 
 `discover` takes an activity, a location and an explicit SIRENE query; `--name` sets a readable folder name and `--max-pages` bounds the collection.
 
-Each run stores observations in `.argos/osint/argos.sqlite3` and writes a numbered report under `outputs/sirene/RESEARCH_NAME/rapport-001.md`. Reports list the scope, coverage, source, query and establishments; partial searches are marked as non-exhaustive. Both folders are excluded from Git.
+Each run stores observations in `data/missions/osint/argos.sqlite3` and writes a numbered report under `data/missions/osint/reports/sirene/RESEARCH_NAME/rapport-001.md`. Set `ARGOS_DATA_HOME` to relocate the private [data directory](docs/product/M351_DATA_ARCHITECTURE.md). Reports list the scope, coverage, source, query and establishments; partial searches are marked as non-exhaustive. Both folders are excluded from Git.
 
 Export a saved search again, without an API call or key:
 

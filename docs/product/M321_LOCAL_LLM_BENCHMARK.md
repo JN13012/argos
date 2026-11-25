@@ -126,7 +126,10 @@ Une seule reproduction Qwen3 4B a retrouvé le hash de la requête crAPI,
 réponses perdues. Sa durée de 30,073 s inclut validation et `/api/ps`, contrairement
 aux latences historiques du POST seul. Aucun des scores ne mesure de prose libre.
 
-Le stockage local permanent est désormais `$HOME/.local/share/argos` :
+Depuis M3.5-C.1, consulter la [configuration des données locales](M351_DATA_ARCHITECTURE.md)
+pour les nouveaux chemins et la migration.
+
+Le stockage utilisé lors de cette qualification était `$HOME/.local/share/argos` :
 
 - `ollama/runtime` : binaire et bibliothèques Linux existants ;
 - `ollama/models` : cinq manifestes et blobs existants, déplacés sans téléchargement ;

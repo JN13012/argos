@@ -32,6 +32,9 @@ embeddings, apprentissage ni Knowledge Engine M3.5.
 
 ## Contrats et utilisation
 
+Depuis M3.5-C.1, consulter la [configuration des données locales](M351_DATA_ARCHITECTURE.md)
+pour les nouveaux chemins et la migration.
+
 `MemoryEngine(root, mission_id)` expose `capture`, `search`, `get`, `focus`,
 `forget`, `info` et `working_context`. Le contrat de récupération `MemoryReader`
 est une frontière typée pour les futurs consommateurs de connaissances ;
