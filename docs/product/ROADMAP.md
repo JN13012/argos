@@ -58,6 +58,9 @@ validations locales et CI verte. M3.3 est intégré sur main par fast-forward, a
 [M3.5-C.1](M351_DATA_ARCHITECTURE.md) centralise le stockage local et documente
 sa migration sur la branche de travail. L'implémentation du Knowledge Engine
 reste à planifier.
+[M3.5-E](M35_RETRIEVAL_BENCHMARK.md) qualifie localement FTS5, trois modèles
+d'embeddings, RRF et trois moteurs exacts. Le banc reste sur sa branche de
+validation. Le Knowledge Engine de production reste à implémenter.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
