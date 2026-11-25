@@ -74,7 +74,10 @@ def chosen(plan):
     return [c for c in plan["selection"]["candidates"] if c["decision"] == "selected"]
 
 
-def test_verified_map_promotes_documented_reads_and_deduplicates_offline(prepared):
+@pytest.mark.parametrize("profile", ["quick", "standard", "deep"])
+def test_verified_map_promotes_documented_reads_and_deduplicates_offline(
+    prepared, profile
+):
     fixture = prepared()
     with (
         patch("socket.socket", side_effect=AssertionError("Planner opened a socket")),
@@ -82,8 +85,8 @@ def test_verified_map_promotes_documented_reads_and_deduplicates_offline(prepare
             "subprocess.Popen", side_effect=AssertionError("Planner launched a process")
         ),
     ):
-        contextual = make_plan(fixture)
-        baseline = make_plan(fixture, strategy="predefined")
+        contextual = make_plan(fixture, profile=profile)
+        baseline = make_plan(fixture, strategy="predefined", profile=profile)
     assert {"http://target/api/catalog", "http://target/api/health"} <= {
         c["url"] for c in chosen(contextual)
     }
