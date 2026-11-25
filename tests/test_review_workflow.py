@@ -223,11 +223,38 @@ def test_provider_crash_records_failure_and_does_not_expose_error_text(
     journal = tmp_path / "review.sqlite"
     saved = create_workflow(db, journal, mid)
     rid = UUID(saved["review_id"])
-    with pytest.raises(RuntimeError):
-        asyncio.run(
-            analyze_workflow(db, journal, rid, Model(error=RuntimeError("secret")))
-        )
-    report = read_workflow(journal, rid)
+    report = asyncio.run(
+        analyze_workflow(db, journal, rid, Model(error=RuntimeError("secret")))
+    )
     assert report["state"] == "failed"
     assert "secret" not in json.dumps(report)
     assert asyncio.run(analyze_workflow(db, journal, rid, Model()))["state"] == "ready"
+
+
+def test_critical_sidecar_survives_context_truncation(archived, tmp_path, monkeypatch):
+    from argos.backend.attack.review import context, workflow
+
+    db, mid, *_ = archived
+    snapshot = workflow.mission_snapshot(db, mid)
+    original = context._items(snapshot["snapshot"], snapshot["sha256"])
+    source = original[0]["source"]
+    synthetic = original + [
+        {
+            "state": "unknown",
+            "kind": "synthetic_coverage_gap",
+            "count": i,
+            "source": source,
+        }
+        for i in range(300)
+    ]
+    monkeypatch.setattr(context, "_items", lambda *_: synthetic)
+    monkeypatch.setattr(workflow, "_items", lambda *_: synthetic)
+    journal = tmp_path / "review.sqlite"
+    saved = create_workflow(db, journal, mid)
+    assert saved["omitted_items"]["unknown"] > 0
+    expected = [i for i in synthetic if i["state"] in {"unknown", "contradiction"}]
+    assert saved["critical_items"] == expected
+    result = asyncio.run(
+        analyze_workflow(db, journal, UUID(saved["review_id"]), Model())
+    )
+    assert result["critical_items"] == expected

@@ -183,6 +183,12 @@ def read_workflow(
         "omitted_items": created["review"]["context"]["omitted_items"],
         "attempt_count": sum(e["kind"] == "analyzing" for e in history),
         "latest_analysis": attempts[-1]["data"] if attempts else None,
+        "operator_annotations": [
+            e["data"] for e in history if e["kind"] == "annotation"
+        ],
+        "human_decision": next(
+            (e["data"] for e in history if e["kind"] == "accepted"), None
+        ),
         "execution_authorized": False,
         "events": history,
     }
@@ -283,17 +289,17 @@ async def analyze_workflow(
             started["sha256"],
         )
         raise
-    except Exception:
+    except Exception as error:
         # Persist a safe code, never exception text that could contain target data.
         _append(
             journal,
             str(review_id),
             "failed",
             "failed",
-            {"error": "unexpected_provider_error"},
+            {"error": "unexpected_provider_error", "error_type": type(error).__name__},
             started["sha256"],
         )
-        raise
+        return read_workflow(journal, review_id)
     state = "ready" if result["status"] == "completed" else "failed"
     _append(
         journal,
