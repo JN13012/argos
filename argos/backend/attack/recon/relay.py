@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlsplit, urlunsplit
@@ -33,10 +34,16 @@ class EnumerationRelay:
         run_id=None,
         entries=(),
         tool=None,
+        strict_entries=False,
+        admit=None,
+        on_observation=None,
     ):
         if tool not in {None, "gobuster", "ffuf"}:
             raise ValueError("Unsupported enumeration provenance")
         self.tool = tool or "link"
+        self.strict_entries = strict_entries
+        self.admit = admit
+        self.on_observation = on_observation
         self.runtime = runtime
         self.mission_id = mission_id
         parts = urlsplit(seed)
@@ -85,7 +92,25 @@ class EnumerationRelay:
                 try:
                     if relative:
                         words((relative,))
+                    if relay.strict_entries and relative not in relay.entries:
+                        control = relay.tool == "gobuster" and (
+                            not relative
+                            or re.fullmatch(
+                                r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/?",
+                                relative,
+                            )
+                        )
+                        if not control:
+                            relay.errors.append("unplanned_tool_path")
+                            self.send_error(403)
+                            return
                     target = relay.base + relative
+                    if relay.admit:
+                        refusal = relay.admit(target, relative in relay.entries)
+                        if refusal:
+                            relay.errors.append(refusal)
+                            self.send_error(429 if refusal == "request_budget" else 403)
+                            return
                     request = WebRequest(relay.mission_id, target)
                     responses = []
                     route_id = None
@@ -137,6 +162,8 @@ class EnumerationRelay:
                     proof = relay.runtime.evidence(rid)
                     item["response"] = proof["response"] if proof else None
                     relay.observations.append(item)
+                    if relay.on_observation:
+                        relay.on_observation(item)
                     if not responses or not relay.active():
                         relay.errors.append(snapshot.error or "response_unavailable")
                         try:

@@ -167,7 +167,6 @@ def run_pipeline(
                     except PermissionError:
                         return False
 
-                enumerator = EnumerationWorker(tools)
                 for tool, entries in (("gobuster", directories), ("ffuf", files)):
                     for seed in config.seeds:
                         item = stage(tool)
@@ -180,103 +179,19 @@ def run_pipeline(
                             item.update(state="blocked", reason="mission_stopped")
                             archive.save(value)
                             continue
-                        try:
-                            # Include Gobuster's root and random-404 prechecks.
-                            with EnumerationRelay(
-                                runtime,
-                                mission_id,
-                                seed,
-                                active=active,
-                                maximum=len(entries) + 4,
-                                run_id=run_id,
-                                entries=entries,
-                                tool=tool,
-                            ) as relay:
-                                calibration = []
-                                with WebStore(database, readonly=True) as store:
-                                    for control in Frontier(store.db).routes(run_id):
-                                        if (
-                                            control["kind"] != "probe"
-                                            or not control["request_id"]
-                                        ):
-                                            continue
-                                        if (
-                                            urlsplit(control["url"]).netloc
-                                            != urlsplit(seed).netloc
-                                            or urlsplit(control["url"]).scheme
-                                            != urlsplit(seed).scheme
-                                        ):
-                                            continue
-                                        capture = Frontier(store.db).capture(
-                                            UUID(control["request_id"])
-                                        )
-                                        proof = store.evidence(
-                                            UUID(control["request_id"])
-                                        )
-                                        if (
-                                            capture
-                                            and capture.get("fingerprint")
-                                            and proof
-                                            and proof.get("response")
-                                        ):
-                                            response = proof["response"]
-                                            if 200 <= response["status"] < 300:
-                                                calibration.append(
-                                                    dict(
-                                                        request_id=control[
-                                                            "request_id"
-                                                        ],
-                                                        length=response[
-                                                            "retained_bytes"
-                                                        ],
-                                                    )
-                                                )
-                                # Native filters never remove relay evidence.
-                                exclude_lengths = tuple(
-                                    sorted({c["length"] for c in calibration})
-                                )[:4]
-                                item["calibration"] = calibration[:4]
-                                item["profile"] = enumerator.profile(
-                                    tool, relay.server.server_port, exclude_lengths
-                                )
-                                archive.save(value)
-                                result = enumerator.run(
-                                    tool,
-                                    entries,
-                                    relay.server.server_port,
-                                    relay.token,
-                                    active=lambda: (
-                                        active() and relay.requests <= relay.maximum
-                                    ),
-                                    cancel=stop,
-                                    expected_profile=item["profile"],
-                                    exclude_lengths=exclude_lengths,
-                                )
-                            item.update(result)
-                            item["finished_at"] = datetime.now(UTC).isoformat()
-                            item["requests"] = relay.observations
-                            item["errors"] = sorted(set(relay.errors))
-                            item["entries_with_response"] = len(relay.served_entries)
-                            item["entries_without_response"] = len(
-                                set(entries) - relay.served_entries
-                            )
-                            # Keep the actual terminal state and stop reason.
-                            if result["state"] != "completed":
-                                item["reason"] = f"worker_{result['state']}"
-                            elif (
-                                result["exit_code"] != 0
-                                or relay.errors
-                                or not relay.observations
-                                or not set(entries) <= relay.served_entries
-                            ):
-                                item.update(
-                                    state="partial",
-                                    reason="tool_exit_error"
-                                    if result["exit_code"] != 0
-                                    else "request_or_coverage_incomplete",
-                                )
-                        except IsolationError:
-                            item.update(state="blocked", reason="isolation_unavailable")
+                        enumerate_paths(
+                            runtime,
+                            mission_id,
+                            seed,
+                            tool,
+                            entries,
+                            item,
+                            active=active,
+                            stop=stop,
+                            tools=tools,
+                            run_id=run_id,
+                            checkpoint=lambda: archive.save(value),
+                        )
                         archive.save(value)
                 finish = stage("html_expansion")
                 with WebStore(database, readonly=True) as store:
@@ -334,3 +249,102 @@ def run_pipeline(
             archive.save(value)
             raise
         return value
+
+
+def enumerate_paths(
+    runtime,
+    mission_id,
+    seed,
+    tool,
+    entries,
+    item,
+    *,
+    active,
+    stop,
+    tools=None,
+    run_id=None,
+    checkpoint=lambda: None,
+    relay_options=None,
+):
+    """One shared execution path for legacy and contextual plans."""
+    enumerator = EnumerationWorker(tools)
+    try:
+        # Include Gobuster's root and random-404 prechecks.
+        with EnumerationRelay(
+            runtime,
+            mission_id,
+            seed,
+            active=active,
+            maximum=len(entries) + 4,
+            run_id=run_id,
+            entries=entries,
+            tool=tool,
+            **(relay_options or {}),
+        ) as relay:
+            calibration = []
+            with WebStore(runtime.database, readonly=True) as store:
+                for control in Frontier(store.db).routes(run_id) if run_id else []:
+                    if control["kind"] != "probe" or not control["request_id"]:
+                        continue
+                    if (
+                        urlsplit(control["url"]).netloc != urlsplit(seed).netloc
+                        or urlsplit(control["url"]).scheme != urlsplit(seed).scheme
+                    ):
+                        continue
+                    capture = Frontier(store.db).capture(UUID(control["request_id"]))
+                    proof = store.evidence(UUID(control["request_id"]))
+                    if (
+                        capture
+                        and capture.get("fingerprint")
+                        and proof
+                        and proof.get("response")
+                    ):
+                        response = proof["response"]
+                        if 200 <= response["status"] < 300:
+                            calibration.append(
+                                dict(
+                                    request_id=control["request_id"],
+                                    length=response["retained_bytes"],
+                                )
+                            )
+            # Native filters never remove relay evidence.
+            exclude_lengths = tuple(sorted({c["length"] for c in calibration}))[:4]
+            item["calibration"] = calibration[:4]
+            item["profile"] = enumerator.profile(
+                tool, relay.server.server_port, exclude_lengths
+            )
+            checkpoint()
+            result = enumerator.run(
+                tool,
+                entries,
+                relay.server.server_port,
+                relay.token,
+                active=lambda: active() and relay.requests <= relay.maximum,
+                cancel=stop,
+                expected_profile=item["profile"],
+                exclude_lengths=exclude_lengths,
+            )
+        item.update(result)
+        item["finished_at"] = datetime.now(UTC).isoformat()
+        item["requests"] = relay.observations
+        item["errors"] = sorted(set(relay.errors))
+        item["entries_with_response"] = len(relay.served_entries)
+        item["entries_without_response"] = len(set(entries) - relay.served_entries)
+        # Keep the actual terminal state and stop reason.
+        if result["state"] != "completed":
+            item["reason"] = f"worker_{result['state']}"
+        elif (
+            result["exit_code"] != 0
+            or relay.errors
+            or not relay.observations
+            or not set(entries) <= relay.served_entries
+        ):
+            item.update(
+                state="partial",
+                reason="tool_exit_error"
+                if result["exit_code"] != 0
+                else "request_or_coverage_incomplete",
+            )
+    except IsolationError:
+        item.update(state="blocked", reason="isolation_unavailable")
+    return item
