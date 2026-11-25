@@ -250,6 +250,29 @@ def mission_review(
     if expected_head is not None and journal is None:
         raise ValueError("Expected journal path with head checkpoint")
     result = mission_snapshot(database, mission_id)
+    report = review_snapshot(result, max_context_bytes=max_context_bytes)
+    if journal is not None:
+        saved = read_journal(
+            journal, mission_id=mission_id, expected_head=expected_head
+        )
+        report["operator_journal"] = {
+            "version": saved["version"],
+            "head_sha256": saved["head_sha256"],
+            "mission_decisions": len(saved["entries"]),
+            "matching_snapshot": sum(
+                entry["input"]["snapshot_sha256"] == result["sha256"]
+                for entry in saved["entries"]
+            ),
+        }
+    return report
+
+
+def review_snapshot(
+    result: dict, *, max_context_bytes: int = DEFAULT_CONTEXT_BYTES
+) -> dict:
+    """Build a redacted context from one verified snapshot."""
+    if type(max_context_bytes) is not int or not 4096 <= max_context_bytes <= 131_072:
+        raise ValueError("Context limit must be between 4096 and 131072 bytes")
     snapshot, sha = result["snapshot"], result["sha256"]
     items = _items(snapshot, sha)
     counts = Counter(item["state"] for item in items)
@@ -300,16 +323,4 @@ def mission_review(
         },
         "operator_journal": None,
     }
-    if journal is not None:
-        saved = read_journal(
-            journal, mission_id=mission_id, expected_head=expected_head
-        )
-        report["operator_journal"] = {
-            "version": saved["version"],
-            "head_sha256": saved["head_sha256"],
-            "mission_decisions": len(saved["entries"]),
-            "matching_snapshot": sum(
-                entry["input"]["snapshot_sha256"] == sha for entry in saved["entries"]
-            ),
-        }
     return report

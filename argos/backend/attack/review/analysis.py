@@ -132,6 +132,14 @@ async def analyze_mission(
         raise ValueError("Analysis context must be between 4096 and 16384 bytes")
     started = perf_counter()
     review = mission_review(database, mission_id, max_context_bytes=max_context_bytes)
+    return await analyze_context(review, provider, context_started=started)
+
+
+async def analyze_context(
+    review: dict, provider: LLMProvider, *, context_started: float | None = None
+) -> dict:
+    """Analyze an already frozen context without reading the archive a second time."""
+    started = context_started if context_started is not None else perf_counter()
     context = review["context"]
     request, observations = _request(context)
     available = Counter(item["state"] for item in observations)
