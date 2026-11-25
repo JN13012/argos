@@ -51,3 +51,28 @@ des valeurs de query et le rejet d'un reçu altéré. La relecture des trois
 bases privées M2.7.1 (crAPI, DVWA et Juice Shop) couvre cinq projections par
 mission et respectivement 38, 37 et 58 transactions HTTP. Les empreintes
 des trois snapshots coïncident sous Python 3.12 et 3.14.
+
+## C — Capability Registry
+
+```bash
+python -m argos review capabilities
+python -m argos review capabilities --registry REGISTRE_ADMIN.toml
+```
+
+L'API `capability_registry(registry=None)` renvoie l'inventaire
+`capability-registry-v1` trié par identifiant. Chaque fiche décrit le mode,
+les prérequis, les entrées, les sorties et les restrictions de la capacité.
+Les entrées et sorties sont des descriptions, sans commande ni adaptateur
+d'exécution.
+
+Sans registre explicite, l'état des outils est `not_checked`. Avec un
+`ToolRegistry` chargé par l'appelant (ou `--registry` au CLI), l'identité
+des dépendances est vérifiée par le registre existant. Les états exposés
+sont `identity_verified`, `missing` et `invalid`. Aucun chemin local de
+binaire ni aucune épingle d'installation ne figure dans la sortie.
+`local_reader` signale une interface de lecture livrée. L'environnement
+d'exécution et les autorisations de mission ne sont pas testés.
+
+Les deux tests de `tests/test_capability_registry.py` couvrent le résultat
+déterministe sans registre et les états d'identité sur un registre synthétique.
+La création d'un sous-processus y est interdite par la fixture.

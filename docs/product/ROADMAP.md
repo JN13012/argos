@@ -44,8 +44,9 @@ poussé.
 
 L'[audit préalable M3.1](DECISION_ENGINE_AUDIT.md) documente les interfaces
 existantes et les vérifications sur les archives. [Fondations M3.1](M31_FOUNDATIONS.md) :
-B, snapshot de mission disponible hors ligne. Le moteur de sélection
-automatique reste à l'état non implémenté.
+B, snapshot de mission hors ligne, et C, inventaire descriptif des capacités,
+sont disponibles. Le moteur de sélection automatique reste à l'état non
+implémenté.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
