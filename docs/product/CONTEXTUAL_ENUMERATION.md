@@ -1,5 +1,8 @@
 # M2.6 — Contextual Enumeration Engine
 
+Le bilan ci-dessous décrit M2.6. La [consolidation M2.7.1](RECON_CONSOLIDATION.md)
+aligne la calibration des deux adaptateurs sans modifier leurs plafonds.
+
 ## Audit et tranche livrée
 
 Base : main `4094171`. Aucune boucle LLM, aucun travail M2.7/M3. Le moteur

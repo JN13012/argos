@@ -38,7 +38,7 @@ universelle sur des applications client.
 | Configuration web | [W1 boîte noire](product/WEB_W1_BLACKBOX.md), [configuration W1.1](product/WEB_CONFIG.md), exemples [HTTP v2](development/examples/web-mission-v2.json), [navigateur v3](development/examples/web-mission-v3.json), [interactions v4](development/examples/web-mission-v4.json) et [redirections v5](development/examples/web-mission-v5.json) |
 | HTTP | [Spécification W1.3](product/WEB_HTTP_EXECUTION.md), [politique W2.1](product/WEB_HTTP_POLICY.md), [transport W2.2](product/WEB_HTTP_TRANSPORT.md), [runtime W2.3](product/WEB_HTTP_RUNTIME.md) |
 | Découverte et premier test | [CLI W3.1](product/WEB_CLI_DISCOVERY.md), [redirection/recontrôle W3.2](product/WEB_OPEN_REDIRECT.md) |
-| Qualification de la reconnaissance | [M2.7 multi-laboratoires](product/RECON_QUALIFICATION.md) : comparaison de missions complètes, résultats et limites avant M3 |
+| Qualification de la reconnaissance | [M2.7 multi-laboratoires](product/RECON_QUALIFICATION.md) et [consolidation M2.7.1](product/RECON_CONSOLIDATION.md) : comparaison de missions complètes, résultats et limites avant M3 |
 | Énumération contextuelle | [M2.6 Contextual Enumeration Engine](product/CONTEXTUAL_ENUMERATION.md) |
 | Cartographie applicative | [M2.5 Application Mapping Engine](product/APPLICATION_MAPPING.md) |
 | Identification technologique | [M2.4 Fingerprinting Engine](product/FINGERPRINTING.md) |

@@ -1,5 +1,8 @@
 # M2.4 — Fingerprinting Engine
 
+Le bilan ci-dessous décrit M2.4. La [consolidation M2.7.1](RECON_CONSOLIDATION.md)
+versionne les nouveaux signaux et conserve la lecture des anciennes projections.
+
 ## Audit et bilan comparatif
 
 Base de développement : M2.3 consolidé sur `b8f7e80`, après `056a6ae`.

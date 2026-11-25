@@ -328,7 +328,7 @@ def http_indicators_v2(headers, body: bytes, *, complete: bool, tls=None) -> dic
                 signals.append(
                     indicator("react", "javascript", "react-production-symbols")
                 )
-            # Preserve v1's licensed/banners logic also for larger complete files.
+            # Preserve v1 banner matching also for larger complete files.
             for product, tech in (("React", "react"), ("jQuery", "jquery")):
                 for match in re.finditer(
                     rf"/\*![ \t]*{product}[ \t]+v?({VERSION})(?=[\s*])", text, re.I

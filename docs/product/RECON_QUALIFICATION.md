@@ -1,5 +1,8 @@
 # M2.7 — Qualification multi-laboratoires
 
+Ce bilan conserve l'état M2.7 avant publication. La [consolidation M2.7.1](RECON_CONSOLIDATION.md)
+porte les corrections prioritaires, les nouvelles validations et la livraison autorisée.
+
 Base : main `e33d08d`, branche `feat/m27-recon-qualification`. Ce lot qualifie
 M2.2 à M2.6 ; aucun moteur décisionnel, LLM, nouveau scanner ou frontend.
 

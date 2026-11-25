@@ -34,12 +34,12 @@ de la même exécution. La [vérification groupée des exports](WEB_CLIENT_REPOR
 compare la couverture, les constats et l’index des preuves au même instantané
 de la base privée, avant la remise du rapport.
 
-**M2.7 qualifié localement : [bilan multi-laboratoires](RECON_QUALIFICATION.md)** sur la
-branche `feat/m27-recon-qualification`, base main `e33d08d`. Comparaison de
-missions complètes sur Juice Shop, crAPI v1 et DVWA locaux, collecte initiale
-comprise ; validation 3.12/3.14 et contrôles hôte terminés. Les résultats restent
-bornés : couverture partielle et catalogue technologique insuffisant sur les SPA.
-Les baselines M2.2 à M2.6 sont conservées. **M3 non commencé. Aucun merge/push.**
+**M2.7.1 validé localement : [fingerprinting et énumération consolidés](RECON_CONSOLIDATION.md)**,
+après la [qualification M2.7](RECON_QUALIFICATION.md), sur
+`feat/m27-recon-qualification`. Signaux génériques versionnés, calibration
+partagée et arrêts explicites ; requalification 3.12/3.14 terminée avant livraison.
+Les baselines M2.2 à M2.7 sont conservées. **M3 non commencé.** Intégration
+fast-forward et publication de main autorisées après validation, puis CI du SHA poussé.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -66,6 +66,7 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Cartographie applicative M2.5 | [Graphe hors ligne lié aux preuves](APPLICATION_MAPPING.md) : hôtes/services/applications, ressources, formulaires, API/méthodes/paramètres attestés ou déclarés, technologies, relations et consultation ; états et limites explicites, aucune nouvelle capacité active |
 | Énumération contextuelle M2.6 | [Plans déterministes et couverture vérifiée](CONTEXTUAL_ENUMERATION.md), comparaison aux listes prédéfinies sur laboratoires locaux ; mêmes relais/workers et plafonds, aucun LLM ni expansion de scope |
 | Qualification M2.7 | [Missions complètes comparées](RECON_QUALIFICATION.md) sur trois applications locales réelles, référentiels séparés ; validé localement sous 3.12/3.14 sur la branche, couverture limitée, variantes système absentes non qualifiées et aucune qualification universelle |
+| Consolidation M2.7.1 | [Signaux génériques et calibration partagée](RECON_CONSOLIDATION.md), 6/7 technologies du référentiel commun reconnues ; quotas inchangés, anciennes projections conservées, versions/états partiels explicites ; aucun M3 |
 | Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |
