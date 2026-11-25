@@ -42,11 +42,11 @@ Les baselines M2.2 à M2.7 sont conservées. Intégration fast-forward et
 publication de main autorisées pour M2.7.1 après validation, puis CI du SHA
 poussé.
 
-L'[audit préalable M3.1](DECISION_ENGINE_AUDIT.md) documente les interfaces
-existantes et les vérifications sur les archives. [Fondations M3.1](M31_FOUNDATIONS.md) :
-B, snapshot hors ligne, C, inventaire descriptif des capacités, et D, journal
-des décisions opérateur, sont disponibles. Le moteur de sélection automatique
-reste à l'état non implémenté.
+Les [fondations M3.1](M31_FOUNDATIONS.md) sont validées localement. Elles
+couvrent le snapshot hors ligne (B), l'inventaire descriptif (C), le journal
+opérateur (D) et la revue consultative compacte (E), après l'[audit
+préalable](DECISION_ENGINE_AUDIT.md). Le moteur décisionnel autonome reste
+non implémenté. M3.2 reste à faire.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -73,7 +73,8 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Cartographie applicative M2.5 | [Graphe hors ligne lié aux preuves](APPLICATION_MAPPING.md) : hôtes/services/applications, ressources, formulaires, API/méthodes/paramètres attestés ou déclarés, technologies, relations et consultation ; états et limites explicites, aucune nouvelle capacité active |
 | Énumération contextuelle M2.6 | [Plans déterministes et couverture vérifiée](CONTEXTUAL_ENUMERATION.md), comparaison aux listes prédéfinies sur laboratoires locaux ; mêmes relais/workers et plafonds, aucun LLM ni expansion de scope |
 | Qualification M2.7 | [Missions complètes comparées](RECON_QUALIFICATION.md) sur trois applications locales réelles, référentiels séparés ; validé localement sous 3.12/3.14 sur la branche, couverture limitée, variantes système absentes non qualifiées et aucune qualification universelle |
-| Consolidation M2.7.1 | [Signaux génériques et calibration partagée](RECON_CONSOLIDATION.md), 6/7 technologies du référentiel commun reconnues ; quotas inchangés, anciennes projections conservées, versions/états partiels explicites ; aucun M3 |
+| Consolidation M2.7.1 | [Signaux génériques et calibration partagée](RECON_CONSOLIDATION.md), 6/7 technologies du référentiel commun reconnues ; quotas inchangés, anciennes projections conservées, versions et états partiels explicites |
+| Fondations M3.1 | [Revue et contexte de mission](M31_FOUNDATIONS.md), qualifiés hors ligne sur trois archives ; journal des décisions explicites de l'opérateur |
 | Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |

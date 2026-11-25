@@ -3,6 +3,8 @@
 L'[audit préalable](DECISION_ENGINE_AUDIT.md), livré dans `97f59d8`, décrit
 le socle de départ. Les interfaces de ce lot servent à consulter des archives
 et à consigner des décisions humaines. Les autorisations relèvent du Policy Engine.
+Les composants B à E forment la revue consultative. Le moteur décisionnel
+autonome reste non implémenté et M3.2 reste à faire.
 
 ## B — Mission State Snapshot
 
@@ -142,6 +144,74 @@ l'intégrité après modification ou suppression, et la répétition concurrente
 Un journal temporaire a également relié une décision de fixture à une
 projection réseau et à son reçu dans l'archive M2.7.1 de DVWA.
 
+## E — Mission Review & Context Engine
+
+```bash
+python -m argos review summary --db BASE_PRIVEE --mission-id UUID_MISSION
+python -m argos review summary --db BASE_PRIVEE --mission-id UUID_MISSION \
+  --max-context-bytes 4096 --journal JOURNAL_PRIVE --expected-head EMPREINTE
+```
+
+`mission_review(database, mission_id, *, max_context_bytes=32768,`
+`journal=None, expected_head=None)` relit le snapshot B et inclut la
+version de l'inventaire C et les identifiants de ses interfaces hors ligne.
+Le document JSON `mission-review-context-v1` renvoie des entrées typées
+et l'empreinte du snapshot vérifié.
+
+- `fact` qualifie une réponse HTTP archivée ou une observation rapportée
+  par une projection. Un statut HTTP signifie qu'une réponse a été
+  observée. Une opération métier ou un effet demande des preuves propres.
+- `inference` désigne une association déduite par la cartographie ou le
+  fingerprinting. L'état de confiance du fingerprint reste visible.
+- `unknown` couvre les données absentes ou incertaines, notamment les
+  transactions sans statut vérifié, les projections manquantes et les
+  éléments non résolus. La couverture reste partielle.
+- `contradiction` signale une assertion incompatible dans une projection.
+  L'identifiant natif de l'observation permet de retrouver ses valeurs dans
+  le snapshot privé. Des projections historiques distinctes restent distinctes.
+
+Chaque entrée renvoie à un reçu, à une projection vérifiée ou au snapshot
+pour un écart de couverture. Le contexte utilise des agrégats, des codes
+contrôlés et des références SHA-256. Il exclut les hôtes, chemins, paramètres,
+versions brutes, contenus de cible et textes d'opérateur. Les identifiants,
+empreintes, statuts et technologies identifiées restent des métadonnées
+privées. La commande ne transmet aucune donnée à un fournisseur.
+
+Le plafond de 4 096 à 131 072 octets s'applique au JSON canonique UTF-8 du
+champ `context`, hors enveloppe CLI. `size` donne la taille réelle, le
+plafond et le nombre d'entrées. Les contradictions et incertitudes passent
+en premier pour la revue. Les comptes d'entrées omises sont explicites par état.
+Ces mesures ne dépendent d'aucun tokenizer.
+
+Avec `--journal`, la commande vérifie D en lecture seule et expose la tête,
+le nombre de décisions de la mission et le nombre lié au snapshot courant,
+hors du contexte. L'opérateur consulte les décisions avec `journal-show`
+et consigne une décision explicite avec `journal-append`. Les références
+`http_receipt` et `recon_projection` de la revue fournissent les identifiants
+du journal. Pour un manque d'observation, l'opérateur peut laisser la liste
+des sources vide et renseigner le contexte.
+
+### Qualification E
+
+Les archives contextuelles r1 de M2.7.1 ont été relues avec l'ouverture de
+sockets, la résolution DNS et les sous-processus bloqués. Les bases SQLite
+sont restées identiques octet pour octet. Les trois empreintes de contexte
+coïncident sous Python 3.12.15 et 3.14.6.
+
+| Archive | Snapshot canonique (octets) | Contexte par défaut (octets) | Faits / inférences / inconnues | Contexte plafonné à 4 096 octets |
+| --- | ---: | ---: | ---: | ---: |
+| Juice Shop | 1 144 020 | 22 899 | 70 / 16 / 8 | 4 096 |
+| crAPI | 589 942 | 19 344 | 52 / 17 / 8 | 4 082 |
+| DVWA | 331 832 | 19 926 | 57 / 16 / 7 | 4 074 |
+
+Le plafond par défaut conserve toutes les entrées de ces trois revues. Les
+comptes décrivent les entrées du contexte, qui peuvent agréger plusieurs
+observations par projection. Ces archives ne contiennent aucune contradiction
+signalée. Les cinq tests de `tests/test_mission_review.py` vérifient notamment
+une contradiction synthétique, l'absence de données, la conservation des
+références, les omissions sous plafond, la vérification du journal et le
+refus d'un reçu altéré.
+
 ## Commandes de validation
 
 ```bash
@@ -149,13 +219,12 @@ projection réseau et à son reçu dans l'archive M2.7.1 de DVWA.
 .venv/bin/ruff format --check .
 .venv/bin/pyright
 python -m pytest -q tests/test_mission_snapshot.py tests/test_capability_registry.py \
-  tests/test_operator_journal.py -o faulthandler_timeout=15
+  tests/test_operator_journal.py tests/test_mission_review.py -o faulthandler_timeout=15
 python -m pytest -q -o faulthandler_timeout=30
 git diff --check
 ```
 
-Sous Python 3.12.15 et 3.14.6, 11 tests ciblés réussissent par interpréteur.
-La suite régulière compte 1 203 réussites et 121 tests ignorés par
-interpréteur, avec les essais hôte optionnels désactivés. La qualification
-des composants utilise des archives SQLite locales et des fixtures
-synthétiques.
+Les cinq tests E réussissent sous Python 3.12.15 et 3.14.6. La suite régulière
+compte 1 208 réussites et 121 tests ignorés par interpréteur, avec les essais
+hôte optionnels désactivés. Ruff, Pyright, les liens locaux et la vérification
+des espaces passent.

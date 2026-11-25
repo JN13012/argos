@@ -2,7 +2,9 @@
 
 Audit du socle au commit `ccd95be`, branche `feat/m31-decision-engine`.
 Les essais portent sur la relecture des missions enregistrées et sur les
-contrats des composants existants. Le moteur M3.1 reste à l'état non implémenté.
+contrats des composants existants à ce point de départ. Le bilan des
+[fondations M3.1](M31_FOUNDATIONS.md) suit la revue consultative livrée
+après cet audit et le statut du moteur décisionnel autonome.
 
 ## Composants et interfaces
 

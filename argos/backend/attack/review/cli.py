@@ -11,6 +11,7 @@ from argos.backend.attack.web.report_files import load_report_file
 from argos.backend.core.tool_registry import ToolRegistry
 
 from .capabilities import capability_registry
+from .context import DEFAULT_CONTEXT_BYTES, mission_review
 from .journal import (
     MAX_INPUT_BYTES,
     JournalIntegrityError,
@@ -27,6 +28,17 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
     snapshot.set_defaults(action="review_snapshot")
     snapshot.add_argument("--db", required=True)
     snapshot.add_argument("--mission-id", type=UUID, required=True)
+    summary = actions.add_parser("summary", help="Summarize verified mission knowledge")
+    summary.set_defaults(action="review_summary")
+    summary.add_argument("--db", required=True)
+    summary.add_argument("--mission-id", type=UUID, required=True)
+    summary.add_argument("--max-context-bytes", type=int, default=DEFAULT_CONTEXT_BYTES)
+    summary.add_argument(
+        "--journal", help="Read decision counts from a private journal"
+    )
+    summary.add_argument(
+        "--expected-head", help="Externally recorded journal head SHA-256"
+    )
     capabilities = actions.add_parser(
         "capabilities", help="Describe shipped capabilities"
     )
@@ -58,6 +70,14 @@ def execute(args: argparse.Namespace) -> int:
         if args.action == "review_capabilities":
             registry = ToolRegistry.load(args.registry) if args.registry else None
             result = capability_registry(registry)
+        elif args.action == "review_summary":
+            result = mission_review(
+                private_path(args.db),
+                args.mission_id,
+                max_context_bytes=args.max_context_bytes,
+                journal=private_path(args.journal) if args.journal else None,
+                expected_head=args.expected_head,
+            )
         elif args.action == "review_journal_append":
             supplied = load_report_file(
                 str(private_path(args.input)), max_bytes=MAX_INPUT_BYTES
