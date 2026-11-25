@@ -22,6 +22,14 @@ from .journal import (
 )
 from .ollama import OllamaProvider
 from .snapshot import mission_snapshot
+from .workflow import (
+    accept_workflow,
+    analyze_workflow,
+    annotate_workflow,
+    create_workflow,
+    interrupt_workflow,
+    read_workflow,
+)
 
 
 def add_parser(commands: argparse._SubParsersAction) -> None:
@@ -79,9 +87,41 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
         "--expected-head", help="Externally recorded journal head SHA-256"
     )
 
+    for command in ("start", "show", "analyze", "annotate", "interrupt", "accept"):
+        parser = actions.add_parser(
+            "workflow-" + command, help="Persistent supervised review: " + command
+        )
+        parser.set_defaults(action="review_workflow_" + command)
+        parser.add_argument("--journal", required=True)
+        if command in {"start", "analyze", "accept"}:
+            parser.add_argument("--db", required=True)
+        if command == "start":
+            parser.add_argument("--mission-id", type=UUID, required=True)
+        else:
+            parser.add_argument("--review-id", type=UUID, required=True)
+        if command in {"annotate", "interrupt", "accept"}:
+            parser.add_argument(
+                "--input", required=True, help="Private operator JSON file"
+            )
+        if command == "show":
+            parser.add_argument("--expected-head")
+            parser.add_argument(
+                "--history",
+                action="store_true",
+                help="Include sensitive frozen snapshot and history",
+            )
+        if command == "analyze":
+            parser.add_argument("--model", required=True)
+            parser.add_argument("--ollama-port", type=int, default=11434)
+            parser.add_argument("--timeout-seconds", type=int, default=90)
+
 
 def execute(args: argparse.Namespace) -> int:
     try:
+        if args.action.startswith("review_workflow_"):
+            result = _workflow(args)
+            emit(result, structured=True)
+            return 1 if result["state"] in {"failed", "interrupted"} else 0
         if args.action == "review_analyze":
             result = asyncio.run(
                 analyze_mission(
@@ -127,3 +167,43 @@ def execute(args: argparse.Namespace) -> int:
         return 2
     emit(result, structured=True)
     return 0
+
+
+def _workflow(args: argparse.Namespace) -> dict:
+    command = args.action.removeprefix("review_workflow_")
+    journal = private_path(
+        args.journal, create=command == "start" and not Path(args.journal).exists()
+    )
+    if command == "start":
+        result = create_workflow(private_path(args.db), journal, args.mission_id)
+    elif command == "show":
+        result = read_workflow(
+            journal, args.review_id, expected_head=args.expected_head
+        )
+    elif command == "analyze":
+        result = asyncio.run(
+            analyze_workflow(
+                private_path(args.db),
+                journal,
+                args.review_id,
+                OllamaProvider(args.model, args.ollama_port, args.timeout_seconds),
+            )
+        )
+    else:
+        supplied = load_report_file(
+            str(private_path(args.input)), max_bytes=MAX_INPUT_BYTES
+        )
+        if command == "accept":
+            result = accept_workflow(
+                private_path(args.db), journal, args.review_id, supplied
+            )
+        else:
+            if set(supplied) != {"operator", "note"}:
+                raise ValueError("Expected operator and note")
+            handler = annotate_workflow if command == "annotate" else interrupt_workflow
+            result = handler(
+                journal, args.review_id, supplied["operator"], supplied["note"]
+            )
+    if not getattr(args, "history", False):
+        result.pop("events")
+    return result

@@ -52,3 +52,41 @@ motivation, contexte et références vérifiées selon le contrat M3.1. Elle est
 archivée par le Decision Journal, puis liée à l'analyse et à la revue.
 `execution_authorized` reste toujours `false`. Ni les annotations ni les
 conclusions du modèle ne deviennent des instructions exécutables.
+
+## Utilisation CLI
+
+```bash
+# Journal créé en mode 600 ; archive source privée existante, jamais modifiée
+.venv/bin/python -m argos review workflow-start \
+  --db ARCHIVE.sqlite --mission-id UUID --journal JOURNAL.sqlite
+# Conserver le review_id renvoyé
+.venv/bin/python -m argos review workflow-show \
+  --journal JOURNAL.sqlite --review-id REVIEW_UUID
+# Démarrer séparément le serveur local, puis analyser explicitement
+scripts/llm/ollama-local serve
+.venv/bin/python -m argos review workflow-analyze \
+  --db ARCHIVE.sqlite --journal JOURNAL.sqlite --review-id REVIEW_UUID --model qwen3:4b
+# Note JSON privée : {"operator":"nom","note":"constat de revue"}
+.venv/bin/python -m argos review workflow-annotate \
+  --journal JOURNAL.sqlite --review-id REVIEW_UUID --input NOTE.json
+# Après mort vérifiée du processus, même contrat JSON pour expliciter la reprise
+.venv/bin/python -m argos review workflow-interrupt \
+  --journal JOURNAL.sqlite --review-id REVIEW_UUID --input INTERRUPTION.json
+# Puis workflow-analyze relance explicitement une nouvelle tentative
+# Validation : contrat JSON du journal M3.1, jamais rédigé par le modèle
+.venv/bin/python -m argos review workflow-accept \
+  --db ARCHIVE.sqlite --journal JOURNAL.sqlite --review-id REVIEW_UUID --input DECISION.json
+```
+
+Les fichiers d'entrée doivent être privés (`chmod 600`). Le JSON de décision
+contient `id` (UUID stable à réutiliser lors d'un retry), `snapshot_sha256`,
+`sources` (`kind`, `id`), `operator`, `decision`, `rationale` et `context`.
+La commande `review journal-show` permet de relire cette décision vérifiée.
+Une seconde soumission identique après succès est idempotente.
+
+`workflow-show --expected-head SHA256` compare un checkpoint global conservé
+séparément. `--history` inclut explicitement le snapshot privé figé, les requêtes,
+complétions et annotations. Sans ce drapeau, la sortie omet les événements et
+le snapshot complet. Ne pas publier cet historique ni les journaux privés.
+Les commandes d'analyse ne démarrent pas de serveur et ne téléchargent rien.
+Le modèle reste librement configurable ; l'alternative légère est `qwen2.5:0.5b`.
