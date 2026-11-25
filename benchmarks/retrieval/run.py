@@ -161,9 +161,7 @@ def dense_run(model, fragments, lexical, queries, options, path):
         native, dimensions = MODELS[model]
         summaries = {}
         for dimension in reversed(dimensions):
-            rows = dense_rows(
-                client, fragments, queries, vectors, query_vectors, dimension
-            )
+            rows = dense_rows(fragments, queries, vectors, query_vectors, dimension)
             for row, embed_ms in zip(rows, warm, strict=True):
                 row["embed_ms"] = embed_ms
                 row["ms"] += embed_ms

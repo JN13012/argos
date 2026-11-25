@@ -81,3 +81,83 @@ def test_ranking_and_abstention_have_known_values():
     assert metrics(rows)["precision@5"] == pytest.approx(0.2)
     assert metrics(rows)["ndcg@10"] == pytest.approx(1)
     assert abstention(rows, tune_threshold(rows))["no_answer_recall"] == 1
+
+
+def test_lexical_fallback_does_not_modify_results():
+    from urllib.error import URLError
+
+    from benchmarks.retrieval.checks import fuse_or_lexical
+
+    expected = [("official", 0.4, "0")]
+
+    def unavailable():
+        raise URLError("connection refused")
+
+    assert fuse_or_lexical(expected, unavailable) == (expected, "lexical_fallback")
+    assert fuse_or_lexical(expected, lambda: expected)[1] == "hybrid"
+
+
+def test_dense_pipeline_writes_native_hybrid_and_reduced_results(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from benchmarks.retrieval import run
+
+    np = pytest.importorskip("numpy")
+
+    class Provider:
+        version = "fixture"
+        digest = "sha256:fixture"
+        hits = misses = 0
+        last_api = {}
+
+        def __init__(self, *_args):
+            self.seen = set()
+
+        def embed(self, texts, *, cached=True):
+            if cached:
+                old = len(self.seen)
+                self.seen.update(texts)
+                self.misses += len(self.seen) - old
+            vectors = np.zeros((len(texts), 768), dtype=np.float32)
+            for i, text in enumerate(texts):
+                vectors[i, 0 if "policy" in text else 1] = 1
+            return vectors
+
+        def unload(self):
+            return {"models": []}
+
+        def call(self, _endpoint):
+            return self.unload()
+
+    monkeypatch.setattr(run, "Ollama", Provider)
+    fragments = [
+        Fragment("doc", "0", "policy", "policy"),
+        Fragment("other", "0", "other", "other"),
+    ]
+    queries = [
+        {
+            "id": "development-001",
+            "grades": {"doc": 2},
+            "query": "policy",
+            "category": "en",
+        },
+        {"id": "development-002", "grades": {}, "query": "unknown", "category": "none"},
+        {
+            "id": "final-001",
+            "grades": {"doc": 2},
+            "query": "policy",
+            "category": "exact",
+        },
+    ]
+    lexical = [{"hits": [("doc", 1.0, "0")], "ms": 0} for _ in queries]
+    summary = run.dense_run(
+        "embeddinggemma:300m",
+        fragments,
+        lexical,
+        queries,
+        SimpleNamespace(port=11536, batch=2),
+        tmp_path,
+    )
+    assert set(summary["retrieval"]) == {"256", "512", "768", "hybrid"}
+    assert summary["retrieval"]["768"]["metrics"]["exact@1"] == 1
+    assert (tmp_path / "embeddinggemma-vectors.npz").is_file()

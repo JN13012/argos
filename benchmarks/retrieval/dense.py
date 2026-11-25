@@ -121,7 +121,8 @@ class Ollama:
 
 def unit(vectors, dimension=None):
     np = importlib.import_module("numpy")
-    rows = np.ascontiguousarray(vectors[..., :dimension], dtype=np.float32)
+    values = np.asarray(vectors, dtype=np.float32)
+    rows = np.ascontiguousarray(values[..., :dimension])
     norms = np.linalg.norm(rows, axis=-1, keepdims=True)
     if np.any(norms == 0) or not np.isfinite(norms).all():
         raise ValueError("Invalid cosine vector")
