@@ -214,3 +214,16 @@ Les journaux complets sont conservés sous le répertoire privé M3.4,
 n'ajoute aucune dépendance à `pyproject.toml`. La branche
 `feat/m34-memory-engine` reste locale pour validation, sans merge ni push.
 M3.5 n'a pas été commencé.
+
+
+## Consolidation et publication
+
+La demande opérateur de consolidation lève la restriction initiale de merge/push.
+Avant publication, les empreintes des sources et des preuves privées correspondent
+au manifeste de qualification conservé ; les journaux complets confirment
+1 266 réussites et 121 ignorés sur Python 3.12 et 3.14. Les 20 tests ciblés sont
+réexécutés sur chaque interpréteur ; Ruff, formatage et Pyright passent.
+Intégration de la branche dans main par fast-forward, puis push de main et
+vérification de la CI du SHA publié. Les limitations de qualité LLM et de
+cloisonnement local restent applicables. Aucune branche n'est supprimée lors
+de cette consolidation ; M3.5 n'est pas commencé.

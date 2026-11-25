@@ -54,8 +54,8 @@ avec archivage complet des futurs essais ; intégré et publié sur main après
 validations locales et CI verte. M3.3 est intégré sur main par fast-forward, avec CI verte :
 [workflow de revue supervisée](M33_SUPERVISED_REVIEW.md), sans moteur autonome.
 [M3.4](M34_MEMORY_ENGINE.md) est validé localement : mémoire consultative
-cloisonnée et contexte plafonné ; branche en attente de validation avant
-merge/push. M3.5 n’est pas commencé.
+cloisonnée et contexte plafonné ; consolidation sur main par fast-forward
+après validation et publication autorisée. M3.5 n’est pas commencé.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -84,7 +84,7 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Qualification M2.7 | [Missions complètes comparées](RECON_QUALIFICATION.md) sur trois applications locales réelles, référentiels séparés ; validé localement sous 3.12/3.14 sur la branche, couverture limitée, variantes système absentes non qualifiées et aucune qualification universelle |
 | Consolidation M2.7.1 | [Signaux génériques et calibration partagée](RECON_CONSOLIDATION.md), 6/7 technologies du référentiel commun reconnues ; quotas inchangés, anciennes projections conservées, versions et états partiels explicites |
 | Fondations M3.1 | [Revue et contexte de mission](M31_FOUNDATIONS.md), qualifiés hors ligne sur trois archives ; journal des décisions explicites de l'opérateur |
-| Mémoire consultative M3.4 | [Mémoire SQLite par UID/mission, recherche et contexte borné](M34_MEMORY_ENGINE.md), validé localement sur fixtures et trois archives ; branche sans merge/push, aucune mémoire de méthodes offensives |
+| Mémoire consultative M3.4 | [Mémoire SQLite par UID/mission, recherche et contexte borné](M34_MEMORY_ENGINE.md), validé localement sur fixtures et trois archives ; consolidation sur main autorisée après validation, aucune mémoire de méthodes offensives |
 | Revue supervisée M3.3 | [Cycle persistant et validation opérateur](M33_SUPERVISED_REVIEW.md), qualifié hors ligne et sur trois archives via Ollama local ; intégré sur main et CI verte |
 | Analyste local M3.2 | [Synthèse consultative sur preuves archivées](M32_LOCAL_LLM_ANALYST.md) via Ollama en boucle locale, avec références et états vérifiés |
 | Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
