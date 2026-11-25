@@ -33,3 +33,70 @@ def test_independent_fixture_preserves_conflicts_and_excludes_answer_from_prompt
             "contradiction",
             "unknown",
         }
+
+
+def test_artifact_storage_is_private_unique_and_preserves_bytes(tmp_path):
+    first = benchmark.private_run(tmp_path)
+    second = benchmark.private_run(tmp_path)
+    assert first != second
+    benchmark.save_artifact(first, "response.bin", b"not JSON\x00")
+    assert (first / "response.bin").read_bytes() == b"not JSON\x00"
+    assert (first / "response.bin").stat().st_mode & 0o077 == 0
+
+
+def test_benchmark_preserves_invalid_http_body_and_source_durations(
+    tmp_path, monkeypatch
+):
+    import argparse
+    import json
+
+    import httpx
+
+    cases = tmp_path / "cases.json"
+    cases.write_text("[]")
+    client_type = httpx.Client
+
+    def reply(request):
+        if request.url.path == "/api/show":
+            return httpx.Response(
+                200,
+                json={
+                    "details": {"format": "gguf"},
+                    "model_info": {"general.parameter_count": 1},
+                },
+            )
+        if request.url.path == "/api/chat":
+            return httpx.Response(
+                200,
+                json={
+                    "done": True,
+                    "eval_duration": 123,
+                    "eval_count": 2,
+                    "message": {"role": "assistant", "content": '{"refs":[9999]}'},
+                },
+            )
+        return httpx.Response(200, json={"models": []})
+
+    monkeypatch.setattr(
+        benchmark.httpx,
+        "Client",
+        lambda **kw: client_type(**kw, transport=httpx.MockTransport(reply)),
+    )
+    benchmark.run(
+        argparse.Namespace(
+            cases=str(cases),
+            output=str(tmp_path / "result.jsonl"),
+            artifacts=str(tmp_path),
+            models=["qwen3:4b"],
+            port=11534,
+        )
+    )
+    run = next(p for p in tmp_path.iterdir() if p.is_dir())
+    results = [json.loads(p.read_text()) for p in run.glob("*-result.json")]
+    assert len(results) == 6
+    assert all(r["status"] == "failed" for r in results)
+    assert all(r["source_durations_ns"]["eval_duration"] == 123 for r in results)
+    for row in results:
+        prefix = row["artifact_prefix"]
+        assert b"9999" in (run / (prefix + "-response.bin")).read_bytes()
+        assert (run / (prefix + "-request.json")).exists()

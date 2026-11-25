@@ -2,9 +2,11 @@
 
 import argparse
 import json
+import os
 import threading
 import time
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 from argos.backend.attack.review.analysis import _request, _selection
@@ -102,14 +104,47 @@ def sample_memory(stop, peak):
         stop.wait(0.1)
 
 
+def private_run(root: str | Path) -> Path:
+    """Create a new private run outside the checkout; never overwrite a baseline."""
+    root = Path(root).expanduser().resolve()
+    checkout = Path(__file__).resolve().parents[2]
+    if root == checkout or checkout in root.parents:
+        raise ValueError("Benchmark artifacts must be outside the Git checkout")
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if root.stat().st_mode & 0o077:
+        raise ValueError("Benchmark storage must be private (chmod 700)")
+    run = root / str(uuid4())
+    run.mkdir(mode=0o700)
+    return run
+
+
+def save_artifact(run: Path, name: str, content: bytes) -> None:
+    with (run / name).open("xb") as output:
+        os.chmod(output.name, 0o600)
+        output.write(content)
+
+
 def run(args) -> None:
+    archive = private_run(args.artifacts)
+    output_path = Path(args.output).expanduser().resolve()
+    checkout = Path(__file__).resolve().parents[2]
+    if output_path == checkout or checkout in output_path.parents:
+        raise ValueError("Detailed results must be outside the Git checkout")
+    output_path.touch(mode=0o600, exist_ok=False)
     cases = json.loads(Path(args.cases).read_text()) + fixtures()
+    save_artifact(archive, "cases.json", json.dumps(cases).encode())
+    save_artifact(archive, "configuration.json", json.dumps(vars(args)).encode())
     with httpx.Client(
         base_url=f"http://127.0.0.1:{args.port}", trust_env=False, timeout=180
     ) as client:
         for model in args.models:
             metadata = client.post("/api/show", json={"model": model}).json()
             _require_local_model(metadata)
+            save_artifact(
+                archive,
+                f"model-{args.models.index(model)}.json",
+                json.dumps(metadata).encode(),
+            )
             for case in cases:
                 request, observations = _request(case["context"])
                 client.post(
@@ -127,6 +162,10 @@ def run(args) -> None:
                             dict(role="user", content=request.data_json),
                         ],
                     )
+                    prefix = str(uuid4())
+                    save_artifact(
+                        archive, prefix + "-request.json", json.dumps(payload).encode()
+                    )
                     stop = threading.Event()
                     peak = [0]
                     sampler = threading.Thread(target=sample_memory, args=(stop, peak))
@@ -143,11 +182,24 @@ def run(args) -> None:
                     )
                     try:
                         response = client.post("/api/chat", json=payload)
+                        save_artifact(
+                            archive, prefix + "-response.bin", response.content
+                        )
+                        result["http_status"] = response.status_code
                         response.raise_for_status()
                         raw = response.json()
                         result["latency_seconds"] = time.perf_counter() - started
                         result["input_tokens"] = raw.get("prompt_eval_count")
                         result["output_tokens"] = raw.get("eval_count")
+                        result["source_durations_ns"] = {
+                            key: raw.get(key)
+                            for key in (
+                                "total_duration",
+                                "load_duration",
+                                "prompt_eval_duration",
+                                "eval_duration",
+                            )
+                        }
                         duration = raw.get("eval_duration", 0)
                         result["tokens_per_second"] = (
                             raw.get("eval_count", 0) * 1e9 / duration
@@ -186,7 +238,13 @@ def run(args) -> None:
                         }
                         for row in running
                     ]
-                    with Path(args.output).open("a") as output:
+                    result["artifact_prefix"] = prefix
+                    save_artifact(
+                        archive,
+                        prefix + "-result.json",
+                        json.dumps(result, sort_keys=True).encode(),
+                    )
+                    with output_path.open("a") as output:
                         output.write(json.dumps(result, sort_keys=True) + "\n")
                     print(
                         model, case["name"], temperature, result["status"], flush=True
@@ -198,5 +256,9 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=11534)
     parser.add_argument("--cases", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument(
+        "--artifacts",
+        default=str(Path.home() / ".local/share/argos/qualification/benchmark"),
+    )
     parser.add_argument("--models", nargs="+", default=MODELS)
     run(parser.parse_args())

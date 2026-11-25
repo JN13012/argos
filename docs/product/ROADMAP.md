@@ -49,7 +49,8 @@ préalable](DECISION_ENGINE_AUDIT.md). Le moteur décisionnel autonome reste
 non implémenté. [M3.2](M32_LOCAL_LLM_ANALYST.md) ajoute un analyste local
 consultatif pour les missions archivées. Le [benchmark M3.2.1](M321_LOCAL_LLM_BENCHMARK.md)
 est qualifié localement sur cinq modèles CUDA, avec des limites de pertinence
-explicites et une recommandation consultative. Sa branche reste en validation.
+explicites et une recommandation consultative. Sa consolidation conserve durablement les traces privées et les modèles hors Git,
+avec archivage complet des futurs essais ; publication après validations locales.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :

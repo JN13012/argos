@@ -1,0 +1,11 @@
+#!/bin/sh
+# Uses only an existing local installation; never downloads models.
+set -eu
+ARGOS_LLM_HOME=${ARGOS_LLM_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/argos/ollama}
+export OLLAMA_MODELS="$ARGOS_LLM_HOME/models"
+export OLLAMA_HOST=127.0.0.1:${ARGOS_OLLAMA_PORT:-11434}
+export OLLAMA_NO_CLOUD=1
+export OLLAMA_NOPRUNE=1
+export OLLAMA_MAX_LOADED_MODELS=1
+export OLLAMA_NUM_PARALLEL=1
+exec "$ARGOS_LLM_HOME/runtime/bin/ollama" "$@"

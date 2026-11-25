@@ -109,3 +109,66 @@ Python 3.12 et 3.14. La suite régulière finale compte 1 231 réussites et
 121 tests ignorés sous chacun des deux interpréteurs. Ruff, le formatage,
 Pyright, les liens locaux, le JSON des agrégats et `git diff --check` passent.
 Les essais hôte de reconnaissance optionnels restent désactivés.
+
+## Audit et consolidation
+
+L'audit a retrouvé et revérifié les cinq manifestes et tous leurs blobs SHA-256.
+Le binaire Linux 0.11.11 était une installation privée hors PATH, indépendante
+du client Windows ; aucun service permanent n'avait été installé. L'arrêt du
+serveur et l'absence de `ollama` dans le PATH WSL étaient donc attendus.
+Les 75 lignes historiques conservent sélections, hashes des requêtes, tokens,
+latences et scores ; elles ne conservent **pas** les corps HTTP complets ni
+`eval_duration`. Les tokens/s historiques ne sont pas recalculables exactement.
+Les requêtes sont reconstructibles depuis les contextes figés et le code.
+Une seule reproduction Qwen3 4B a retrouvé le hash de la requête crAPI,
+8 références valides et 37/37 couches sur GPU ; elle ne reconstitue pas les
+réponses perdues. Sa durée de 30,073 s inclut validation et `/api/ps`, contrairement
+aux latences historiques du POST seul. Aucun des scores ne mesure de prose libre.
+
+Le stockage local permanent est désormais `$HOME/.local/share/argos` :
+
+- `ollama/runtime` : binaire et bibliothèques Linux existants ;
+- `ollama/models` : cinq manifestes et blobs existants, déplacés sans téléchargement ;
+- `qualification/m321-original` : copies des scripts historiques `/tmp`, contextes,
+  JSONL des 75 essais, relevés GPU, journal serveur et `audit-replay/` ;
+- `qualification/m321-original/preservation-manifest.json` : tailles et empreintes
+  des traces et blobs vérifiés après déplacement.
+
+Les anciennes archives M2.7.1 et agrégats Git sont conservés. Les scripts
+historiques sont des preuves du protocole et gardent leurs anciens chemins ;
+ne pas les relancer tels quels. Les traces privées peuvent contenir des données
+de mission et ne doivent pas être publiées. La conservation locale n'est pas
+une sauvegarde distante ni une signature contre un administrateur malveillant.
+
+```bash
+# Premier terminal WSL : serveur local, sans téléchargement
+scripts/llm/ollama-local serve
+# Autre terminal : inventaire et usage interactif d'un modèle déjà présent
+scripts/llm/ollama-local list
+scripts/llm/ollama-local show qwen3:4b
+scripts/llm/ollama-local run qwen3:4b
+# Choix libre du modèle dans le produit
+.venv/bin/python -m argos review analyze --db ARCHIVE --mission-id UUID --model qwen3:4b
+```
+
+`ARGOS_LLM_HOME` configure le répertoire permanent contenant `runtime/` et
+`models/` ; `ARGOS_OLLAMA_PORT` configure le port loopback (11434 par défaut).
+Le serveur reste au premier plan ; Ctrl-C l'arrête. Le wrapper ne modifie ni
+PATH ni service Windows. `run` doit viser un nom présent dans `list` : le CLI
+Ollama amont peut télécharger un nom absent. Qwen3 4B reste la recommandation
+provisoire et Qwen2.5 0.5B l'alternative légère, sans imposer ce choix au CLI.
+
+Les futurs essais du banc créent avec `--artifacts REPERTOIRE_PRIVE` un dossier
+UUID hors du checkout : cas, configuration, métadonnées modèle, requête exacte,
+corps de réponse (même invalide), résultat et durées natives en nanosecondes.
+Les erreurs réseau sont enregistrées sans inventer de réponse. Le stockage
+exige des permissions privées ; chaque essai utilise de nouveaux fichiers.
+La campagne historique n'a pas été relancée pour cette consolidation.
+
+Validation de consolidation : suite régulière 1 232 réussites / 121 ignorés
+sur Python 3.12 et 3.14, puis 4/4 tests ciblés (dont réponse simulée invalide
+et durées natives conservées). Ruff, formatage, Pyright et diff passent.
+Le SHA-256 du binaire déplacé reste
+`e014750cd656db3a77f3bf6b45903f646c76075e58b835cc9787fb5fc8a8a600`.
+Les 42 entrées du manifeste privé incluent blobs et traces ; aucune nouvelle
+inférence ni aucun téléchargement n'a été nécessaire.
