@@ -10,7 +10,7 @@ ne permet jamais de parcourir plusieurs missions par défaut ou par wildcard.
 Une identité applicative déclarative n'aurait aucune valeur d'authentification
 sur ce CLI ; l'identité vient donc du système, sans paramètre utilisateur.
 Les processus partageant le même compte Unix restent dans le même domaine
- de confiance. Le serveur Web et les ACL multi-utilisateur ne sont pas implémentés.
+de confiance. Le serveur Web et les ACL multi-utilisateur ne sont pas implémentés.
 
 Une chaîne versionnée d'événements mémorise captures, focalisation et tombstones,
 avec empreinte de tête externe facultative pour détecter les restaurations.

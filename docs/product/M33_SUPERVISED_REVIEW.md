@@ -187,3 +187,9 @@ repasse sous Python 3.12 et 3.14 : 1 246 réussites, 121 ignorés par interprét
 Ruff, formatage et Pyright passent. Les limites de pertinence sémantique ci-dessus
 restent applicables. Intégration fast-forward autorisée après ces validations ;
 M3.4 sera développé sur une nouvelle branche sans publication implicite.
+
+La consolidation a été publiée au SHA `8b4d9727e65a25c85d36544ab5ed645e64c84d60`.
+La [CI du SHA exact](https://github.com/JN13012/argos/actions/runs/45690537848)
+est réussie : Python 3.12, Python 3.14 et frontend/navigateur. Les restrictions
+antérieures « sans merge ni push » décrivent le bilan initial de M3.3 ; cette
+publication est l'étape de consolidation explicitement autorisée ensuite.

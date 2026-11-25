@@ -41,6 +41,7 @@ universelle sur des applications client.
 | Qualification de la reconnaissance | [M2.7 multi-laboratoires](product/RECON_QUALIFICATION.md) et [consolidation M2.7.1](product/RECON_CONSOLIDATION.md) : comparaison de missions complètes, résultats et limites avant M3 |
 | Revue de mission M3.1 | [Fondations, contexte et journal opérateur](product/M31_FOUNDATIONS.md) et [audit préalable](product/DECISION_ENGINE_AUDIT.md) |
 | Benchmark local M3.2.1 | [Mesures et limites des cinq modèles](product/M321_LOCAL_LLM_BENCHMARK.md) |
+| Mémoire consultative M3.4 | [Historique cloisonné, récupération et contexte plafonné](product/M34_MEMORY_ENGINE.md) |
 | Revue supervisée M3.3 | [États persistants, analyses et décisions humaines](product/M33_SUPERVISED_REVIEW.md) |
 | Analyste local M3.2 | [Fournisseur Ollama, contrat et qualification](product/M32_LOCAL_LLM_ANALYST.md) |
 | Énumération contextuelle | [M2.6 Contextual Enumeration Engine](product/CONTEXTUAL_ENUMERATION.md) |

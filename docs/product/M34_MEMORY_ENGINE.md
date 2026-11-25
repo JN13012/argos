@@ -130,3 +130,87 @@ mémoire ; ces plafonds ne constituent pas une qualification de charge maximale.
 La recherche est littérale, sans compréhension de synonymes ni classement
 sémantique. La mémoire ne corrige pas la qualité des analyses LLM mesurée en
 M3.2.1 ; une référence valide ne suffit toujours pas à démontrer leur pertinence.
+
+## Qualification hors ligne
+
+Le banc `benchmarks/llm/qualify_memory.py` réutilise les trois revues M3.3
+archivées, sans appel au modèle et sans réseau. Il capture chaque revue dans
+une nouvelle mémoire, vérifie l'idempotence, interroge les réponses HTTP 200,
+compare exactement leurs identifiants aux reçus de l'archive, vérifie l'absence
+d'un marqueur indépendant et tente de récupérer des identifiants d'une autre
+mission. Il hache bases sources et journal avant/après. Trente récupérations
+par mission fournissent les durées brutes ; la médiane et le percentile 95
+(rang 29/30) sont archivés. Le contexte total est plafonné à 8 192 octets,
+dont au plus 2 048 pour la mémoire et 8 éléments.
+
+```bash
+PYTHONPATH=. .venv/bin/python benchmarks/llm/qualify_memory.py \
+  --journal REVUES.sqlite --reviews SUMMARY_M33.json \
+  --archives-root .argos/qualifications/m271 \
+  --output "$HOME/.local/share/argos/qualification/m34"
+```
+
+Mesures du 25 novembre 2026, sur la version avec chemins de provenance :
+
+| Archive | Enregistrements | SQLite Kio | Capture ms | Recherche médiane / p95 ms | Complément mémoire octets | Total contexte octets |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| crAPI | 79 | 92 | 913 | 5,92 / 8,49 | 1 856 | 7 810 |
+| DVWA | 82 | 96 | 737 | 5,65 / 8,98 | 1 699 | 7 714 |
+| Juice Shop | 96 | 108 | 2 548 | 7,94 / 11,25 | 1 823 | 7 785 |
+
+Chaque complément contient 3 éléments sous ces plafonds. La capture et la
+construction complète du contexte revérifient les sources ; les coûts complets
+de contexte sont respectivement 922, 572 et 2 200 ms. Ces mesures indicatives
+ont eu lieu pendant les tests réguliers ; elles ne sont pas un benchmark de
+latence isolé ni une mesure de charge maximale. Le coût SQLite exclut les
+archives et journaux préexistants, conservés séparément sans modification.
+
+La récupération exacte des reçus HTTP 200 atteint précision/rappel 100 % sur
+38, 5 et 48 reçus respectivement. Il s'agit d'une requête factuelle précise,
+pas d'une note de pertinence sémantique universelle. Le test indépendant des
+fixtures HTTP 200/404 contrôle également la sélection attendue et les requêtes
+sans correspondance. Aucune référence d'une mission étrangère n'a été rendue.
+
+Les fixtures qualifient aussi origines humaines/LLM séparées, erreur d'inférence,
+contradictions préservées, snapshot devenu obsolète, suppression des doublons,
+altération de mémoire et de preuve, checkpoint externe, UID changé simulé,
+copie du fichier entre missions, permissions trop larges, symlinks et hardlinks.
+La vérification de l'identité utilise les propriétés Unix, sans prétendre à
+un essai de deux sessions Web authentifiées. Les textes d'injection conservés
+comme annotations ne traversent pas le complément de contexte.
+
+Les résultats détaillés et configurations sont privés :
+`~/.local/share/argos/qualification/m34/7ae823a6-3aeb-46e8-95d8-6480b09a83e8/`.
+Ils contiennent `configuration.json`, `results.json` (dont les 90 durées brutes)
+et `memory/uid-UID/UUID.sqlite`. La première mesure exploratoire, avant ajout
+des chemins privés de provenance, reste conservée sous
+`942c1f3f-4454-455d-9fd0-00cd359042d9` ; les baselines M3.2.1/M3.3 et M2.7.1
+sont préservées. ROOT doit être conservé sous un répertoire hôte de confiance,
+sauvegardé par l'opérateur. Les traces et mémoires ne doivent pas être publiées.
+
+## Validation de livraison
+
+Les 20 tests ciblés de mémoire et CLI passent sous Python 3.12 et 3.14.
+La suite régulière finale compte **1 266 réussites, 121 ignorés** sous chaque
+interpréteur. Les essais hôte optionnels de reconnaissance, isolation et
+navigateur restent désactivés ; aucun essai réseau ni inférence supplémentaire
+n'est revendiqué. Ruff, formatage, Pyright, liens documentaires et
+`git diff --check` passent.
+
+```bash
+.venv/bin/python -m pytest -q tests/test_review_memory.py tests/test_review_memory_cli.py
+/tmp/argos-stabilization-py312/bin/python -m pytest -q tests/test_review_memory.py tests/test_review_memory_cli.py
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pyright
+# Sans ARGOS_TEST_{NETWORK,ISOLATION,BROWSER,TOOL_REGISTRY}, pour chaque interpréteur
+.venv/bin/python -m pytest -q -o faulthandler_timeout=30
+/tmp/argos-stabilization-py312/bin/python -m pytest -q -o faulthandler_timeout=30
+git diff --check
+```
+
+Les journaux complets sont conservés sous le répertoire privé M3.4,
+`tests-py312.log` et `tests-py314.log`. Le stockage SQLite de cette tranche
+n'ajoute aucune dépendance à `pyproject.toml`. La branche
+`feat/m34-memory-engine` reste locale pour validation, sans merge ni push.
+M3.5 n'a pas été commencé.
