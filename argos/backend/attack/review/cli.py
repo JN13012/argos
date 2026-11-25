@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import os
 import sqlite3
 from pathlib import Path
 from uuid import UUID
@@ -13,13 +14,14 @@ from argos.backend.core.tool_registry import ToolRegistry
 
 from .analysis import DEFAULT_ANALYSIS_CONTEXT_BYTES, analyze_mission
 from .capabilities import capability_registry
-from .context import DEFAULT_CONTEXT_BYTES, mission_review
+from .context import DEFAULT_CONTEXT_BYTES, mission_review, review_with_memory
 from .journal import (
     MAX_INPUT_BYTES,
     JournalIntegrityError,
     read_journal,
     record_decision,
 )
+from .memory import MemoryEngine
 from .ollama import OllamaProvider
 from .snapshot import mission_snapshot
 from .workflow import (
@@ -50,6 +52,10 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
     summary.add_argument(
         "--expected-head", help="Externally recorded journal head SHA-256"
     )
+    summary.add_argument("--memory-root", help="Explicit private memory enrichment")
+    summary.add_argument("--max-memory-bytes", type=int, default=2048)
+    summary.add_argument("--max-memory-items", type=int, default=8)
+    summary.add_argument("--memory-query", default="")
     analyze = actions.add_parser(
         "analyze", help="Analyze archived observations locally"
     )
@@ -115,9 +121,53 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
             parser.add_argument("--ollama-port", type=int, default=11434)
             parser.add_argument("--timeout-seconds", type=int, default=90)
 
+    for command in ("capture", "info", "search", "get", "focus", "delete"):
+        parser = actions.add_parser(
+            "memory-" + command, help="Consultative mission memory: " + command
+        )
+        parser.set_defaults(action="review_memory_" + command)
+        parser.add_argument(
+            "--memory-root",
+            default=os.environ.get(
+                "ARGOS_MEMORY_HOME", str(Path.home() / ".local/share/argos/memory")
+            ),
+        )
+        parser.add_argument("--mission-id", type=UUID, required=True)
+        if command == "capture":
+            parser.add_argument("--db", required=True)
+            parser.add_argument("--journal", required=True)
+        if command in {"capture", "focus"}:
+            parser.add_argument("--review-id", type=UUID, required=True)
+        if command == "info":
+            parser.add_argument("--expected-head")
+        if command == "search":
+            parser.add_argument("--query", default="")
+            parser.add_argument("--limit", type=int, default=20)
+            parser.add_argument("--include-stale", action="store_true")
+            parser.add_argument(
+                "--origin",
+                choices=(
+                    "verified_archive",
+                    "human_annotation",
+                    "human_decision",
+                    "llm_output",
+                    "review_error",
+                    "coverage_limit",
+                ),
+            )
+        if command in {"get", "delete"}:
+            parser.add_argument("--entry-id", required=True)
+        if command == "delete":
+            parser.add_argument(
+                "--input", required=True, help="Private JSON with reason"
+            )
+
 
 def execute(args: argparse.Namespace) -> int:
     try:
+        if args.action.startswith("review_memory_"):
+            emit(_memory(args), structured=True)
+            return 0
         if args.action.startswith("review_workflow_"):
             result = _workflow(args)
             emit(result, structured=True)
@@ -136,6 +186,20 @@ def execute(args: argparse.Namespace) -> int:
         if args.action == "review_capabilities":
             registry = ToolRegistry.load(args.registry) if args.registry else None
             result = capability_registry(registry)
+        elif args.action == "review_summary" and args.memory_root:
+            if args.journal or args.expected_head:
+                raise ValueError(
+                    "Read journal checkpoints separately with memory enrichment"
+                )
+            result = review_with_memory(
+                private_path(args.db),
+                args.mission_id,
+                args.memory_root,
+                max_context_bytes=args.max_context_bytes,
+                max_memory_bytes=args.max_memory_bytes,
+                max_memory_items=args.max_memory_items,
+                memory_query=args.memory_query,
+            )
         elif args.action == "review_summary":
             result = mission_review(
                 private_path(args.db),
@@ -207,3 +271,31 @@ def _workflow(args: argparse.Namespace) -> dict:
     if not getattr(args, "history", False):
         result.pop("events")
     return result
+
+
+def _memory(args: argparse.Namespace) -> dict:
+    engine = MemoryEngine(args.memory_root, args.mission_id)
+    command = args.action.removeprefix("review_memory_")
+    if command == "capture":
+        return engine.capture(
+            private_path(args.db), private_path(args.journal), args.review_id
+        )
+    if command == "info":
+        return engine.info(expected_head=args.expected_head)
+    if command == "search":
+        return engine.search(
+            args.query,
+            limit=args.limit,
+            include_stale=args.include_stale,
+            origin=args.origin,
+        )
+    if command == "get":
+        return engine.get(args.entry_id)
+    if command == "focus":
+        return engine.focus(args.review_id)
+    supplied = load_report_file(
+        str(private_path(args.input)), max_bytes=MAX_INPUT_BYTES
+    )
+    if set(supplied) != {"reason"}:
+        raise ValueError("Expected deletion reason")
+    return engine.forget(args.entry_id, supplied["reason"])

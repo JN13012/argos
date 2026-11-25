@@ -324,3 +324,47 @@ def review_snapshot(
         "operator_journal": None,
     }
     return report
+
+
+def review_with_memory(
+    database: str | Path,
+    mission_id: UUID,
+    memory_root: str | Path,
+    *,
+    max_context_bytes: int = DEFAULT_CONTEXT_BYTES,
+    max_memory_bytes: int = 2048,
+    max_memory_items: int = 8,
+    memory_query: str = "",
+) -> dict:
+    """Explicit bounded consultative envelope; free prose never enters model input."""
+    from .memory import MemoryEngine
+
+    if type(max_context_bytes) is not int or not 4096 <= max_context_bytes <= 131_072:
+        raise ValueError("Context limit must be between 4096 and 131072 bytes")
+    if type(max_memory_bytes) is not int or not 512 <= max_memory_bytes <= 16_384:
+        raise ValueError("Memory context must be 512 to 16384 bytes")
+    base_budget = max_context_bytes - max_memory_bytes - 64
+    if base_budget < 4096:
+        raise ValueError("Combined context must reserve at least 4096 base bytes")
+    snapshot = mission_snapshot(database, mission_id)
+    report = review_snapshot(snapshot, max_context_bytes=base_budget)
+    memory = MemoryEngine(memory_root, mission_id).working_context(
+        snapshot,
+        query=memory_query,
+        max_bytes=max_memory_bytes,
+        max_items=max_memory_items,
+    )
+    report["memory_context"] = memory
+    measured = len(
+        canonical({"context": report["context"], "memory_context": memory}).encode()
+    )
+    if measured > max_context_bytes:
+        raise ValueError("Combined context exceeds byte limit")
+    report["size"].update(
+        additional_memory_utf8_bytes=len(canonical(memory).encode()),
+        combined_context_utf8_bytes=measured,
+        max_combined_context_bytes=max_context_bytes,
+        max_memory_bytes=max_memory_bytes,
+        max_memory_items=max_memory_items,
+    )
+    return report

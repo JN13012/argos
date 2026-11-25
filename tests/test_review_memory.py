@@ -185,3 +185,115 @@ def test_retrieval_limits_are_enforced(captured, query, limit):
     memory, *_ = captured
     with pytest.raises(ValueError):
         memory.search(query, limit=limit)
+
+
+def test_context_engine_envelope_has_an_explicit_total_budget(captured):
+    from argos.backend.attack.review.analysis import _request
+    from argos.backend.attack.review.context import review_with_memory
+
+    memory, db, mid, _, _, _ = captured
+    result = review_with_memory(
+        db,
+        mid,
+        memory.root,
+        max_context_bytes=8192,
+        max_memory_bytes=1024,
+        max_memory_items=3,
+    )
+    size = result["size"]
+    envelope = {
+        "context": result["context"],
+        "memory_context": result["memory_context"],
+    }
+    assert size["combined_context_utf8_bytes"] == len(canonical(envelope).encode())
+    assert size["combined_context_utf8_bytes"] <= 8192
+    assert size["additional_memory_utf8_bytes"] <= 1024
+    assert len(result["memory_context"]["items"]) <= 3
+    assert "IGNORE" not in canonical(envelope)
+    request, _ = _request(result["context"])
+    assert "memory_id" not in request.data_json
+    with pytest.raises(ValueError):
+        review_with_memory(db, mid, memory.root, max_context_bytes=4096)
+
+
+def test_memory_context_does_not_silently_reuse_old_evidence(captured):
+    from argos.backend.attack.recon.application_mapping import map_application
+    from argos.backend.attack.review.context import review_with_memory
+
+    memory, db, mid, _, _, _ = captured
+    map_application(db, mid)
+    result = review_with_memory(db, mid, memory.root)
+    assert result["memory_context"]["status"] == "working_snapshot_differs"
+    assert not result["memory_context"]["items"]
+
+
+def test_failures_are_conserved_and_not_promoted_to_observations(archived, tmp_path):
+    from argos.backend.attack.review.llm import LLMError, LLMErrorCode
+
+    db, mid, *_ = archived
+    journal = tmp_path / "failure.sqlite"
+    saved = create_workflow(db, journal, mid)
+    rid = UUID(saved["review_id"])
+    asyncio.run(
+        analyze_workflow(db, journal, rid, Model(error=LLMError(LLMErrorCode.TIMEOUT)))
+    )
+    memory = MemoryEngine(tmp_path / "memory", mid)
+    memory.capture(db, journal, rid)
+    failures = memory.search("timeout", origin="review_error")["items"]
+    assert len(failures) == 1
+    assert memory.search("timeout", origin="verified_archive")["items"] == []
+
+
+def test_copying_a_store_between_missions_does_not_bypass_binding(captured):
+    import shutil
+
+    memory, _, _, _, _, _ = captured
+    alien = MemoryEngine(memory.root, uuid4())
+    shutil.copyfile(memory.path, alien.path)
+    alien.path.chmod(0o600)
+    with pytest.raises(JournalIntegrityError, match="chain"):
+        alien.search()
+
+
+def test_context_rechecks_exact_source_references(captured, monkeypatch):
+    from argos.backend.attack.review.snapshot import mission_snapshot
+
+    memory, db, mid, *_ = captured
+    snapshot = mission_snapshot(db, mid)
+    monkeypatch.setattr("argos.backend.attack.review.memory._items", lambda *_: [])
+    with pytest.raises(JournalIntegrityError, match="proof reference"):
+        memory.working_context(snapshot)
+
+
+def test_deleted_observations_do_not_return_through_a_duplicate_review(captured):
+    memory, db, mid, journal, _, _ = captured
+    row = memory.search("archived_http_response status 404", origin="verified_archive")[
+        "items"
+    ][0]
+    memory.forget(row["id"], "Suppression de ce contenu et de ses doublons")
+    new = create_workflow(db, journal, mid)
+    memory.capture(db, journal, UUID(new["review_id"]))
+    assert (
+        memory.search("archived_http_response status 404", origin="verified_archive")[
+            "items"
+        ]
+        == []
+    )
+
+
+def test_permission_symlink_and_hardlink_guards(captured, tmp_path):
+    memory, _, mid, *_ = captured
+    memory.path.chmod(0o644)
+    with pytest.raises(PermissionError):
+        memory.info()
+    memory.path.chmod(0o600)
+    alias = tmp_path / "alias"
+    alias.symlink_to(memory.root, target_is_directory=True)
+    with pytest.raises(PermissionError):
+        MemoryEngine(alias, mid)
+    link = tmp_path / "hardlinked.sqlite"
+    os.link(memory.path, link)
+    with pytest.raises(PermissionError):
+        memory.info()
+    link.unlink()
+    assert memory.info()["mission_id"] == str(mid)

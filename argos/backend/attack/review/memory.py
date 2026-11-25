@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sqlite3
+import stat
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
@@ -47,7 +48,10 @@ def _private(path: Path, *, directory: bool) -> None:
         raise PermissionError(
             "Memory storage belongs to another identity or is a symlink"
         )
-    if info.st_mode & 0o077 or path.is_dir() != directory:
+    correct_type = (
+        stat.S_ISDIR(info.st_mode) if directory else stat.S_ISREG(info.st_mode)
+    )
+    if info.st_mode & 0o077 or not correct_type:
         raise PermissionError("Memory storage must be private")
 
 
@@ -105,7 +109,7 @@ class MemoryEngine:
 
     def _read(self, connection):
         events, records, captures = [], {}, {}
-        forgotten = set()
+        forgotten_groups = set()
         focus = None
         previous = None
         try:
@@ -143,7 +147,12 @@ class MemoryEngine:
                 elif event["kind"] == "forget":
                     if data["id"] not in records:
                         raise JournalIntegrityError("Unknown deleted record")
-                    forgotten.add(data["id"])
+                    if (
+                        records[data["id"]]["duplicate_group"]
+                        != data["duplicate_group"]
+                    ):
+                        raise JournalIntegrityError("Deletion group differs")
+                    forgotten_groups.add(data["duplicate_group"])
                 else:
                     raise JournalIntegrityError("Unknown memory event")
                 events.append({**event, "sha256": sha})
@@ -157,6 +166,11 @@ class MemoryEngine:
                 raise JournalIntegrityError("Memory checkpoint or identity differs")
         except (KeyError, TypeError, json.JSONDecodeError) as error:
             raise JournalIntegrityError("Invalid memory record") from error
+        forgotten = {
+            key
+            for key, row in records.items()
+            if row["duplicate_group"] in forgotten_groups
+        }
         return events, records, captures, forgotten, focus
 
     def _write(self, kind: str, data: dict) -> dict:
@@ -183,6 +197,10 @@ class MemoryEngine:
                     raise ValueError("Unknown memory record")
                 if data["id"] in forgotten:
                     return {"head_sha256": events[-1]["sha256"]}
+                data = {
+                    **data,
+                    "duplicate_group": records[data["id"]]["duplicate_group"],
+                }
             if len(events) >= MAX_EVENTS:
                 raise ValueError("Memory capacity exceeded")
             event = {
@@ -238,6 +256,8 @@ class MemoryEngine:
                 "review_id": str(review_id),
                 "snapshot_sha256": snapshot["sha256"],
                 "source_event_sha256": event["sha256"],
+                "source_journal": str(Path(journal).resolve()),
+                "source_archive": str(Path(database).resolve()),
                 "duplicate_group": digest([origin, payload]),
             }
             records.append({**record, "id": digest(record)})
