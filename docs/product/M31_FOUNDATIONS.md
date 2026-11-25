@@ -3,8 +3,9 @@
 L'[audit préalable](DECISION_ENGINE_AUDIT.md), livré dans `97f59d8`, décrit
 le socle de départ. Les interfaces de ce lot servent à consulter des archives
 et à consigner des décisions humaines. Les autorisations relèvent du Policy Engine.
-Les composants B à E forment la revue consultative. Le moteur décisionnel
-autonome reste non implémenté et M3.2 reste à faire.
+Les composants B à E forment la revue consultative. L'[analyste local
+M3.2](M32_LOCAL_LLM_ANALYST.md) réutilise leur contexte. Le moteur
+décisionnel autonome reste non implémenté.
 
 ## B — Mission State Snapshot
 

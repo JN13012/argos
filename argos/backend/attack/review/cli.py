@@ -1,6 +1,7 @@
 """CLI for offline review of private mission records."""
 
 import argparse
+import asyncio
 import sqlite3
 from pathlib import Path
 from uuid import UUID
@@ -10,6 +11,7 @@ from argos.backend.attack.web.receipts import WebIntegrityError
 from argos.backend.attack.web.report_files import load_report_file
 from argos.backend.core.tool_registry import ToolRegistry
 
+from .analysis import DEFAULT_ANALYSIS_CONTEXT_BYTES, analyze_mission
 from .capabilities import capability_registry
 from .context import DEFAULT_CONTEXT_BYTES, mission_review
 from .journal import (
@@ -18,6 +20,7 @@ from .journal import (
     read_journal,
     record_decision,
 )
+from .ollama import OllamaProvider
 from .snapshot import mission_snapshot
 
 
@@ -38,6 +41,18 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
     )
     summary.add_argument(
         "--expected-head", help="Externally recorded journal head SHA-256"
+    )
+    analyze = actions.add_parser(
+        "analyze", help="Analyze archived observations locally"
+    )
+    analyze.set_defaults(action="review_analyze")
+    analyze.add_argument("--db", required=True)
+    analyze.add_argument("--mission-id", type=UUID, required=True)
+    analyze.add_argument("--model", required=True, help="Installed Ollama name:tag")
+    analyze.add_argument("--ollama-port", type=int, default=11434)
+    analyze.add_argument("--timeout-seconds", type=int, default=90)
+    analyze.add_argument(
+        "--max-context-bytes", type=int, default=DEFAULT_ANALYSIS_CONTEXT_BYTES
     )
     capabilities = actions.add_parser(
         "capabilities", help="Describe shipped capabilities"
@@ -67,6 +82,17 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
 
 def execute(args: argparse.Namespace) -> int:
     try:
+        if args.action == "review_analyze":
+            result = asyncio.run(
+                analyze_mission(
+                    private_path(args.db),
+                    args.mission_id,
+                    OllamaProvider(args.model, args.ollama_port, args.timeout_seconds),
+                    max_context_bytes=args.max_context_bytes,
+                )
+            )
+            emit(result, structured=True)
+            return 1 if result["status"] == "failed" else 0
         if args.action == "review_capabilities":
             registry = ToolRegistry.load(args.registry) if args.registry else None
             result = capability_registry(registry)

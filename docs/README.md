@@ -40,6 +40,7 @@ universelle sur des applications client.
 | Découverte et premier test | [CLI W3.1](product/WEB_CLI_DISCOVERY.md), [redirection/recontrôle W3.2](product/WEB_OPEN_REDIRECT.md) |
 | Qualification de la reconnaissance | [M2.7 multi-laboratoires](product/RECON_QUALIFICATION.md) et [consolidation M2.7.1](product/RECON_CONSOLIDATION.md) : comparaison de missions complètes, résultats et limites avant M3 |
 | Revue de mission M3.1 | [Fondations, contexte et journal opérateur](product/M31_FOUNDATIONS.md) et [audit préalable](product/DECISION_ENGINE_AUDIT.md) |
+| Analyste local M3.2 | [Fournisseur Ollama, contrat et qualification](product/M32_LOCAL_LLM_ANALYST.md) |
 | Énumération contextuelle | [M2.6 Contextual Enumeration Engine](product/CONTEXTUAL_ENUMERATION.md) |
 | Cartographie applicative | [M2.5 Application Mapping Engine](product/APPLICATION_MAPPING.md) |
 | Identification technologique | [M2.4 Fingerprinting Engine](product/FINGERPRINTING.md) |

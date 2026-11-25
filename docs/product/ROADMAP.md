@@ -46,7 +46,8 @@ Les [fondations M3.1](M31_FOUNDATIONS.md) sont validées localement. Elles
 couvrent le snapshot hors ligne (B), l'inventaire descriptif (C), le journal
 opérateur (D) et la revue consultative compacte (E), après l'[audit
 préalable](DECISION_ENGINE_AUDIT.md). Le moteur décisionnel autonome reste
-non implémenté. M3.2 reste à faire.
+non implémenté. [M3.2](M32_LOCAL_LLM_ANALYST.md) ajoute un analyste local
+consultatif pour les missions archivées.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -75,8 +76,9 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Qualification M2.7 | [Missions complètes comparées](RECON_QUALIFICATION.md) sur trois applications locales réelles, référentiels séparés ; validé localement sous 3.12/3.14 sur la branche, couverture limitée, variantes système absentes non qualifiées et aucune qualification universelle |
 | Consolidation M2.7.1 | [Signaux génériques et calibration partagée](RECON_CONSOLIDATION.md), 6/7 technologies du référentiel commun reconnues ; quotas inchangés, anciennes projections conservées, versions et états partiels explicites |
 | Fondations M3.1 | [Revue et contexte de mission](M31_FOUNDATIONS.md), qualifiés hors ligne sur trois archives ; journal des décisions explicites de l'opérateur |
+| Analyste local M3.2 | [Synthèse consultative sur preuves archivées](M32_LOCAL_LLM_ANALYST.md) via Ollama en boucle locale, avec références et états vérifiés |
 | Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
-| Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
+| Agent autonome | Architecture conçue, aucune boucle d'exécution pilotée par un LLM |
 | Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |
 | OSINT / Nmap | CLI SIRENE livré ; Nmap réel exercé via le pipeline sur un laboratoire TCP local ; qualification externe/production encore ouverte |
 | API et interface | M1.2/M1.3 : dashboard SOC responsive, recherche de missions, journal des transactions/preuves archivées et consultation locale en lecture seule des missions SQLite autorisées, ports Nmap, transactions HTTP et reçus vérifiés ; téléchargements de rapports explicitement configurés. Aucun lancement de mission depuis l’interface |
