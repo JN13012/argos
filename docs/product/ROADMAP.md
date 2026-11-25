@@ -51,8 +51,9 @@ consultatif pour les missions archivées. Le [benchmark M3.2.1](M321_LOCAL_LLM_B
 est qualifié localement sur cinq modèles CUDA, avec des limites de pertinence
 explicites et une recommandation consultative. Sa consolidation conserve durablement les traces privées et les modèles hors Git,
 avec archivage complet des futurs essais ; intégré et publié sur main après
-validations locales. M3.3 est en cours sur sa branche dédiée :
-[workflow de revue supervisée](M33_SUPERVISED_REVIEW.md), sans moteur autonome.
+validations locales et CI verte. M3.3 est validé localement sur sa branche dédiée :
+[workflow de revue supervisée](M33_SUPERVISED_REVIEW.md), sans moteur autonome,
+merge ni push de cette tranche. M3.4 n’est pas commencé.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -81,6 +82,7 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Qualification M2.7 | [Missions complètes comparées](RECON_QUALIFICATION.md) sur trois applications locales réelles, référentiels séparés ; validé localement sous 3.12/3.14 sur la branche, couverture limitée, variantes système absentes non qualifiées et aucune qualification universelle |
 | Consolidation M2.7.1 | [Signaux génériques et calibration partagée](RECON_CONSOLIDATION.md), 6/7 technologies du référentiel commun reconnues ; quotas inchangés, anciennes projections conservées, versions et états partiels explicites |
 | Fondations M3.1 | [Revue et contexte de mission](M31_FOUNDATIONS.md), qualifiés hors ligne sur trois archives ; journal des décisions explicites de l'opérateur |
+| Revue supervisée M3.3 | [Cycle persistant et validation opérateur](M33_SUPERVISED_REVIEW.md), qualifié hors ligne et sur trois archives via Ollama local ; branche en attente de validation avant intégration |
 | Analyste local M3.2 | [Synthèse consultative sur preuves archivées](M32_LOCAL_LLM_ANALYST.md) via Ollama en boucle locale, avec références et états vérifiés |
 | Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
 | Agent autonome | Architecture conçue, aucune boucle d'exécution pilotée par un LLM |

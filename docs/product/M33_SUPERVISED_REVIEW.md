@@ -44,8 +44,8 @@ Après vérification que le processus est mort, l'opérateur le marque interromp
 et relance une tentative. Cette opération ne tue pas un serveur Ollama vivant.
 Les réponses tardives d'une tentative remplacée sont refusées par comparaison
 de l'empreinte précédente. Les annotations attendent la fin d'une inférence.
-Les erreurs inattendues du fournisseur sont tracées par un code sûr puis
-remontées à l'appelant ; une reprise reste possible.
+Les erreurs inattendues du fournisseur sont tracées par un code sûr et le
+type d'erreur, sans contenu de l'exception ; une reprise reste possible.
 
 La validation exige une décision explicitement fournie par l'humain, avec
 motivation, contexte et références vérifiées selon le contrat M3.1. Elle est
@@ -90,3 +90,89 @@ complétions et annotations. Sans ce drapeau, la sortie omet les événements et
 le snapshot complet. Ne pas publier cet historique ni les journaux privés.
 Les commandes d'analyse ne démarrent pas de serveur et ne téléchargent rien.
 Le modèle reste librement configurable ; l'alternative légère est `qwen2.5:0.5b`.
+
+## Qualification locale
+
+Le script `benchmarks/llm/qualify_review.py` réalise une seule inférence par
+archive explicitement fournie, sans démarrer de daemon, télécharger de modèle
+ni accepter une revue à la place de l'opérateur. Exemple, serveur déjà lancé :
+
+```bash
+PYTHONPATH=. .venv/bin/python benchmarks/llm/qualify_review.py \
+  --archive crapi ARCHIVE.sqlite UUID --model qwen3:4b --port 11434 \
+  --output "$HOME/.local/share/argos/qualification/m33"
+```
+
+Le dossier de sortie doit être privé (700) et hors du checkout. Un UUID neuf
+sépare chaque campagne ; les sources sont hachées avant et après et ne sont
+pas modifiées. Les requêtes et complétions restent dans le journal privé.
+
+Le 25 novembre 2026, trois essais Qwen3 4B sur les archives M2.7.1 existantes
+ont terminé à `ready` :
+
+| Archive | Éléments critiques conservés | Temps fournisseur + validation | Tokens entrée / sortie |
+| --- | ---: | ---: | ---: |
+| crAPI | 8/8 | 7,412 s | 778 / 42 |
+| DVWA | 7/7 | 1,458 s | 668 / 42 |
+| Juice Shop | 8/8 | 1,532 s | 761 / 42 |
+
+Les trois bases ont gardé leur empreinte fichier. Ces temps concernent les
+appels explicites de cette qualification, pas la campagne des 75 inférences.
+Le daemon a été arrêté ensuite. Aucun scan, aucune requête vers les cibles,
+aucun téléchargement ni nouvelle décision humaine n'a été effectué.
+
+Les résultats privés sont sous
+`~/.local/share/argos/qualification/m33/73738784-433b-4f69-979b-737d89e3b8cc/` :
+`reviews.sqlite`, `configuration.json`, `result-1.json` à `result-3.json`,
+`summary.json`. Le répertoire parent conserve `server.log`, `execution.log`,
+`launch-qualification.py` et les journaux de tests. Les anciennes baselines
+et les traces historiques M3.2.1 restent inchangées.
+
+Les fixtures de test sont indépendantes des attentes du modèle : elles forcent
+une sélection qui omet les éléments critiques, des références invalides, des
+timeouts, un modèle absent, une exception inattendue, une annulation et une
+tentative orpheline. Elles couvrent aussi l'altération des preuves et du
+journal, une archive valide modifiée, les checkpoints externes, les transitions,
+la validation idempotente et l'interruption entre décision et rattachement.
+Une fixture de 300 inconnues vérifie que le volet critique complet survit
+même à leur exclusion du contexte compact. Le cycle CLI est testé sans réseau.
+
+Les trois archives n'ont pas d'oracle expert : ces essais qualifient persistance,
+liaison aux preuves et conservation des incertitudes, sans attribuer de score
+de raisonnement au modèle. Les omissions du LLM subsistent dans sa sélection ;
+le volet déterministe les rend visibles, sans prétendre les résoudre.
+La revue ne renouvelle pas les observations historiques et ne mesure pas la
+couverture actuelle des applications.
+
+Le journal vérifie toute sa chaîne à la lecture ; les gros historiques et les
+revues concurrentes nombreuses n'ont pas fait l'objet d'une mesure de charge.
+Conserver séparément le checkpoint de revue et celui du Decision Journal
+(`review journal-show --expected-head`) si des décisions hors workflow sont
+ajoutées. Le stockage local doit être sauvegardé par l'opérateur ; la présence
+des fichiers et les empreintes ne constituent pas une sauvegarde externe.
+
+## Validation de livraison
+
+Les 13 cas ciblés passent sous Python 3.12 et 3.14. La suite régulière finale
+compte **1 246 réussites, 121 ignorés sous chaque interpréteur**. Les essais
+hôte optionnels de reconnaissance/isolation/navigateur sont désactivés ;
+ils ne sont pas une qualification ajoutée par cette revue hors ligne.
+Ruff, formatage, Pyright, liens locaux et `git diff --check` passent.
+
+Commandes exécutées :
+
+```bash
+.venv/bin/python -m pytest -q tests/test_review_workflow.py tests/test_review_workflow_cli.py
+/tmp/argos-stabilization-py312/bin/python -m pytest -q tests/test_review_workflow.py tests/test_review_workflow_cli.py
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pyright
+# Pour chacun des deux interpréteurs, sans ARGOS_TEST_{NETWORK,ISOLATION,BROWSER,TOOL_REGISTRY}
+.venv/bin/python -m pytest -q -o faulthandler_timeout=30
+/tmp/argos-stabilization-py312/bin/python -m pytest -q -o faulthandler_timeout=30
+git diff --check
+```
+
+La branche `feat/m33-supervised-workflow` reste locale, sans merge ni push.
+Aucun travail M3.4 n'a été commencé. L'agent autonome et la sélection d'actions
+offensives restent non implémentés.

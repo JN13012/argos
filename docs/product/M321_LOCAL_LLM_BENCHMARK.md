@@ -37,7 +37,7 @@ modèles et contextes restent hors Git. Le banc ne modifie aucune mission.
 M3.2 a été relu et intégré en fast-forward à `main`, SHA `9b000a3`.
 Les 1 229 tests réguliers passent, avec 121 ignorés. Ruff et Pyright passent.
 Les trois jobs de la [CI du SHA publié](https://github.com/JN13012/argos/actions/runs/45670050050)
-sont réussis. M3.2.1 demeure sur sa branche de validation.
+sont réussis. À cette étape initiale, M3.2.1 demeurait sur sa branche de validation.
 
 WSL expose `/dev/dxg` et une RTX 4060 Laptop GPU, 8 188 Mio. La machine
 présente 16 processeurs logiques et 15 Gio de RAM. Ollama Linux 0.11.11,
@@ -100,7 +100,8 @@ sur les archives et la grammaire des sorties limitent la généralisation.
 La stabilité observée concerne trois réponses par cas et température zéro.
 Le RSS et la VRAM sont mesurés par deux sources différentes. La campagne
 n'évalue ni les pics précis de mémoire CUDA ni une concurrence multi-mission.
-M3.3 reste à faire.
+M3.3 restait à faire au moment du benchmark ; sa livraison est décrite
+dans le [lot de revue supervisée](M33_SUPERVISED_REVIEW.md).
 
 ## Validation de la tranche
 
@@ -172,3 +173,18 @@ Le SHA-256 du binaire déplacé reste
 `e014750cd656db3a77f3bf6b45903f646c76075e58b835cc9787fb5fc8a8a600`.
 Les 42 entrées du manifeste privé incluent blobs et traces ; aucune nouvelle
 inférence ni aucun téléchargement n'a été nécessaire.
+
+Le lanceur a aussi été installé dans `~/.local/bin/argos-ollama`, utilisable
+depuis n'importe quel répertoire sans dépendance au checkout :
+
+```bash
+~/.local/bin/argos-ollama serve
+# Dans un autre terminal
+~/.local/bin/argos-ollama list
+~/.local/bin/argos-ollama run qwen3:4b
+```
+
+Il applique les mêmes variables `ARGOS_LLM_HOME` / `ARGOS_OLLAMA_PORT`.
+La [CI de consolidation](https://github.com/JN13012/argos/actions/runs/45685233693)
+est réussie sur le SHA `df62cce2039c94005f0857c5746c233105f08983` : Python
+3.12, Python 3.14 et frontend/navigateur. Aucune publication de M3.3 n'en découle.
