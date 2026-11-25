@@ -139,6 +139,7 @@ def run(args) -> None:
                         input_sha256=digest(payload),
                         context_sha256=digest(request.data_json),
                         status="failed",
+                        model_details=metadata.get("details"),
                     )
                     try:
                         response = client.post("/api/chat", json=payload)
