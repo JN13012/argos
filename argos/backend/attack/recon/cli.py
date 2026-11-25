@@ -25,6 +25,8 @@ from .application_mapping import (
     map_application,
     query_application,
 )
+from .context_execution import context_report, recover_context, run_context
+from .context_plan import create_plan, plan_report
 from .fingerprint import fingerprint, fingerprint_report
 from .network import network_report, run_network
 from .pipeline import run_pipeline
@@ -40,6 +42,48 @@ def add_parser(commands):
     )
     catalog.add_argument("--wordlist-home", help="Administrator corpus root")
     catalog.set_defaults(action="recon_wordlists", json=True)
+    for name in (
+        "context-plan",
+        "context-plan-report",
+        "context-run",
+        "context-report",
+        "context-recover",
+    ):
+        item = actions.add_parser(name, help="Deterministic evidence-bound enumeration")
+        item.set_defaults(action="recon_" + name, json=True)
+        item.add_argument("--db", default=DEFAULT_DB)
+        if name == "context-plan":
+            item.add_argument("--map-run-id", type=UUID, required=True)
+            item.add_argument(
+                "--wordlist-profile", choices=tuple(PROFILES), default="quick"
+            )
+            item.add_argument(
+                "--strategy", choices=("contextual", "predefined"), default="contextual"
+            )
+            item.add_argument("--max-candidates", type=int, default=32)
+            item.add_argument("--request-budget", type=int, default=64)
+            item.add_argument("--wordlist-home")
+            item.add_argument("--wordlist")
+            item.add_argument("--ffuf-wordlist")
+        elif name in {"context-plan-report", "context-run"}:
+            item.add_argument("--plan-id", type=UUID, required=True)
+        else:
+            item.add_argument("--run-id", type=UUID, required=True)
+        if name == "context-run":
+            item.add_argument(
+                "--slirp",
+                default=os.environ.get("ARGOS_SLIRP_PATH", "/usr/bin/slirp4netns"),
+            )
+            item.add_argument(
+                "--slirp-library",
+                default=os.environ.get(
+                    "ARGOS_SLIRP_LIBRARY", "/usr/lib/x86_64-linux-gnu/libslirp.so.0"
+                ),
+            )
+            item.add_argument("--public-key", required=True)
+            item.add_argument(
+                "--ca-bundle", default="/etc/ssl/certs/ca-certificates.crt"
+            )
     for name in ("map", "map-report", "map-query", "map-document"):
         item = actions.add_parser(
             name, help="Offline evidence-bound application mapping"
@@ -192,6 +236,57 @@ def dispatch(args):
             True,
         )
         return 0
+    if action == "context-plan":
+        emit(
+            create_plan(
+                path,
+                args.map_run_id,
+                profile=args.wordlist_profile,
+                strategy=args.strategy,
+                max_candidates=args.max_candidates,
+                request_budget=args.request_budget,
+                root=home(args.wordlist_home) if args.wordlist_home else None,
+                directories=args.wordlist,
+                files=args.ffuf_wordlist,
+            ),
+            True,
+        )
+        return 0
+    if action == "context-plan-report":
+        emit(plan_report(path, args.plan_id), True)
+        return 0
+    if action == "context-report":
+        emit(context_report(path, args.run_id), True)
+        return 0
+    if action == "context-recover":
+        emit(recover_context(path, args.run_id), True)
+        return 0
+    if action == "context-run":
+        stopped = threading.Event()
+        received = []
+        previous = {}
+
+        def interrupt_context(signum, _frame):
+            received.append(signum)
+            stopped.set()
+
+        if threading.current_thread() is threading.main_thread():
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                previous[signum] = signal.signal(signum, interrupt_context)
+        try:
+            value = run_context(
+                path,
+                verifier(args.public_key),
+                args.plan_id,
+                ca_bundle=args.ca_bundle,
+                tools=NetworkTools(args.slirp, args.slirp_library),
+                stop=stopped,
+            )
+            emit(value, True)
+            return 130 if received else 0 if value["status"] == "completed" else 3
+        finally:
+            for signum, handler in previous.items():
+                signal.signal(signum, handler)
     if action == "map-document":
         emit(import_document(path, args.mission_id, args.base_url, args.file), True)
         return 0
