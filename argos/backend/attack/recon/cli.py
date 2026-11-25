@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from argos.backend.attack.pentest.runtime_lock import RuntimeLock
-from argos.backend.attack.web.cli import DEFAULT_DB, emit, private_path, verifier
+from argos.backend.attack.web.cli import DB_HELP, emit, mission_db, verifier
 from argos.backend.attack.web.config import WebMissionConfig
 from argos.backend.core.mission_store import MissionRecord, MissionStore
 from argos.backend.core.missions import Mission
@@ -51,7 +51,7 @@ def add_parser(commands):
     ):
         item = actions.add_parser(name, help="Deterministic evidence-bound enumeration")
         item.set_defaults(action="recon_" + name, json=True)
-        item.add_argument("--db", default=DEFAULT_DB)
+        item.add_argument("--db", help=DB_HELP)
         if name == "context-plan":
             item.add_argument("--map-run-id", type=UUID, required=True)
             item.add_argument(
@@ -89,7 +89,7 @@ def add_parser(commands):
             name, help="Offline evidence-bound application mapping"
         )
         item.set_defaults(action="recon_" + name, json=True)
-        item.add_argument("--db", default=DEFAULT_DB)
+        item.add_argument("--db", help=DB_HELP)
         if name in {"map-report", "map-query"}:
             item.add_argument("--run-id", type=UUID, required=True)
             if name == "map-query":
@@ -112,7 +112,7 @@ def add_parser(commands):
     for name in ("fingerprint", "fingerprint-report"):
         item = actions.add_parser(name)
         item.set_defaults(action="recon_" + name, json=True)
-        item.add_argument("--db", default=DEFAULT_DB)
+        item.add_argument("--db", help=DB_HELP)
         if name == "fingerprint-report":
             item.add_argument("--run-id", type=UUID, required=True)
         else:
@@ -121,7 +121,7 @@ def add_parser(commands):
     for name in ("network-plan", "network-run", "network-report"):
         item = actions.add_parser(name)
         item.set_defaults(action="recon_" + name, json=True)
-        item.add_argument("--db", default=DEFAULT_DB)
+        item.add_argument("--db", help=DB_HELP)
         if name == "network-report":
             item.add_argument("--run-id", type=UUID, required=True)
             continue
@@ -151,7 +151,7 @@ def add_parser(commands):
     for name in ("plan", "run", "report", "network-init"):
         item = actions.add_parser(name)
         item.set_defaults(action="recon_" + name, json=True)
-        item.add_argument("--db", default=DEFAULT_DB)
+        item.add_argument("--db", help=DB_HELP)
         if name == "report":
             item.add_argument("--run-id", type=UUID, required=True)
         elif name == "network-init":
@@ -207,7 +207,7 @@ def dispatch(args):
     if action == "wordlists":
         emit(inventory(home(args.wordlist_home)), True)
         return 0
-    path = private_path(args.db, create=action == "network-init")
+    path = mission_db(args.db, create=action == "network-init")
     if action == "network-init":
         addresses = tuple(
             str(ipaddress.ip_address(a))

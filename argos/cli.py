@@ -24,7 +24,7 @@ from .backend.intel.osint.reporting import (
     write_search_report,
 )
 from .backend.intel.osint.storage import SQLiteStorage
-from .data_paths import initialize_data
+from .data_paths import initialize_data, prepare_area
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -43,10 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-pages", type=int, default=5, help="Maximum pages (default: 5)"
     )
     discover.add_argument(
-        "--db", default=".argos/osint/argos.sqlite3", help="SQLite database path"
+        "--db", help="SQLite database (default: DATA_HOME/missions/osint/argos.sqlite3)"
     )
     discover.add_argument(
-        "--output-dir", default="outputs", help="Readable reports directory"
+        "--output-dir",
+        help="Reports directory (default: DATA_HOME/missions/osint/reports)",
     )
     discover.add_argument("--name", help="Readable research name for the output folder")
     report = osint_commands.add_parser(
@@ -57,10 +58,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--search-id", type=UUID, required=True, help="Saved search UUID"
     )
     report.add_argument(
-        "--db", default=".argos/osint/argos.sqlite3", help="SQLite database path"
+        "--db", help="SQLite database (default: DATA_HOME/missions/osint/argos.sqlite3)"
     )
     report.add_argument(
-        "--output-dir", default="outputs", help="Readable reports directory"
+        "--output-dir",
+        help="Reports directory (default: DATA_HOME/missions/osint/reports)",
     )
     report.add_argument("--name", help="Readable research name for the output folder")
     doctor = commands.add_parser(
@@ -155,6 +157,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.action.startswith("review_"):
         return execute_review(args)
     try:
+        if args.db is None or args.output_dir is None:
+            osint_home = prepare_area("missions") / "osint"
+            if args.db is None:
+                args.db = str(osint_home / "argos.sqlite3")
+            if args.output_dir is None:
+                args.output_dir = str(osint_home / "reports")
         if args.action == "report" and not Path(args.db).is_file():
             raise ValueError("Saved search database does not exist")
         with SQLiteStorage(args.db) as storage:

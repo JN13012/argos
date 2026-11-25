@@ -52,6 +52,7 @@ def search_id(output: str) -> UUID:
 @pytest.fixture(autouse=True)
 def isolated_working_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ARGOS_DATA_HOME", str(tmp_path / "data"))
 
 
 @pytest.fixture
@@ -72,7 +73,7 @@ def test_parser_accepts_discovery_options(tmp_path: Path) -> None:
     assert parsed.db == str(path)
     defaults = cli.build_parser().parse_args(arguments(path)[:-4])
     assert defaults.max_pages == 5
-    assert defaults.db == ".argos/osint/argos.sqlite3"
+    assert defaults.db is None
 
 
 def test_cli_runs_engine_and_displays_persisted_results(

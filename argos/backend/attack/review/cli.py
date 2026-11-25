@@ -11,6 +11,7 @@ from argos.backend.attack.web.cli import emit, private_path
 from argos.backend.attack.web.receipts import WebIntegrityError
 from argos.backend.attack.web.report_files import load_report_file
 from argos.backend.core.tool_registry import ToolRegistry
+from argos.data_paths import prepare_area
 
 from .analysis import DEFAULT_ANALYSIS_CONTEXT_BYTES, analyze_mission
 from .capabilities import capability_registry
@@ -128,9 +129,7 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
         parser.set_defaults(action="review_memory_" + command)
         parser.add_argument(
             "--memory-root",
-            default=os.environ.get(
-                "ARGOS_MEMORY_HOME", str(Path.home() / ".local/share/argos/memory")
-            ),
+            help="Private memory root (or ARGOS_MEMORY_HOME, then DATA_HOME/memory)",
         )
         parser.add_argument("--mission-id", type=UUID, required=True)
         if command == "capture":
@@ -274,7 +273,10 @@ def _workflow(args: argparse.Namespace) -> dict:
 
 
 def _memory(args: argparse.Namespace) -> dict:
-    engine = MemoryEngine(args.memory_root, args.mission_id)
+    root = args.memory_root
+    if root is None:
+        root = os.environ.get("ARGOS_MEMORY_HOME") or prepare_area("memory")
+    engine = MemoryEngine(root, args.mission_id)
     command = args.action.removeprefix("review_memory_")
     if command == "capture":
         return engine.capture(

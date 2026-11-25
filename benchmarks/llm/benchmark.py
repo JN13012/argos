@@ -12,6 +12,7 @@ import httpx
 from argos.backend.attack.review.analysis import _request, _selection
 from argos.backend.attack.review.ollama import _completion, _require_local_model
 from argos.backend.attack.web.receipts import digest
+from argos.data_paths import data_path, prepare_area
 
 MODELS = ("qwen2.5:0.5b", "qwen3:4b", "gemma3:4b", "qwen3:8b", "deepseek-r1:7b")
 
@@ -104,12 +105,22 @@ def sample_memory(stop, peak):
         stop.wait(0.1)
 
 
-def private_run(root: str | Path) -> Path:
-    """Create a new private run outside the checkout; never overwrite a baseline."""
-    root = Path(root).expanduser().resolve()
+def private_artifact_path(path: str | Path) -> Path:
+    path = Path(path).expanduser().resolve()
     checkout = Path(__file__).resolve().parents[2]
-    if root == checkout or checkout in root.parents:
-        raise ValueError("Benchmark artifacts must be outside the Git checkout")
+    qualification = checkout / "data/qualification"
+    if path == checkout or (
+        path.is_relative_to(checkout) and not path.is_relative_to(qualification)
+    ):
+        raise ValueError("Use data/qualification or a path outside the checkout")
+    return path
+
+
+def private_run(root: str | Path) -> Path:
+    """Create a new private run without overwriting a baseline."""
+    root = private_artifact_path(root)
+    if root.is_relative_to(data_path("qualification")):
+        prepare_area("qualification")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     if root.stat().st_mode & 0o077:
         raise ValueError("Benchmark storage must be private (chmod 700)")
@@ -125,11 +136,10 @@ def save_artifact(run: Path, name: str, content: bytes) -> None:
 
 
 def run(args) -> None:
-    archive = private_run(args.artifacts)
-    output_path = Path(args.output).expanduser().resolve()
-    checkout = Path(__file__).resolve().parents[2]
-    if output_path == checkout or checkout in output_path.parents:
-        raise ValueError("Detailed results must be outside the Git checkout")
+    archive = private_run(args.artifacts or prepare_area("qualification") / "benchmark")
+    output_path = private_artifact_path(args.output)
+    if output_path.is_relative_to(data_path("qualification")):
+        prepare_area("qualification")
     output_path.touch(mode=0o600, exist_ok=False)
     cases = json.loads(Path(args.cases).read_text()) + fixtures()
     save_artifact(archive, "cases.json", json.dumps(cases).encode())
@@ -258,7 +268,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True)
     parser.add_argument(
         "--artifacts",
-        default=str(Path.home() / ".local/share/argos/qualification/benchmark"),
+        help="Artifact directory (default: DATA_HOME/qualification/benchmark)",
     )
     parser.add_argument("--models", nargs="+", default=MODELS)
     run(parser.parse_args())

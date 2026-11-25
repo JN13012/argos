@@ -96,6 +96,7 @@ def test_report_command_uses_saved_search_without_api_or_env(
     with SQLiteStorage(database) as storage:
         search, _ = save_fixture(storage)
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ARGOS_DATA_HOME", str(tmp_path / "data"))
     (tmp_path / ".env").write_text("INSEE_API_KEY=must-not-be-loaded\n")
     monkeypatch.delenv("INSEE_API_KEY", raising=False)
 
@@ -110,7 +111,8 @@ def test_report_command_uses_saved_search_without_api_or_env(
         )
         == 0
     )
-    assert (tmp_path / "outputs/sirene/garage-marseille/rapport-001.md").is_file()
+    reports = tmp_path / "data/missions/osint/reports"
+    assert (reports / "sirene/garage-marseille/rapport-001.md").is_file()
     output = capsys.readouterr()
     assert "Report:" in output.out and output.err == ""
 

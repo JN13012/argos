@@ -1,8 +1,9 @@
 #!/bin/sh
 # Uses only an existing local installation; never downloads models.
 set -eu
-ARGOS_LLM_HOME=${ARGOS_LLM_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/argos/ollama}
-export OLLAMA_MODELS="$ARGOS_LLM_HOME/models"
+repo=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")/../.." && pwd)
+ARGOS_LLM_HOME=$(python3 -I "$repo/argos/data_paths.py")
+export OLLAMA_MODELS="${OLLAMA_MODELS:-$ARGOS_LLM_HOME/models}"
 export OLLAMA_HOST=127.0.0.1:${ARGOS_OLLAMA_PORT:-11434}
 export OLLAMA_NO_CLOUD=1
 export OLLAMA_NOPRUNE=1

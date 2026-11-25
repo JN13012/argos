@@ -23,6 +23,7 @@ from argos.backend.core.isolated_worker import IsolationError
 from argos.backend.core.mission_store import MissionStore
 from argos.backend.core.missions import Mission
 from argos.backend.core.network_worker import NetworkTools
+from argos.data_paths import prepare_area
 
 from .browser import BrowserInstallation, BrowserWorker
 from .browser_config import WebBrowserConfig
@@ -46,7 +47,7 @@ from .runtime import WebRuntime
 from .store import WebStore
 from .transport import HTTPWorker
 
-DEFAULT_DB = ".argos/web/missions.sqlite3"
+DB_HELP = "SQLite database (default: DATA_HOME/missions/missions.sqlite3)"
 JSON_REPORT_FORMATS = ("coverage-json", "evidence-json", "findings-json")
 
 
@@ -67,7 +68,7 @@ def add_parser(commands):
     findings.add_argument("--after", required=True, help="Later findings export")
     evidence = actions.add_parser("evidence", help="Inspect one indexed HTTP receipt")
     evidence.set_defaults(action="web_evidence", json=True)
-    evidence.add_argument("--db", default=DEFAULT_DB)
+    evidence.add_argument("--db", help=DB_HELP)
     evidence.add_argument("--run-id", required=True, type=UUID)
     evidence.add_argument("--request-id", required=True, type=UUID)
     evidence.add_argument(
@@ -77,14 +78,14 @@ def add_parser(commands):
         "verify-evidence", help="Verify a saved evidence index against a recorded run"
     )
     verification.set_defaults(action="web_verify-evidence", json=True)
-    verification.add_argument("--db", default=DEFAULT_DB)
+    verification.add_argument("--db", help=DB_HELP)
     verification.add_argument("--run-id", required=True, type=UUID)
     verification.add_argument("--index", required=True, help="Saved evidence JSON")
     report_check = actions.add_parser(
         "verify-report", help="Verify three saved JSON exports against one recorded run"
     )
     report_check.set_defaults(action="web_verify-report", json=True)
-    report_check.add_argument("--db", default=DEFAULT_DB)
+    report_check.add_argument("--db", help=DB_HELP)
     report_check.add_argument("--run-id", required=True, type=UUID)
     report_check.add_argument("--coverage", required=True, help="Saved coverage JSON")
     report_check.add_argument("--findings", required=True, help="Saved findings JSON")
@@ -106,7 +107,7 @@ def add_parser(commands):
     ):
         parser = actions.add_parser(name)
         parser.set_defaults(action="web_" + name)
-        parser.add_argument("--db", default=DEFAULT_DB)
+        parser.add_argument("--db", help=DB_HELP)
         output = parser.add_mutually_exclusive_group() if name == "report" else parser
         output.add_argument(
             "--json", action="store_true", help="Structured redacted output"
@@ -200,6 +201,12 @@ def add_parser(commands):
                 default="/etc/ssl/certs/ca-certificates.crt",
                 help="Administrator CA bundle; TLS verification required",
             )
+
+
+def mission_db(value: str | None, *, create: bool = False) -> Path:
+    if value is None:
+        value = str(prepare_area("missions") / "missions.sqlite3")
+    return private_path(value, create=create)
 
 
 def private_path(value: str, *, create: bool = False) -> Path:
@@ -350,7 +357,7 @@ def dispatch(args: argparse.Namespace) -> int:
 
         emit(compare_findings(args.before, args.after), structured=True)
         return 0
-    path = private_path(args.db, create=action == "init")
+    path = mission_db(args.db, create=action == "init")
     if action == "verify-report":
         return verify_report(args, path)
     if action == "verify-evidence":
