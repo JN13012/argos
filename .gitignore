@@ -49,3 +49,26 @@ Thumbs.db
 
 # Browser worker dependencies
 /tools/browser/node_modules/
+
+# Private persistent data. Only the documented scaffold is versioned.
+/data/*
+!/data/README.md
+!/data/ollama/
+!/data/memory/
+!/data/knowledge/
+!/data/missions/
+!/data/skills/
+!/data/learning/
+!/data/profiles/
+!/data/qualification/
+!/data/backups/
+/data/*/*
+!/data/ollama/.gitkeep
+!/data/memory/.gitkeep
+!/data/knowledge/.gitkeep
+!/data/missions/.gitkeep
+!/data/skills/.gitkeep
+!/data/learning/.gitkeep
+!/data/profiles/.gitkeep
+!/data/qualification/.gitkeep
+!/data/backups/.gitkeep

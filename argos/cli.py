@@ -24,6 +24,7 @@ from .backend.intel.osint.reporting import (
     write_search_report,
 )
 from .backend.intel.osint.storage import SQLiteStorage
+from .data_paths import initialize_data
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -81,6 +82,10 @@ def build_parser() -> argparse.ArgumentParser:
             "ARGOS_SLIRP_LIBRARY", "/usr/lib/x86_64-linux-gnu/libslirp.so.0"
         ),
     )
+    data = commands.add_parser("data", help="Manage the private data directory")
+    data_commands = data.add_subparsers(required=True)
+    initialize = data_commands.add_parser("init", help="Initialize private data areas")
+    initialize.set_defaults(action="data_init")
     add_web_parser(commands)
     add_recon_parser(commands)
     add_review_parser(commands)
@@ -134,6 +139,13 @@ def _print_search(storage: SQLiteStorage, search: Search, coverage: Coverage) ->
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.action == "data_init":
+        try:
+            print(initialize_data())
+        except (OSError, ValueError, RuntimeError) as error:
+            print(f"Error: {error}", file=sys.stderr)
+            return 1
+        return 0
     if args.action == "doctor":
         from .backend.core.doctor import doctor
 
