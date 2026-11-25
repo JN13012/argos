@@ -1,0 +1,134 @@
+exact	cache-control	Cache-Control: no-store
+en	cache-control	How do I prevent a browser and intermediary caches from storing a sensitive response?
+fr-en	cache-control	Quelle directive de réponse faut-il choisir pour que les caches ne conservent aucune copie ?
+paraphrase	cache-control	I can reuse an earlier response only if I check with the origin first. Which response directives cover this?
+exact	etag	ETag
+en	etag	What response header gives a client an opaque validator for the version of a representation?
+fr-en	etag	Comment le serveur communique-t-il une étiquette qui change avec une nouvelle version de la ressource ?
+paraphrase	etag	A bytes-on-the-wire resource changes and the client needs a compact label to compare its saved copy.
+exact	if-none-match	If-None-Match: *
+en	if-none-match	How can a client send its previously seen entity tags as a conditional request?
+fr-en	if-none-match	Quel en-tête envoyer côté client pour demander une ressource seulement si son étiquette a changé ?
+paraphrase	if-none-match	I want to create a resource only if there is no representation there already. Which HTTP precondition applies?
+exact	304	304 Not Modified
+en	304	Which response tells a client to keep using its cached representation after successful revalidation?
+fr-en	304	Quel résultat de revalidation permet de réutiliser la copie locale sans renvoyer le corps ?
+paraphrase	304	I have a cached copy and the server says there is no newer content to send. What is that response?
+exact	429	429 Too Many Requests
+en	429	Which HTTP response indicates the client has sent too many requests in a period?
+fr-en	429	Quel code répond à un client qui a dépassé la cadence autorisée ?
+paraphrase	429	I exceeded the service's burst quota. Which HTTP status should I look for?
+exact	retry-after	Retry-After
+en	retry-after	Which response header can express a delay either as a date or as seconds?
+fr-en	retry-after	Comment un serveur indique-t-il le délai avant de réessayer après une indisponibilité ?
+paraphrase	retry-after	The server is temporarily busy and sends a promise of when to check again. Where does it encode that time?
+exact	401	401 Unauthorized
+en	401	Which response means that valid credentials have not been supplied?
+fr-en	401	Quel statut signale des justificatifs d'identité absents ou invalides ?
+ambiguous	401,403:1	The request was denied. How do I tell missing credentials from insufficient rights?
+exact	403	403 Forbidden
+en	403	Which status means re-authentication alone will not change the server's refusal?
+fr-en	403	Quel statut s'applique quand le serveur comprend la demande mais que le demandeur n'a pas les droits ?
+ambiguous	403,401:1	An authenticated user gets no access to a resource. Is this a permissions refusal or a credentials challenge?
+exact	307	307 Temporary Redirect
+en	307	Which temporary redirect guarantees the redirected request retains its original method?
+fr-en	307	Quel code de redirection provisoire garde le verbe et le corps de la demande ?
+ambiguous	307,308:1	Which redirect can preserve the method, and how do I tell a temporary move from a permanent one?
+exact	308	308 Permanent Redirect
+en	308	Which permanent redirect preserves the method of the original request?
+fr-en	308	Quel statut de déplacement durable conserve la méthode POST à la destination ?
+paraphrase	308	The move has no expiry and the browser should replay the same verb. Which HTTP status is it?
+exact	hsts	Strict-Transport-Security max-age includeSubDomains
+en	hsts	Which response field tells a browser to use HTTPS for future visits to this host?
+fr-en	hsts	Comment configurer l'obligation HTTPS pour les visites suivantes et éventuellement les sous-domaines ?
+paraphrase	hsts	I want the browser to remember the secure transport requirement beyond this single response.
+en	tls	Which protocol protects HTTP traffic against eavesdropping in transit?
+fr-en	tls	Quel protocole apporte confidentialité, intégrité et authentification au transport de HTTPS ?
+paraphrase	tls	Where is the reference for protecting browser-to-server traffic with encryption in transit?
+obsolete	tls	What should I consult before using SSL as a synonym for the currently supported web transport protocol?
+exact	dns	DNS Domain Name System
+en	dns	What system resolves human-readable domain names to IP addresses?
+fr-en	dns	Quel service distribué traduit un nom de domaine en adresse que le réseau peut utiliser ?
+paraphrase	dns	How does the browser turn a host label into a numerical endpoint before connecting?
+exact	dns-prefetch	rel=dns-prefetch
+en	dns-prefetch	Which link relation can resolve names for third-party resources before fetching them?
+fr-en	dns-prefetch	Quelle relation HTML anticipe la résolution d'un domaine sans télécharger sa ressource ?
+paraphrase	dns-prefetch	I only want the host lookup done early, without setting up the connection itself.
+exact	dns-control	X-DNS-Prefetch-Control
+en	dns-control	Which response header can disable browser DNS prefetching?
+fr-en	dns-control	Quel champ HTTP commande l'activation ou la désactivation des recherches DNS anticipées ?
+paraphrase	dns-control	How can the server ask the browser to stop resolving linked hostnames in advance?
+exact	cookie	Set-Cookie SameSite HttpOnly Secure
+en	cookie	Which response field creates browser cookies and sets their HttpOnly attribute?
+fr-en	cookie	Comment le serveur configure-t-il un cookie inaccessible au JavaScript et envoyé via HTTPS ?
+paraphrase	cookie	A server needs to attach persistence attributes to a small value stored in the browser.
+en	auth	Where is the overview of HTTP authentication schemes and the challenge-response flow?
+fr-en	auth	Quel guide explique l'échange défi-réponse et les différents schémas d'authentification HTTP ?
+paraphrase	auth	HTTP authentication overview with credentials, challenges, and scheme selection
+ambiguous	auth,www-authenticate:1,authorization:1	The server challenges the client, which later resends the request. Where do the two sides put the scheme and credentials?
+exact	authorization	Authorization: Bearer
+en	authorization	Which request field sends credentials to the origin server?
+fr-en	authorization	Quel en-tête de requête transporte les justificatifs du client vers le serveur ?
+paraphrase	authorization	The client already has credentials and needs the field on the next request which carries them.
+exact	www-authenticate	WWW-Authenticate
+en	www-authenticate	Which response field announces authentication schemes the client may use?
+fr-en	www-authenticate	Quel en-tête de réponse annonce le schéma exigé et peut inclure un domaine de protection ?
+ambiguous	www-authenticate,401:1	How does the server communicate a challenge after rejecting a request without credentials?
+exact	cors	CORS preflight OPTIONS
+en	cors	When must a browser issue an OPTIONS request before sending a cross-origin request?
+fr-en	cors	Quand le navigateur doit-il demander l'autorisation avant une vraie requête vers une autre origine ?
+paraphrase	cors	A browser makes a preliminary permission check before sending the operation requested by a script.
+exact	acao	Access-Control-Allow-Origin: *
+en	acao	Which response header says that one explicit origin may read the response?
+fr-en	acao	Quel en-tête de réponse spécifie l'origine autorisée à accéder à la ressource ?
+ambiguous	acao,cors:1	Where is the wildcard rule and why is it unsuitable for a browser request with credentials?
+exact	csp	Content-Security-Policy default-src
+en	csp	Which response header lets a site restrict the origins from which scripts may load?
+fr-en	csp	Quelle politique de réponse encadre les origines de scripts et de sous-ressources ?
+paraphrase	csp	The page should only execute code from approved sources. Which browser policy declares these rules?
+exact	csp-report	Content-Security-Policy-Report-Only
+en	csp-report	How can an operator observe policy violations before enforcing a new content security policy?
+fr-en	csp-report	Quel en-tête permet de tester une politique en remontant les violations sans bloquer ?
+paraphrase	csp-report	I want telemetry for a trial configuration while allowing existing browser behavior.
+exact	frame-ancestors	CSP frame-ancestors
+en	frame-ancestors	Which CSP directive controls the parents allowed to embed the current document?
+fr-en	frame-ancestors	Quelle directive CSP définit qui peut incorporer cette page dans un cadre ?
+ambiguous	frame-ancestors,x-frame:1	What modern framing policy should replace a simpler legacy framing header?
+exact	x-frame	X-Frame-Options SAMEORIGIN
+en	x-frame	Which legacy HTTP header uses DENY and SAMEORIGIN to prevent unwanted framing?
+fr-en	x-frame	Quel en-tête historique de réponse utilise DENY pour empêcher l'affichage dans une iframe ?
+obsolete	x-frame,frame-ancestors:1	Where is the deprecation of ALLOW-FROM explained, and where can I find the modern replacement?
+exact	x-xss	X-XSS-Protection
+en	x-xss	Which deprecated browser response header controlled the old reflected-script filter?
+fr-en	x-xss	Quel ancien en-tête pilotait le filtre XSS intégré à certains navigateurs ?
+obsolete	x-xss,csp:1	Should a new application rely on X-XSS-Protection, and which modern policy is preferred?
+exact	expect-ct	Expect-CT
+en	expect-ct	Which obsolete response header was used to opt into certificate transparency reporting?
+fr-en	expect-ct	Quel ancien en-tête permettait de demander l'application de la transparence des certificats ?
+obsolete	expect-ct	Where does the documentation explain that a legacy optional Certificate Transparency header has become obsolete?
+exact	nosniff	X-Content-Type-Options nosniff
+en	nosniff	Which header prevents the browser from guessing a different media type for a response?
+fr-en	nosniff	Quel champ demande au navigateur de respecter le type MIME fourni sans le deviner ?
+paraphrase	nosniff	My script file is served as the wrong media type; which response setting makes browsers reject such reinterpretation?
+en	mixed	What happens when an HTTPS document loads an HTTP subresource?
+fr-en	mixed	Comment s'appelle le chargement d'une ressource HTTP depuis une page HTTPS ?
+paraphrase	mixed	Some assets on an encrypted page still travel as cleartext. Which browser protection covers this situation?
+en	secure-contexts	Which security condition gates browser APIs to trustworthy origins?
+fr-en	secure-contexts	Quelle condition de sécurité du contexte ouvre l'accès à certaines API du navigateur ?
+paraphrase	secure-contexts	A powerful browser API appears only when the document's origin is sufficiently trustworthy. Where is that behavior explained?
+exact	integrity	Subresource Integrity SHA-384
+en	integrity	How can a browser verify an externally hosted script against an expected cryptographic hash?
+fr-en	integrity	Quel mécanisme vérifie qu'un script livré par un CDN correspond à l'empreinte prévue ?
+paraphrase	integrity	I need a tamper check on fetched third-party assets before the browser uses them.
+none	-	Which Apache HTTP Server configuration is currently deployed on the client's gateway?
+none	-	Quelle est la valeur de la clé de signature JWT du serveur local ?
+none	-	What was the last successful login time of the administrator?
+none	-	Quelle adresse IP renvoie actuellement le DNS privé de l'organisation ?
+none	-	What is the recommended brake pad torque on the 2024 bicycle model?
+none	-	Quel est le tarif du billet entre Marseille et Lyon demain ?
+none	-	What exact Nginx package version is installed in the offline recovery appliance?
+none	-	Quel est le TTL réellement configuré pour notre zone DNS de production ?
+none	-	What is the password for the demonstration account?
+none	-	Combien de temps dure la rétention de sauvegardes prévue par notre contrat ?
+none	-	Which employee approved enabling the certificate-transparency feature?
+none	-	What is the Fourier transform of a Gaussian centered at an arbitrary frequency?

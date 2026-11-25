@@ -1,0 +1,20 @@
+exact	get	HTTP GET
+en	get	How should a client request a representation without submitting a change?
+fr-en	head	Quelle méthode HTTP obtient les métadonnées de réponse sans recevoir le corps ?
+exact	vary	Vary
+en	vary	Which response field tells a cache that language preferences can change the selected response?
+paraphrase	location	The server says where a newly created resource lives. Which field carries that address?
+fr-en	origin	Quel en-tête indique la provenance d'une requête à partir du protocole, du nom d'hôte et du port ?
+en	origin	How can the server find the scheme, host, and port of the request's origin?
+fr-en	referrer	Comment limiter la quantité d'information de provenance transmise aux liens externes ?
+exact	referrer	Referrer-Policy
+en	permissions	How can a site disable camera access for selected embedded origins?
+fr-en	permissions	Quel mécanisme permet de limiter l'accès au microphone dans une iframe ?
+fr-en	get,head:1	Quelle méthode de lecture renvoie le corps et quelle méthode proche permet de l'éviter ?
+none	-	What is the maximum PostgreSQL shared_buffers setting recommended in this collection?
+none	-	Quel champ du contrat bancaire fixe le plafond du virement ?
+none	-	What is the TLS certificate expiration date of the Argos production server?
+none	-	Donne le code de récupération MFA du compte de l'administrateur.
+none	-	Which SPF record is currently deployed on the operator's mail server?
+none	-	What decimal viscosity is specified for ISO VG 32 hydraulic fluid?
+none	-	Quel est le délai de rotation des clés internes de notre organisation ?

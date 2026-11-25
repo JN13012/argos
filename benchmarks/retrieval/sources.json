@@ -1,0 +1,277 @@
+{
+  "upstream": "mdn/content",
+  "commit": "42994d9657fd9771d5c45579521d947ba5babc05",
+  "license": {
+    "id": "LICENSE",
+    "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/LICENSE.md",
+    "sha256": "97a45d9a5c27c90ad7f058b20a870f11a24717f0eb4585f141948d25b74c4d89"
+  },
+  "documents": [
+    {
+      "id": "get",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/methods/get/index.md",
+      "sha256": "893603aa7bfe912405ad5b482592ed123b4728d4f1d68d67c6a4935c43820a45",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/methods/get",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "head",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/methods/head/index.md",
+      "sha256": "b747219aed0bf3bbf44fb43b2efa7a3241d0e65c2582fe429f3ca0941e7bfd4f",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/methods/head",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "cache-control",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/cache-control/index.md",
+      "sha256": "f896383cf09679fb21c68b920695e3f3c89b8aed66ddb0019b4defc06cdf7c70",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/cache-control",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "etag",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/etag/index.md",
+      "sha256": "41113bc7a56d057f41eedeb349287b1813b77d322d82e52a99b6abebf8bdc87b",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/etag",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "if-none-match",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/if-none-match/index.md",
+      "sha256": "48691500c0b926ea8f05c2e27b882a8b1472c9d5fe8e10cc9711b831417670cb",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/if-none-match",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "429",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/status/429/index.md",
+      "sha256": "9d00420fcbd41b38a4016031ec5df0c13f8a495295d38b4c0b3487c60c5bbe8b",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/status/429",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "304",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/status/304/index.md",
+      "sha256": "00a64320dfba9e588bbfdae36155e82645264885af114d582ef9182baa44483f",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/status/304",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "401",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/status/401/index.md",
+      "sha256": "7804a7c817cca29d4661fde812fe536ca2357ab0a8765bb57a1e3c094b40abe1",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/status/401",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "403",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/status/403/index.md",
+      "sha256": "ddd4139d9c18f183bd2fed24c301915dc262afe72105f0d8f77f9321baf492c3",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/status/403",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "307",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/status/307/index.md",
+      "sha256": "aa7049de6ad1ed4685ed4e8088508fdd0d33fc780569213f16082c760eb46502",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/status/307",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "308",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/status/308/index.md",
+      "sha256": "346f3f76420b7a2f101367be2d75b284bc1d8ed7d8cc023a68d2f7429ac27d42",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/status/308",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "retry-after",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/retry-after/index.md",
+      "sha256": "df9f9d9a117cd380ace345297e79910a7a3da3924502d376c8a5ec3cd5921325",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/retry-after",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "vary",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/vary/index.md",
+      "sha256": "25d2de4c18b1bebfbe223031acce2e162a5ebb27b4661b64a018e240d751222a",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/vary",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "hsts",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/strict-transport-security/index.md",
+      "sha256": "3d21fc61a42646397918871c054ca31197417186ac966bc25957395df22d6b4a",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/strict-transport-security",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "dns",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/glossary/dns/index.md",
+      "sha256": "827d2c89bf49b3f0ffd98e7c79e54edab44144c3af6b1dba4f640311784d6461",
+      "attribution": "https://developer.mozilla.org/en-US/docs/glossary/dns",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "dns-prefetch",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/html/reference/attributes/rel/dns-prefetch/index.md",
+      "sha256": "42c152a45151a5a1ac295ba71283627151bd15392a504b27c9c40a09434ffc13",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/html/reference/attributes/rel/dns-prefetch",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "dns-control",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/x-dns-prefetch-control/index.md",
+      "sha256": "664846ed5d6e4ae9a6b1c18fbd838893e69cdfae6c63bca23ca25b096071f24a",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/x-dns-prefetch-control",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "cookie",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/set-cookie/index.md",
+      "sha256": "eb6d8f2ec0be81745c75f4d0fa0a768ffb989b9d30aecf14c0c007c5a0b1f58a",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/set-cookie",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "auth",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/guides/authentication/index.md",
+      "sha256": "907a874bb5f44b0ce3f9160400d5105f7554f95bd46908de32e016191c85519a",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/guides/authentication",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "authorization",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/authorization/index.md",
+      "sha256": "4265dd3afec6a66b0c0b2f127be97d6e20d1caf7fd019f4616e14bab31e1ee1f",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/authorization",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "www-authenticate",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/www-authenticate/index.md",
+      "sha256": "2b151eb7d024abf13883caa0ed6e540f094c9875934394b83c516daf7ef9e00b",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/www-authenticate",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "cors",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/guides/cors/index.md",
+      "sha256": "7a8ce59efa4b8c9cb055d2eb44125ab85cd2d719e8c91b7993ef19ebd5f815df",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/guides/cors",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "acao",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/access-control-allow-origin/index.md",
+      "sha256": "a2223d5f03698218742d2320b39f14200fb76f5e3b13c6da54712f95fdccf220",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/access-control-allow-origin",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "csp",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/content-security-policy/index.md",
+      "sha256": "cf7e7e0d669c47beb63054c814b3ef963e853973f183e96bd58f782e00c74061",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/content-security-policy",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "csp-report",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/content-security-policy-report-only/index.md",
+      "sha256": "0eb533aea9223a82b11c13c345725ce0d402c420498dd3b4d379e954ed75f072",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/content-security-policy-report-only",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "frame-ancestors",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/content-security-policy/frame-ancestors/index.md",
+      "sha256": "8ef5d5e0a08acaf62c8522d77c3ffa162e73f91566356f65903d7d0d1cad5cc3",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/content-security-policy/frame-ancestors",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "x-frame",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/x-frame-options/index.md",
+      "sha256": "68a6673bd7918eb291ab4f915444b201ad4d77890cc195b092877716fe5e266e",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/x-frame-options",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "x-xss",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/x-xss-protection/index.md",
+      "sha256": "9316b3084f1bd4328b997451d944c0d1a81bc4a4e7f0e7175129315935a62702",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/x-xss-protection",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "expect-ct",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/expect-ct/index.md",
+      "sha256": "fe31ace80da31fc114da399b658160302a94593aa6ca33b6c86fb34331b27364",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/expect-ct",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "nosniff",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/x-content-type-options/index.md",
+      "sha256": "9437e3341df5481394e46b2bdf0dd9543df3a3dbfc5fdfc741e5314068efe303",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/x-content-type-options",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "referrer",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/referrer-policy/index.md",
+      "sha256": "0ff817795f8fd056378dc8550e871bf4cf6a59fb30ef920958fac6c841425707",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/referrer-policy",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "permissions",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/permissions-policy/index.md",
+      "sha256": "baa59247b004ddf6c7597b381e2cf5aeebfdd09a87226c999c3f7f888fc9a2d2",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/permissions-policy",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "location",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/location/index.md",
+      "sha256": "d25f67da22d90c934d9defb7f92649a773309e4c51237931eef26e3bb7f41919",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/location",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "origin",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/http/reference/headers/origin/index.md",
+      "sha256": "1ef5e37631d25bd8480ac4ff0eb95c5af23019be846a74a1014ad338ba8661f6",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/http/reference/headers/origin",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "tls",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/security/defenses/transport_layer_security/index.md",
+      "sha256": "0e9786932ab7f83ab5d1a6b5467271d9fe5cf92650cce578b9e74b19977d551b",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/security/defenses/transport_layer_security",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "mixed",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/security/defenses/mixed_content/index.md",
+      "sha256": "59be9b9b06e67b339c5c4d9c47c59f9aaa0612498a2d0a687a08ac610ade7d45",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/security/defenses/mixed_content",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "integrity",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/security/defenses/subresource_integrity/index.md",
+      "sha256": "85d70bedcf78e231a136b06152f35823049299ba13488dfbc3a26bfe6abc9cfe",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/security/defenses/subresource_integrity",
+      "authors": "MDN contributors"
+    },
+    {
+      "id": "secure-contexts",
+      "url": "https://raw.githubusercontent.com/mdn/content/42994d9657fd9771d5c45579521d947ba5babc05/files/en-us/web/security/defenses/secure_contexts/index.md",
+      "sha256": "34d362549bf0228732eea6025f614c05da3615fd9cfcffdf78e163bf48ab2996",
+      "attribution": "https://developer.mozilla.org/en-US/docs/web/security/defenses/secure_contexts",
+      "authors": "MDN contributors"
+    }
+  ]
+}
