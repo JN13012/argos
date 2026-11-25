@@ -34,11 +34,11 @@ de la même exécution. La [vérification groupée des exports](WEB_CLIENT_REPOR
 compare la couverture, les constats et l’index des preuves au même instantané
 de la base privée, avant la remise du rapport.
 
-**M2.5 livré : [Application Mapping Engine](APPLICATION_MAPPING.md)**.
-M2.4 intégré et publié sur main (`199ba35`), CI vérifiée verte. M2.5 validé
-localement sur trois fixtures et les workers HTTP/TLS 3.12/3.14 ; publication
-et fast-forward autorisés par la consigne finale de livraison.
-**Prochain lot : M2.6 à cadrer, non commencé.**
+**M2.6 livré : [Contextual Enumeration Engine](CONTEXTUAL_ENUMERATION.md)**.
+Base M2.5 `4094171` conservée ; plans déterministes liés aux preuves, exécution
+par les adaptateurs existants, couverture et récupération sans rejeu.
+Comparaison locale à budgets égaux, limites et validations dans le lot.
+**M2.7 et M3 non commencés.** Publication main autorisée après validation.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -63,6 +63,7 @@ sans confondre une requête exécutée et une transaction métier vérifiée.
 | Cartographie réseau M2.3 | [Profils et inventaire TCP multi-hôtes explicites](NETWORK_RECON.md), validés sur fixtures et laboratoire TCP local IPv4/IPv6 ; mêmes jobs, preuves et worker isolé, sans expansion du scope ; limites et validation détaillées dans le lot |
 | Fingerprinting M2.4 | [Identification passive et corrélation liées aux preuves](FINGERPRINTING.md), validées localement ; états et versions explicites, catalogue limité, aucun trafic ajouté par le moteur ; faux positifs/manques mesurés dans le lot |
 | Cartographie applicative M2.5 | [Graphe hors ligne lié aux preuves](APPLICATION_MAPPING.md) : hôtes/services/applications, ressources, formulaires, API/méthodes/paramètres attestés ou déclarés, technologies, relations et consultation ; états et limites explicites, aucune nouvelle capacité active |
+| Énumération contextuelle M2.6 | [Plans déterministes et couverture vérifiée](CONTEXTUAL_ENUMERATION.md), comparaison aux listes prédéfinies sur laboratoires locaux ; mêmes relais/workers et plafonds, aucun LLM ni expansion de scope |
 | Autres outils web | ZAP, Nuclei, SQLmap et Katana restent des candidats sans adaptateur de mission livré |
 | Agent autonome / LLM | Architecture conçue, aucune boucle de mission LLM connectée |
 | Restitution client | Premier export Markdown de la découverte et du contrôle existant ; rapport multi-familles à construire |
