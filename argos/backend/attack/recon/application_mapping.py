@@ -19,6 +19,8 @@ from argos.backend.core.mission_store import MissionStore
 
 from .application_graph import ApplicationGraph
 from .fingerprint import collect as collect_fingerprints
+from .fingerprint_signals import CORRELATION_RULESET
+from .fingerprint_signals import RULESET as LEGACY_FINGERPRINT
 from .mapping_browser import browser_observations
 from .mapping_signals import MAX_BODY, RULESET, Facts, location, name, openapi_facts
 from .network import network_report
@@ -95,13 +97,18 @@ def collect_mapping(
     http_selection_limited=None,
     navigation_ids=None,
     navigation_selection_limitations=None,
+    fingerprint_ruleset=LEGACY_FINGERPRINT,
 ):
     if len(document_ids) > MAX_DOCUMENTS or len(set(document_ids)) != len(document_ids):
         raise ValueError("Application document count budget or duplicate sources")
     if document_ids and mission_id is None:
         raise ValueError("Documents require an explicit web mission")
     fingerprints = collect_fingerprints(
-        database, mission_id, network_run_id, http_ids=http_ids
+        database,
+        mission_id,
+        network_run_id,
+        http_ids=http_ids,
+        ruleset=fingerprint_ruleset,
     )
     if http_selection_limited is None:
         http_selection_limited = "http_observation_limit" in fingerprints["limitations"]
@@ -344,11 +351,16 @@ def map_application(
 ) -> dict:
     with RuntimeLock(str(database) + ".recon"):
         result = collect_mapping(
-            database, mission_id, network_run_id, document_ids=document_ids
+            database,
+            mission_id,
+            network_run_id,
+            document_ids=document_ids,
+            fingerprint_ruleset=CORRELATION_RULESET,
         )
         value = dict(
             version=VERSION,
             ruleset=RULESET,
+            fingerprint_ruleset=CORRELATION_RULESET,
             kind="application_map",
             id=str(uuid4()),
             mission_id=str(mission_id) if mission_id else None,
@@ -384,6 +396,7 @@ def application_report(database, run_id):
         http_selection_limited=value["http_selection_limited"],
         navigation_ids=value["navigation_ids"],
         navigation_selection_limitations=value["navigation_selection_limitations"],
+        fingerprint_ruleset=value.get("fingerprint_ruleset", LEGACY_FINGERPRINT),
     )
     if any(current[key] != value[key] for key in current):
         raise WebIntegrityError(

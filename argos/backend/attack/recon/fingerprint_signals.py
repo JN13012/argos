@@ -5,13 +5,20 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass
 from html.parser import HTMLParser
+from urllib.parse import urlsplit
 
 RULESET = "argos-fingerprint-v1"
+CORRELATION_RULESET = "argos-fingerprint-v2"
+EXTRACTION_RULESET = "argos-fingerprint-signals-v2"
 MAX_SIGNALS = 32
 MAX_BODY = 262144
+# Linear inspection of already retained, complete JavaScript, bounded by the
+# existing default HTTP response ceiling; no extra fetch or transport allowance.
+MAX_JAVASCRIPT = 2 * 1024 * 1024
 CATALOG = {
     "uvicorn": "web_server",
     "nginx": "web_server",
+    "openresty": "web_server",
     "apache": "web_server",
     "iis": "web_server",
     "php": "language",
@@ -173,7 +180,7 @@ def http_indicators(headers, body: bytes, *, complete: bool, tls=None) -> dict:
     )
 
 
-def nmap_indicators(port) -> list[Indicator]:
+def nmap_indicators(port, *, ruleset=RULESET) -> list[Indicator]:
     # Names inferred solely from the service table are not technology evidence.
     if (
         port.state != "open"
@@ -181,6 +188,18 @@ def nmap_indicators(port) -> list[Indicator]:
         or (port.service_confidence or 0) < 7
     ):
         return []
+    if (
+        ruleset == CORRELATION_RULESET
+        and (port.product or "").lower() == "openresty web app server"
+    ):
+        return [
+            indicator(
+                "openresty",
+                "nmap",
+                "nmap-probed-product",
+                documented_version(port.version or ""),
+            )
+        ]
     products = {
         "nginx": "nginx",
         "apache httpd": "apache",
@@ -202,4 +221,131 @@ def nmap_indicators(port) -> list[Indicator]:
         ]
         if tech
         else []
+    )
+
+
+class DeclaredLibraries(HTMLParser):
+    """Recognized CDN declarations, not proof that remote code was fetched."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.signals = []
+        self.limited = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag != "script":
+            return
+        if len(self.signals) >= MAX_SIGNALS:
+            self.limited = True
+            return
+        src = dict(attrs).get("src") or ""
+        if len(src) > 2048:
+            return
+        try:
+            url = urlsplit(src)
+            if url.scheme not in {"", "http", "https"} or url.username or url.password:
+                return
+            if url.port is not None and url.port != (
+                80 if url.scheme == "http" else 443
+            ):
+                return
+            host = url.hostname
+        except ValueError:
+            return
+        cdn = rf"/ajax/libs/jquery/({VERSION})/jquery(?:\.min)?\.js"
+        patterns = {
+            "cdnjs.cloudflare.com": cdn,
+            "ajax.googleapis.com": cdn,
+            "code.jquery.com": rf"/jquery-({VERSION})(?:\.min)?\.js",
+        }
+        if host in patterns and (match := re.fullmatch(patterns[host], url.path)):
+            self.signals.append(
+                indicator("jquery", "html", "declared-cdn-jquery", match[1])
+            )
+
+
+def http_indicators_v2(headers, body: bytes, *, complete: bool, tls=None) -> dict:
+    """New captures only. Old receipts and their v1 projections remain intact."""
+    bundle = http_indicators(headers, body, complete=complete, tls=tls)
+    signals = [Indicator(**s) for s in bundle["signals"]]
+    for key, value in headers[:100]:
+        if key.lower() == "server" and (
+            match := re.fullmatch(rf"openresty(?:/({VERSION}))?", value, re.I)
+        ):
+            signals.extend(
+                [
+                    indicator("openresty", "http", "header-server-openresty", match[1]),
+                    # OpenResty's release number is NOT the version of its nginx core.
+                    indicator("nginx", "http", "openresty-nginx-core"),
+                ]
+            )
+    types = [
+        v.split(";", 1)[0].strip().lower()
+        for k, v in headers
+        if k.lower() == "content-type"
+    ]
+    if complete and len(types) == 1:
+        if types[0] in {"text/html", "application/xhtml+xml"} and len(body) <= MAX_BODY:
+            parser = DeclaredLibraries()
+            parser.feed(body.decode("utf-8", errors="replace"))
+            signals.extend(parser.signals)
+            bundle["limited"] |= parser.limited
+        elif (
+            types[0]
+            in {
+                "application/javascript",
+                "text/javascript",
+                "application/ecmascript",
+                "text/ecmascript",
+            }
+            and len(body) <= MAX_JAVASCRIPT
+        ):
+            text = body.decode("utf-8", errors="replace")
+            # These invariant Ivy field names survive minification. A custom
+            # <app-root> tag or a reference to Zone.js is insufficient.
+            ivy = re.search(r"(?:ɵ|\\u0275)cmp\s*=", text) and re.search(
+                r"(?:ɵ|\\u0275)fac\s*=\s*function\b", text
+            )
+            if ivy:
+                versions = set()
+                for match in re.finditer(
+                    rf'["\']ng-version["\']\s*,\s*["\']({VERSION})["\']', text
+                ):
+                    if len(versions) >= MAX_SIGNALS:
+                        break
+                    versions.add(match[1])
+                for version in sorted(versions) or [None]:
+                    signals.append(
+                        indicator(
+                            "angular", "javascript", "ivy-component-factory", version
+                        )
+                    )
+            if "__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED" in text and all(
+                re.search(rf"""Symbol\.for\(\s*['"]react\.{kind}['"]\s*\)""", text)
+                for kind in ("element", "portal")
+            ):
+                # No arbitrary `x.version` attribution across a bundled module.
+                signals.append(
+                    indicator("react", "javascript", "react-production-symbols")
+                )
+            # Preserve v1's licensed/banners logic also for larger complete files.
+            for product, tech in (("React", "react"), ("jQuery", "jquery")):
+                for match in re.finditer(
+                    rf"/\*![ \t]*{product}[ \t]+v?({VERSION})(?=[\s*])", text, re.I
+                ):
+                    signals.append(
+                        indicator(tech, "javascript", f"banner-{tech}", match[1])
+                    )
+                    if len(signals) >= MAX_SIGNALS:
+                        break
+            bundle["limited"] = (
+                http_indicators(headers, b"", complete=False, tls=tls)["limited"]
+                or len(signals) >= MAX_SIGNALS
+            )
+    unique = {tuple(asdict(s).values()): asdict(s) for s in signals}
+    return dict(
+        bundle,
+        ruleset=EXTRACTION_RULESET,
+        signals=list(unique.values())[:MAX_SIGNALS],
+        limited=bundle["limited"] or len(unique) > MAX_SIGNALS,
     )

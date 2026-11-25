@@ -14,7 +14,14 @@ from argos.backend.attack.web.receipts import WebIntegrityError, digest
 from argos.backend.attack.web.store import WebStore
 from argos.backend.core.mission_store import MissionStore
 
-from .fingerprint_signals import CATALOG, RULESET, Indicator, nmap_indicators
+from .fingerprint_signals import (
+    CATALOG,
+    CORRELATION_RULESET,
+    EXTRACTION_RULESET,
+    RULESET,
+    Indicator,
+    nmap_indicators,
+)
 from .network import network_report
 from .store import ReconStore
 
@@ -102,7 +109,11 @@ def correlate(
     return results
 
 
-def collect(database, mission_id=None, network_run_id=None, *, http_ids=None):
+def collect(
+    database, mission_id=None, network_run_id=None, *, http_ids=None, ruleset=RULESET
+):
+    if ruleset not in {RULESET, CORRELATION_RULESET}:
+        raise ValueError("Unsupported fingerprint ruleset")
     if mission_id is None and network_run_id is None:
         raise ValueError("A web mission or network run is required")
     if http_ids is not None and (
@@ -160,7 +171,7 @@ def collect(database, mission_id=None, network_run_id=None, *, http_ids=None):
                 bundle = response.get("technology")
                 if bundle is None:
                     limitations.add("historical_http_without_indicators")
-                elif bundle.get("ruleset") != RULESET:
+                elif bundle.get("ruleset") not in {RULESET, EXTRACTION_RULESET}:
                     raise WebIntegrityError("Unsupported fingerprint ruleset")
                 else:
                     if bundle.get("limited"):
@@ -214,7 +225,7 @@ def collect(database, mission_id=None, network_run_id=None, *, http_ids=None):
                     )
                     for asset in destinations:
                         assets.add(asset)
-                        for item in nmap_indicators(port):
+                        for item in nmap_indicators(port, ruleset=ruleset):
                             observations.append(TechnologyObservation(asset, item, ref))
     return dict(
         identifications=correlate(observations, assets),
@@ -226,14 +237,16 @@ def collect(database, mission_id=None, network_run_id=None, *, http_ids=None):
 
 def fingerprint(database, mission_id=None, network_run_id=None):
     with RuntimeLock(str(database) + ".recon"):
-        result = collect(database, mission_id, network_run_id)
+        result = collect(
+            database, mission_id, network_run_id, ruleset=CORRELATION_RULESET
+        )
         value: dict = dict(
             version="fingerprint-v1",
             kind="fingerprint",
             id=str(uuid4()),
             mission_id=str(mission_id) if mission_id else None,
             network_run_id=str(network_run_id) if network_run_id else None,
-            ruleset=RULESET,
+            ruleset=CORRELATION_RULESET,
             created_at=datetime.now(UTC).isoformat(),
             status="completed",
             reason="offline_analysis",
@@ -250,13 +263,17 @@ def fingerprint(database, mission_id=None, network_run_id=None):
 def fingerprint_report(database, run_id):
     with ReconStore(database, readonly=True) as archive:
         value = archive.get(run_id)
-    if value.get("kind") != "fingerprint" or value.get("ruleset") != RULESET:
+    if value.get("kind") != "fingerprint" or value.get("ruleset") not in {
+        RULESET,
+        CORRELATION_RULESET,
+    }:
         raise ValueError("Expected a supported fingerprint run")
     current = collect(
         database,
         UUID(value["mission_id"]) if value["mission_id"] else None,
         UUID(value["network_run_id"]) if value["network_run_id"] else None,
         http_ids=value["http_ids"],
+        ruleset=value["ruleset"],
     )
     if (
         current["identifications"] != value["identifications"]
