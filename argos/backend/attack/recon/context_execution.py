@@ -17,6 +17,7 @@ from argos.backend.attack.web.runtime import WebRuntime
 from argos.backend.attack.web.store import WebStore
 from argos.backend.attack.web.transport import HTTPWorker
 
+from .calibration import verify_control
 from .context_plan import RULESET, history, plan_report, seed_base
 from .pipeline import enumerate_paths
 from .store import ReconStore
@@ -108,6 +109,29 @@ def coverage(database, value, plan):
     # Verify archived tool handoff references, rather than trusting stage summaries.
     references = {o["request_id"]: o for o in observations}
     for stage in value["stages"]:
+        if stage.get("calibration"):
+            groups = [
+                g
+                for g in plan["selection"]["groups"]
+                if digest(g["seed"]) == stage["seed_sha256"]
+                and g["tool"] == stage["tool"]
+            ]
+            if not groups or len(stage["calibration"]) > 4:
+                raise WebIntegrityError("Contextual calibration group differs")
+            with WebStore(database, readonly=True) as store:
+                for control in stage["calibration"]:
+                    if (
+                        verify_control(
+                            store,
+                            UUID(value["mission_id"]),
+                            groups[0]["seed"],
+                            control["request_id"],
+                        )
+                        != control
+                    ):
+                        raise WebIntegrityError(
+                            "Contextual calibration receipt differs"
+                        )
         for archived in stage.get("requests", []):
             observed = references.get(archived["request_id"])
             if (

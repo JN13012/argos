@@ -6,8 +6,7 @@ import json
 import threading
 import time
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from argos.backend.attack.pentest.authorized_execution import AuthorizedNmapRunner
 from argos.backend.attack.pentest.execution_manager import ExecutionManager, JobState
@@ -24,6 +23,7 @@ from argos.backend.attack.web.transport import HTTPWorker
 from argos.backend.core.isolated_worker import IsolationError, WorkerLimits
 from argos.backend.core.network_worker import NetworkWorker
 
+from .calibration import controls
 from .relay import EnumerationRelay
 from .store import ReconStore
 from .tools import EnumerationWorker, words
@@ -281,32 +281,7 @@ def enumerate_paths(
             tool=tool,
             **(relay_options or {}),
         ) as relay:
-            calibration = []
-            with WebStore(runtime.database, readonly=True) as store:
-                for control in Frontier(store.db).routes(run_id) if run_id else []:
-                    if control["kind"] != "probe" or not control["request_id"]:
-                        continue
-                    if (
-                        urlsplit(control["url"]).netloc != urlsplit(seed).netloc
-                        or urlsplit(control["url"]).scheme != urlsplit(seed).scheme
-                    ):
-                        continue
-                    capture = Frontier(store.db).capture(UUID(control["request_id"]))
-                    proof = store.evidence(UUID(control["request_id"]))
-                    if (
-                        capture
-                        and capture.get("fingerprint")
-                        and proof
-                        and proof.get("response")
-                    ):
-                        response = proof["response"]
-                        if 200 <= response["status"] < 300:
-                            calibration.append(
-                                dict(
-                                    request_id=control["request_id"],
-                                    length=response["retained_bytes"],
-                                )
-                            )
+            calibration = controls(runtime.database, mission_id, seed, run_id=run_id)
             # Native filters never remove relay evidence.
             exclude_lengths = tuple(sorted({c["length"] for c in calibration}))[:4]
             item["calibration"] = calibration[:4]
@@ -331,7 +306,9 @@ def enumerate_paths(
         item["entries_with_response"] = len(relay.served_entries)
         item["entries_without_response"] = len(set(entries) - relay.served_entries)
         # Keep the actual terminal state and stop reason.
-        if result["state"] != "completed":
+        if result.get("termination") == "wildcard_precheck":
+            item.update(state="partial", reason="wildcard_precheck")
+        elif result["state"] != "completed":
             item["reason"] = f"worker_{result['state']}"
         elif (
             result["exit_code"] != 0

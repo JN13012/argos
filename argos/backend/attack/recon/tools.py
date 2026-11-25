@@ -175,6 +175,15 @@ class EnumerationWorker:
             **identity,
             state=result.state,
             exit_code=result.exit_code,
+            termination="wildcard_precheck"
+            if tool == "gobuster"
+            and result.state == "failed"
+            and result.exit_code is not None
+            and result.exit_code > 0
+            and b"the server returns a status code that matches"
+            in result.stderr.lower()
+            and b"non existing urls" in result.stderr.lower()
+            else None,
             stdout_sha256=hashlib.sha256(result.stdout).hexdigest(),
             stderr_sha256=hashlib.sha256(result.stderr).hexdigest(),
         )
