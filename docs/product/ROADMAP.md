@@ -38,8 +38,13 @@ de la base privée, avant la remise du rapport.
 après la [qualification M2.7](RECON_QUALIFICATION.md), sur
 `feat/m27-recon-qualification`. Signaux génériques versionnés, calibration
 partagée et arrêts explicites ; requalification 3.12/3.14 terminée avant livraison.
-Les baselines M2.2 à M2.7 sont conservées. **M3 non commencé.** Intégration
-fast-forward et publication de main autorisées après validation, puis CI du SHA poussé.
+Les baselines M2.2 à M2.7 sont conservées. Intégration fast-forward et
+publication de main autorisées pour M2.7.1 après validation, puis CI du SHA
+poussé.
+
+L'[audit préalable M3.1](DECISION_ENGINE_AUDIT.md) documente les interfaces
+existantes et les vérifications sur les archives. Le moteur M3.1 reste à
+l'état non implémenté.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :

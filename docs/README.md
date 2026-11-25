@@ -39,6 +39,7 @@ universelle sur des applications client.
 | HTTP | [Spécification W1.3](product/WEB_HTTP_EXECUTION.md), [politique W2.1](product/WEB_HTTP_POLICY.md), [transport W2.2](product/WEB_HTTP_TRANSPORT.md), [runtime W2.3](product/WEB_HTTP_RUNTIME.md) |
 | Découverte et premier test | [CLI W3.1](product/WEB_CLI_DISCOVERY.md), [redirection/recontrôle W3.2](product/WEB_OPEN_REDIRECT.md) |
 | Qualification de la reconnaissance | [M2.7 multi-laboratoires](product/RECON_QUALIFICATION.md) et [consolidation M2.7.1](product/RECON_CONSOLIDATION.md) : comparaison de missions complètes, résultats et limites avant M3 |
+| Audit préalable M3.1 | [Composants et vérification des archives](product/DECISION_ENGINE_AUDIT.md) |
 | Énumération contextuelle | [M2.6 Contextual Enumeration Engine](product/CONTEXTUAL_ENUMERATION.md) |
 | Cartographie applicative | [M2.5 Application Mapping Engine](product/APPLICATION_MAPPING.md) |
 | Identification technologique | [M2.4 Fingerprinting Engine](product/FINGERPRINTING.md) |
