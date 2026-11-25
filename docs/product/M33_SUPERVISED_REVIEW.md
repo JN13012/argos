@@ -176,3 +176,14 @@ git diff --check
 La branche `feat/m33-supervised-workflow` reste locale, sans merge ni push.
 Aucun travail M3.4 n'a été commencé. L'agent autonome et la sélection d'actions
 offensives restent non implémentés.
+
+## Consolidation avant M3.4
+
+Contrats et qualification revérifiés : les trois journaux historiques sont
+intègres et correspondent toujours aux snapshots des archives crAPI, DVWA et
+Juice Shop. Les fichiers du manifeste privé de clôture correspondent à leurs
+empreintes. Aucun nouvel appel au modèle n'a été nécessaire. La suite régulière
+repasse sous Python 3.12 et 3.14 : 1 246 réussites, 121 ignorés par interpréteur ;
+Ruff, formatage et Pyright passent. Les limites de pertinence sémantique ci-dessus
+restent applicables. Intégration fast-forward autorisée après ces validations ;
+M3.4 sera développé sur une nouvelle branche sans publication implicite.
