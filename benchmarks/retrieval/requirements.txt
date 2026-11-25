@@ -1,0 +1,4 @@
+numpy==2.5.5
+sqlite-vec==0.1.9
+faiss-cpu==1.16.0
+packaging==26.4
