@@ -332,6 +332,7 @@ def score(trial, reference):
     truth = set(reference["technologies"])
     counts = Counter(r["url"] for r in trial["transactions"] if r["ticket"])
     absent = set(reference.get("absent_resources", []))
+    endpoint_truth = expected | set(reference.get("additional_present_resources", []))
     candidates = {}
     if trial.get("enumeration"):
         # A raw 2xx is never promoted here; use the engine's qualified outcome.
@@ -347,11 +348,28 @@ def score(trial, reference):
                     if ref["id"] in ids:
                         path = ids[ref["id"]]["url"].removeprefix(base)
                         candidates[path] = True
-    labelled = set(candidates) & (expected | absent)
+    labelled = set(candidates) & (endpoint_truth | absent)
     versions = reference.get("versions", {})
     reported_versions = [
         r for r in fp if r.get("version") and r["status"] != "contradictory"
     ]
+    graph = trial["mapping"]
+    nodes = {n["id"]: n for n in graph.get("nodes", [])}
+    sources = {s["source_id"] for s in graph.get("sources", [])}
+    sampled_nodes = {
+        n["id"]: n
+        for n in nodes.values()
+        if n["kind"] == "resource" and n["key"].removeprefix(base) in expected
+    }
+    contains = {
+        e["target"]
+        for e in graph.get("relations", [])
+        if e["relation"] == "contains"
+        and e["target"] in sampled_nodes
+        and nodes.get(e["source"], {}).get("key") == base
+        and nodes.get(e["source"], {}).get("kind") == "application"
+    }
+    assertions = [*nodes.values(), *graph.get("relations", [])]
     return dict(
         strategy=trial["strategy"],
         http_requests=trial["http_requests"],
@@ -371,7 +389,7 @@ def score(trial, reference):
         contradictory_technologies=[
             r["technology"] for r in fp if r["status"] == "contradictory"
         ],
-        labelled_endpoint_true_positives=sorted(labelled & expected),
+        labelled_endpoint_true_positives=sorted(labelled & endpoint_truth),
         labelled_endpoint_false_positives=sorted(labelled & absent),
         unlabelled_endpoint_observations=sorted(set(candidates) - labelled),
         raw_2xx_at_known_absent_resources=sorted(
@@ -399,6 +417,17 @@ def score(trial, reference):
             if r["technology"] not in versions
         ],
         map_metrics=trial["mapping"]["metrics"],
+        sampled_mapped_resource_states=dict(
+            Counter(n["state"] for n in sampled_nodes.values())
+        ),
+        sampled_contains_relations=len(contains),
+        sampled_contains_expected=len(expected),
+        observed_assertions_without_evidence=sum(
+            a["state"] == "observed" and not a["evidence"] for a in assertions
+        ),
+        unresolved_evidence_references=sum(
+            ref not in sources for a in assertions for ref in a["evidence"]
+        ),
         phases=trial["phases"],
     )
 

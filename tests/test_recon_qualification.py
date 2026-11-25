@@ -60,7 +60,7 @@ def test_qualification_mandate_preserves_evaluation_exclusions_and_budget(tmp_pa
 
 
 def test_score_counts_collection_controls_and_keeps_contradictions_separate():
-    trial = dict(
+    trial: dict = dict(
         url="http://127.0.0.1:1234/",
         strategy="contextual",
         http_requests=4,
@@ -80,6 +80,41 @@ def test_score_counts_collection_controls_and_keeps_contradictions_separate():
         ],
     )
     reference = dict(resources=["/", "/api", "/unseen"], technologies=["react", "php"])
+    trial["mapping"].update(
+        sources=[dict(source_id="proof")],
+        nodes=[
+            dict(
+                id="app",
+                kind="application",
+                key="http://127.0.0.1:1234",
+                state="inferred",
+                evidence=["proof"],
+            ),
+            dict(
+                id="api",
+                kind="resource",
+                key="http://127.0.0.1:1234/api",
+                state="observed",
+                evidence=["proof"],
+            ),
+            dict(
+                id="unknown",
+                kind="resource",
+                key="http://127.0.0.1:1234/unseen",
+                state="unknown",
+                evidence=[],
+            ),
+        ],
+        relations=[
+            dict(
+                relation="contains",
+                source="app",
+                target="api",
+                state="inferred",
+                evidence=["proof"],
+            )
+        ],
+    )
     value = score(trial, reference)
     assert value["http_requests"] == 4
     assert value["sampled_resources_examined"] == 2
@@ -87,6 +122,10 @@ def test_score_counts_collection_controls_and_keeps_contradictions_separate():
     assert value["technology_false_positives"] == ["wordpress"]
     assert value["contradictory_technologies"] == ["php"]
     assert value["repeated_gets_including_controls"] == 1
+    assert value["sampled_mapped_resource_states"] == {"observed": 1, "unknown": 1}
+    assert value["sampled_contains_relations"] == 1
+    assert value["observed_assertions_without_evidence"] == 0
+    assert value["unresolved_evidence_references"] == 0
 
 
 @pytest.mark.skipif(
