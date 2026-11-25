@@ -95,6 +95,7 @@ def coverage(database, value, plan):
                     request.url not in by_url
                     and _CONTROL.fullmatch(request.url[len(base) :])
                     and response
+                    and type(response.get("status")) is int
                     and 200 <= response["status"] < 300
                 ):
                     binding = (proof or {}).get("tool_response") or {}

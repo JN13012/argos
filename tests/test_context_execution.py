@@ -123,6 +123,19 @@ def test_revoked_grant_blocks_execution_without_tool_launch(synthetic):
     assert len(worker.calls) == calls
 
 
+def test_failed_control_without_http_status_preserves_coverage(synthetic):
+    from argos.backend.attack.web.transport import HTTPExchange
+
+    runtime, _, worker, _, verifier, *_ = synthetic
+    plan = make_plan(synthetic)
+    worker.response = HTTPExchange("failed", "protocol_failed", None, (), b"", False)
+    value = run_context(runtime.database, verifier, UUID(plan["id"]))
+    assert value["coverage"]["control_http_requests"] >= 1
+    assert not value["coverage"]["states"].get("examined", 0)
+    assert all(item["http_status"] is None for item in value["ledger"])
+    assert context_report(runtime.database, UUID(value["id"])) == value
+
+
 @pytest.mark.parametrize("controls", [True, False])
 def test_interrupt_during_http_keeps_evidence_and_unexamined_resources(
     synthetic, monkeypatch, controls
