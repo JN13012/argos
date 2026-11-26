@@ -1,6 +1,6 @@
 # Argos — Roadmap de référence
 
-État du dépôt vérifié le 25 novembre 2026. Cette page porte les statuts et la
+État du dépôt vérifié le 26 novembre 2026. Cette page porte les statuts et la
 priorité active. Le [scope](SCOPE.md) décrit le périmètre produit ; le
 [plan web](WEB_PENTEST_PLAN.md) organise la réalisation ; le
 [catalogue](WEB_CAPABILITIES.md) définit les capacités et preuves à construire.
@@ -56,13 +56,13 @@ validations locales et CI verte. M3.3 est intégré sur main par fast-forward, a
 [M3.4](M34_MEMORY_ENGINE.md) est intégré sur main par fast-forward, avec
 [CI verte](https://github.com/JN13012/argos/actions/runs/45694650557).
 [M3.5-C.1](M351_DATA_ARCHITECTURE.md) centralise le stockage local et documente
-sa migration sur la branche de travail. L'implémentation du Knowledge Engine
-reste à planifier.
+sa migration.
 [M3.5-E](M35_RETRIEVAL_BENCHMARK.md) qualifie localement FTS5, trois modèles
 d'embeddings, RRF et trois moteurs exacts. La consolidation vérifie le
 rejeu hors ligne, les licences et la séparation des installations Ollama.
-Les choix du pilote restent provisoires. Le Knowledge Engine de production
-reste à implémenter.
+Les choix du pilote restent provisoires. Les [fondations M3.5.1](KNOWLEDGE_ENGINE_SPEC.md)
+implémentent le catalogue de sources et le stockage documentaire versionné et
+cloisonné. Les index, le contexte v2 et le pilote RAG restent à qualifier.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -173,3 +173,14 @@ contrats ou références affectés. Les critères professionnels et métriques
 restent au [plan web](WEB_PENTEST_PLAN.md), le contrat de restitution au
 [lot rapport client](WEB_CLIENT_REPORT.md). Les seuils proposés ne constituent pas
 une certification de niveau senior ni une promesse commerciale déjà tenue.
+
+
+## M3.5 — Connaissances et RAG
+
+| Étape | Statut | Porte d'acceptation |
+| --- | --- | --- |
+| M3.5.1 Fondations | Implémentées sur `feat/m35-knowledge-engine`, qualification locale | Identité et permissions, cycle de vie, intégrité et reprise transactionnelle sous Python 3.12 et 3.14. |
+| Ingestion normalisée et recherche | Conçu | Provenance au niveau passage, index SQL exact et FTS5 puis dense, filtrage avant lecture et reconstruction sans exposition d'une génération partielle. |
+| Contexte et revue v2 | Conçu | Compatibilité v1, budgets vérifiés, citations, abstention, refus des réponses tardives et qualification des ressources Ollama. |
+| Qualification du pilote | Conçu | Cinq bras appariés, jeu final indépendant et critères gelés avant dépouillement. |
+| Maintenance étendue | Conçu | Import Obsidian privé, puis synchronisation publique soumise à une qualification et une approbation distinctes. |
