@@ -104,10 +104,10 @@ def _refs(raw: str, count: int) -> list[int]:
     return refs
 
 
-def _literal_request(data: dict) -> str | None:
-    if data["purpose"] == "documentary_question":
-        prefix, match, literal = data["objective"].partition(EXACT_QUOTE_PREFIX)
-        if not prefix and match and literal.strip():
+def literal_request(objective: str) -> str | None:
+    if objective.startswith(EXACT_QUOTE_PREFIX):
+        literal = objective.removeprefix(EXACT_QUOTE_PREFIX)
+        if literal.strip():
             return literal
     return None
 
@@ -202,7 +202,11 @@ async def analyze(
     validate()
     before = (perf_counter() - initial) * 1000
     data = json.loads(envelope.data_json)
-    literal = _literal_request(data)
+    literal = (
+        literal_request(data["objective"])
+        if data["purpose"] == "documentary_question"
+        else None
+    )
     started = perf_counter()
     if literal is not None:
         refs = [

@@ -9,6 +9,7 @@ from pathlib import Path
 from time import perf_counter
 from uuid import UUID
 
+from argos.backend.consultation.analyst import literal_request
 from argos.backend.consultation.context import (
     Budget,
     Component,
@@ -227,7 +228,7 @@ class ReviewContextV2:
                     for row in memory["items"]
                 )
         else:
-            query = objective
+            query = literal_request(objective) or objective
 
         archive_ms = (perf_counter() - started) * 1000
         started = perf_counter()

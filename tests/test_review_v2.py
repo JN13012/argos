@@ -274,3 +274,22 @@ def test_supervised_v2_revalidates_document_at_acceptance(
     with pytest.raises(KnowledgeIntegrityError, match="no longer current"):
         accept_workflow(db, journal, rid, decision, context_v2=context)
     assert read_workflow(journal, rid)["human_decision"] is None
+
+
+def test_documentary_literal_request_through_lexical_retrieval(documents):
+    store, collection = documents
+    phrase = "The manual requires checking the restoration checksum."
+    _publish(store, "restore", phrase)
+    context = session(collection)
+    selector = Selector()
+    prepared = context.prepare(
+        f"citation exacte: {phrase}",
+        Purpose.DOCUMENTARY,
+        RetrievalMode.LEXICAL,
+        Budget(),
+        selector.size,
+    )
+    reply = asyncio.run(analyze_documentary(prepared, context, selector))
+    assert reply["abstention"] == "none"
+    assert reply["claims"][0]["text"] == phrase
+    assert reply["usage"]["output_tokens"] == 0
