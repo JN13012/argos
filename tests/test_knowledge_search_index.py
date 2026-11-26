@@ -126,6 +126,13 @@ def test_v2_migration_and_current_only(local):
     store.approve_version(REF, old.version.id)
     store.ingest_bytes(REF, META, NEW)
     with database.write() as db:
+        for (trigger,) in db.execute(
+            "SELECT name FROM sqlite_schema WHERE type = 'trigger' "
+            "AND name LIKE 'vector_generation_%'"
+        ).fetchall():
+            db.execute(f"DROP TRIGGER {trigger}")
+        db.execute("DROP TABLE vector_generation")
+        db.execute("DROP TABLE vector_member_identity")
         for table in (
             "vector_link",
             "vector_cache",

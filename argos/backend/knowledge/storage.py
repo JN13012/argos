@@ -19,7 +19,7 @@ from .contracts import (
     identifier,
 )
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 APPLICATION_ID = 0x4152474B  # ARGK
 _SCHEMA_V1 = (
     """CREATE TABLE collection (
@@ -216,6 +216,12 @@ class CollectionDatabase:
             from .vector_index import SCHEMA_V4
 
             for statement in SCHEMA_V4:
+                db.execute(statement)
+            version = 4
+        if version == 4:
+            from .vector_generation import SCHEMA_V5
+
+            for statement in SCHEMA_V5:
                 db.execute(statement)
             db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 

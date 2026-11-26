@@ -146,6 +146,13 @@ def test_migration_preserves_v1_and_is_atomic(local):
     store.sources.approve(SOURCE.id)
     store.approve_version(REF, legacy.id)
     with closing(sqlite3.connect(path)) as db, db:
+        for (trigger,) in db.execute(
+            "SELECT name FROM sqlite_schema WHERE type = 'trigger' "
+            "AND name LIKE 'vector_generation_%'"
+        ).fetchall():
+            db.execute(f"DROP TRIGGER {trigger}")
+        db.execute("DROP TABLE vector_generation")
+        db.execute("DROP TABLE vector_member_identity")
         for table in (
             "vector_link",
             "vector_cache",

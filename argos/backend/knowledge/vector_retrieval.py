@@ -28,9 +28,32 @@ from .retrieval import (
     SQLiteKnowledgeRetriever,
     _limits,
 )
+from .vector_generation import generation
 from .vector_index import BuildReport, VectorStatus
+from .vector_matrix import DEFAULT_MATRIX_BYTES, MatrixCache, select_top
 
 _BLOCK_ROWS = 128
+
+_VECTOR_FIELDS = """
+    sf.id, sf.title, sf.body, f.sha256,
+    json_extract(version.metadata_json, '$.title') AS version_title,
+    l.input_sha256, c.payload, c.vector_sha256
+"""
+_LINK = " JOIN vector_link l ON l.fragment_id = sf.id AND l.space_id = ? "
+_PREFILTER_FROM = (
+    " FROM search_fragment sf JOIN search_document sd ON sd.version_id = sf.version_id "
+    " JOIN version ON version.id = sd.version_id AND version.source_id = sd.source_id "
+    " AND version.document_id = sd.document_id " + search_index.VERSION_JOIN
+)
+_PAYLOAD = """
+    LEFT JOIN vector_cache c ON c.space_id = l.space_id
+                            AND c.input_sha256 = l.input_sha256
+"""
+_LIVE = " WHERE 1 " + search_index.LIVE
+
+
+def _marks(ids: list[int]) -> str:
+    return ",".join("?" for _ in ids)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +79,7 @@ class NumPyKnowledgeRetriever(SQLiteKnowledgeRetriever):
         allowed_collections: CollectionSet[Collection],
         provider: EmbeddingProvider,
         calibration: CosineCalibration | None = None,
+        matrix_cache_bytes: int = DEFAULT_MATRIX_BYTES,
     ):
         super().__init__(collection, allowed_collections=allowed_collections)
         self._provider = provider
@@ -65,6 +89,7 @@ class NumPyKnowledgeRetriever(SQLiteKnowledgeRetriever):
         if calibration is not None and calibration.space_id != self.space.identity:
             raise ValueError("Cosine calibration belongs to another vector space")
         self._calibration = calibration
+        self._matrix = MatrixCache(matrix_cache_bytes)
 
     def _authorize_vector(self) -> None:
         self._authorize()
@@ -111,30 +136,14 @@ class NumPyKnowledgeRetriever(SQLiteKnowledgeRetriever):
         bounded_text(query, "semantic query", limit=1024)
         cap = _limits(limit, max_bytes)
         clauses, params = filters.sql()
-        fields = """
-            sf.title, sf.body,
-            json_extract(version.metadata_json, '$.title') AS version_title,
-            l.input_sha256, c.payload, c.vector_sha256
-        """
-        sql = (
-            "SELECT "
-            + _FIELDS
-            + ", "
-            + fields
-            + _FROM
-            + """ JOIN vector_link l ON l.fragment_id = sf.id AND l.space_id = ?
-                  LEFT JOIN vector_cache c ON c.space_id = l.space_id
-                                          AND c.input_sha256 = l.input_sha256
-                  WHERE 1 """
-            + search_index.LIVE
-            + clauses
-        )
-        bindings = (self.space.identity, *params)
         with self._database.read() as db:
+            if not vector_index.check_ready(db, self.space):
+                return ()
             if (
-                not vector_index.check_ready(db, self.space)
-                or db.execute(
-                    "SELECT 1 FROM (" + sql + ") LIMIT 1", bindings
+                clauses
+                and db.execute(
+                    "SELECT 1" + _PREFILTER_FROM + _LINK + _LIVE + clauses + " LIMIT 1",
+                    (self.space.identity, *params),
                 ).fetchone()
                 is None
             ):
@@ -144,47 +153,176 @@ class NumPyKnowledgeRetriever(SQLiteKnowledgeRetriever):
         self._authorize_vector()
         raw = self._provider.embed((text,))
         query_vector = vector_index.unit(raw, 1, self.space.dimensions)[0]
+        return self._search_vector(query_vector, cap, limit, filters, max_bytes)
+
+    def _search_vector(
+        self,
+        query_vector: np.ndarray,
+        cap: int,
+        limit: int,
+        filters: SearchFilters,
+        max_bytes: int,
+    ) -> tuple[Passage, ...]:
         self._authorize_vector()
+        clauses, params = filters.sql()
+        minimum = self._calibration.minimum if self._calibration else -1.0
+        bindings = (self.space.identity, *params)
         with self._database.read() as db:
             if not vector_index.check_ready(db, self.space):
                 return ()
-            rows = db.execute(sql, bindings)
-            minimum = self._calibration.minimum if self._calibration else -1.0
-            ranked = nsmallest(
-                cap,
-                self._scored(rows, query_vector, minimum),
-                key=lambda row: (
-                    row["score"],
-                    row["source_id"],
-                    row["document_id"],
-                    row["ordinal"],
+            count, _ = vector_index.vector_coverage(db, self.space.identity)
+            if self._matrix.fits(count, self.space.dimensions):
+                ranked = self._rank_matrix(
+                    db, query_vector, count, cap, minimum, clauses, params
+                )
+            else:
+                rows = db.execute(
+                    "SELECT "
+                    + _FIELDS
+                    + ", "
+                    + _VECTOR_FIELDS
+                    + _FROM
+                    + _LINK
+                    + _PAYLOAD
+                    + _LIVE
+                    + clauses,
+                    bindings,
+                )
+                ranked = nsmallest(
+                    cap,
+                    self._scored(rows, query_vector, minimum),
+                    key=lambda row: (
+                        row["score"],
+                        row["source_id"],
+                        row["document_id"],
+                        row["ordinal"],
+                    ),
+                )
+            result = self._collect(db, ranked, RetrievalMethod.VECTOR, limit, max_bytes)
+            self._authorize_vector()
+            return result
+
+    def _rank_matrix(
+        self,
+        db: sqlite3.Connection,
+        query: np.ndarray,
+        count: int,
+        cap: int,
+        minimum: float,
+        clauses: str,
+        params: tuple[str, ...],
+    ) -> list[SearchRow]:
+        space_id = self.space.identity
+        matrix = self._matrix.get(
+            generation(db),
+            lambda: db.execute(
+                "SELECT sf.id, l.input_sha256, "
+                "row_number() OVER (ORDER BY sd.source_id, sd.document_id, "
+                "sf.ordinal), m.token"
+                + _FROM
+                + _LINK
+                + " JOIN vector_member_identity m ON m.id = sf.id "
+                + _LIVE
+                + " ORDER BY sf.id",
+                (space_id,),
+            ),
+            lambda ids: self._load_vectors(db, ids),
+            count,
+            self.space.dimensions,
+        )
+        if clauses:
+            eligible = np.fromiter(
+                (
+                    row[0]
+                    for row in db.execute(
+                        "SELECT sf.id"
+                        + _FROM
+                        + _LINK
+                        + _LIVE
+                        + clauses
+                        + " ORDER BY sf.id",
+                        (space_id, *params),
+                    )
                 ),
+                dtype=np.int64,
             )
-            return self._collect(db, ranked, RetrievalMethod.VECTOR, limit, max_bytes)
+            positions = np.searchsorted(matrix.ids, eligible)
+            if np.any(positions >= count) or np.any(matrix.ids[positions] != eligible):
+                raise KnowledgeIntegrityError("Filtered vector membership differs")
+            scores = np.empty(len(positions), dtype=np.float32)
+            for start in range(0, len(positions), _BLOCK_ROWS):
+                end = start + _BLOCK_ROWS
+                scores[start:end] = np.einsum(
+                    "ij,j->i", matrix.values[positions[start:end]], query
+                )
+            chosen = select_top(
+                np.clip(scores, -1, 1), matrix.tie_order[positions], cap, minimum
+            )
+            ids = matrix.ids[positions[chosen]].tolist()
+        else:
+            scores = np.clip(np.einsum("ij,j->i", matrix.values, query), -1, 1)
+            chosen = select_top(scores, matrix.tie_order, cap, minimum)
+            ids = matrix.ids[chosen].tolist()
+        if not ids:
+            return []
+        hits = {
+            row["id"]: dict(row)
+            for row in db.execute(
+                "SELECT sf.id, "
+                + _FIELDS
+                + _FROM
+                + _LINK
+                + _LIVE
+                + f" AND sf.id IN ({_marks(ids)})",
+                (space_id, *ids),
+            )
+        }
+        if len(hits) != len(ids):
+            raise KnowledgeIntegrityError("Ranked vector membership differs")
+        return [
+            hits[ident] | {"score": -float(scores[position])}
+            for ident, position in zip(ids, chosen, strict=True)
+        ]
+
+    def _load_vectors(self, db: sqlite3.Connection, ids: list[int]):
+        cursor = db.execute(
+            "SELECT "
+            + _VECTOR_FIELDS
+            + _FROM
+            + _LINK
+            + _PAYLOAD
+            + _LIVE
+            + f" AND sf.id IN ({_marks(ids)}) ORDER BY sf.id",
+            (self.space.identity, *ids),
+        )
+        rows = cursor.fetchall()
+        vectors = self._validated_matrix(rows)
+        for row, vector in zip(rows, vectors, strict=True):
+            yield row["id"], vector
+
+    def _validated_matrix(self, rows: list[sqlite3.Row]) -> np.ndarray:
+        blocks = []
+        for row in rows:
+            if row["input_sha256"] != vector_index.prepared_key(self._provider, row)[0]:
+                raise KnowledgeIntegrityError("Vector belongs to another input")
+            blocks.append(
+                vector_index.checked_payload(
+                    row["payload"],
+                    row["vector_sha256"],
+                    self.space.dimensions,
+                )
+            )
+        matrix = np.frombuffer(b"".join(blocks), dtype="<f4").reshape(
+            -1, self.space.dimensions
+        )
+        vector_index.check_units(matrix)
+        return matrix
 
     def _scored(
         self, cursor: sqlite3.Cursor, query: np.ndarray, minimum: float
     ) -> Iterator[SearchRow]:
         while rows := cursor.fetchmany(_BLOCK_ROWS):
-            blocks = []
-            for row in rows:
-                if (
-                    row["input_sha256"]
-                    != vector_index.prepared_key(self._provider, row)[0]
-                ):
-                    raise KnowledgeIntegrityError("Vector belongs to another input")
-                blocks.append(
-                    vector_index.checked_payload(
-                        row["payload"],
-                        row["vector_sha256"],
-                        self.space.dimensions,
-                    )
-                )
-            matrix = np.frombuffer(b"".join(blocks), dtype="<f4").reshape(
-                -1,
-                self.space.dimensions,
-            )
-            vector_index.check_units(matrix)
+            matrix = self._validated_matrix(rows)
             scores = np.clip(np.einsum("ij,j->i", matrix, query), -1, 1)
             for row, score in zip(rows, scores, strict=True):
                 if score >= minimum:

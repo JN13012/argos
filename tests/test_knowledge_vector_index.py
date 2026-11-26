@@ -156,13 +156,20 @@ def test_v3_migration_keeps_published_lexical_rows(local):
     store, db, provider = local
     _publish(store)
     with db.write() as connection:
+        for (trigger,) in connection.execute(
+            "SELECT name FROM sqlite_schema WHERE type = 'trigger' "
+            "AND name LIKE 'vector_generation_%'"
+        ).fetchall():
+            connection.execute(f"DROP TRIGGER {trigger}")
+        connection.execute("DROP TABLE vector_generation")
+        connection.execute("DROP TABLE vector_member_identity")
         for table in ("vector_link", "vector_cache", "vector_space"):
             connection.execute(f"DROP TABLE {table}")
         connection.execute("PRAGMA user_version = 3")
     store.initialize()
     with db.read() as connection:
         assert status(connection, provider.space).published_fragments == 3
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 5
 
 
 def test_exact_cosine_passages_filters_and_calibration(local):
@@ -387,3 +394,97 @@ def test_invalid_vectors_do_not_publish_partial_batches(local, monkeypatch):
             result = status(connection, provider.space)
         assert result.published_fragments == 3
         assert result.indexed_fragments == result.cache_entries == 0
+
+
+def test_warm_matrix_reuses_rows_and_checks_current_authority(local, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from argos.backend.knowledge import NumPyKnowledgeRetriever
+
+    store, db, provider = local
+    scope = Collection(CollectionKind.USER)
+    grants = {scope}
+    engine = NumPyKnowledgeRetriever(
+        scope, allowed_collections=grants, provider=provider
+    )
+    _publish(store)
+    engine.build_vectors()
+    cold = engine.retrieve("alpha", limit=10)
+    view = engine._matrix._view
+    assert view is not None and not view.values.flags.writeable
+    unpacked = []
+    read_original = engine._load_vectors
+
+    def trace(connection, ids):
+        unpacked.extend(ids)
+        yield from read_original(connection, ids)
+
+    monkeypatch.setattr(engine, "_load_vectors", trace)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        assert all(
+            hits == cold
+            for hits in pool.map(lambda _: engine.retrieve("alpha", limit=10), range(8))
+        )
+    assert not unpacked and engine._matrix._view is view
+    with db.write() as connection:
+        connection.execute(
+            "UPDATE vector_cache SET vector_sha256 = ? WHERE input_sha256 = ?",
+            ("0" * 64, bytes(view.keys[0])[:32].hex()),
+        )
+    with pytest.raises(KnowledgeIntegrityError, match="checksum"):
+        engine.retrieve("alpha", limit=10)
+    grants.clear()
+    before = len(provider.calls)
+    with pytest.raises(PermissionError):
+        engine.retrieve("alpha", limit=10)
+    assert len(provider.calls) == before
+
+
+def test_incremental_ram_refresh_only_revalidates_republished_members(
+    local, monkeypatch
+):
+    from argos.backend.knowledge import NumPyKnowledgeRetriever
+
+    store, _, provider = local
+    scope = Collection(CollectionKind.USER)
+    second = DocumentRef("local", "second")
+    _publish(store)
+    staged = store.ingest_bytes(second, META, b"second document")
+    store.approve_version(second, staged.version.id)
+    engine = NumPyKnowledgeRetriever(
+        scope, allowed_collections={scope}, provider=provider
+    )
+    engine.build_vectors()
+    first = engine.retrieve("alpha", limit=10)
+    witness = first[0].reference
+    assert witness is not None
+    unpacked = []
+    read_original = engine._load_vectors
+
+    def trace(connection, ids):
+        unpacked.extend(ids)
+        yield from read_original(connection, ids)
+
+    monkeypatch.setattr(engine, "_load_vectors", trace)
+    _publish(store, ORIGINAL.replace(b"beta", b"zeta"))
+    engine.build_vectors()
+    updated = engine.retrieve("alpha", limit=10)
+    assert len(unpacked) == 3
+    assert all(hit.reference != witness for hit in updated)
+    with pytest.raises(KeyError):
+        engine.resolve(witness)
+    unpacked.clear()
+    store.withdraw_document(REF)
+    assert [hit.document for hit in engine.retrieve("alpha", limit=10)] == [second]
+    assert not unpacked
+
+
+def test_partial_top_k_uses_all_ties_and_applies_threshold():
+    import numpy as np
+    from argos.backend.knowledge.vector_matrix import select_top
+
+    scores = np.asarray([0.5, 0.8, 0.5, 0.5, 0.3], dtype=np.float32)
+    tie_order = np.asarray([2, 4, 3, 1, 0], dtype=np.int64)
+    assert select_top(scores, tie_order, 3, 0).tolist() == [1, 3, 0]
+    assert select_top(scores, tie_order, 3, 0.6).tolist() == [1]
+    assert select_top(scores, tie_order, 3, 0.9).tolist() == []
