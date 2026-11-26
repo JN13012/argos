@@ -147,6 +147,9 @@ def test_migration_preserves_v1_and_is_atomic(local):
     store.approve_version(REF, legacy.id)
     with closing(sqlite3.connect(path)) as db, db:
         for table in (
+            "vector_link",
+            "vector_cache",
+            "vector_space",
             "search_fts",
             "search_reference",
             "search_fragment",

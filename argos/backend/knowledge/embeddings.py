@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 from threading import Lock
 from time import monotonic, sleep
@@ -43,6 +43,7 @@ class EmbeddingSpace:
     model_digest: str
     preprocessing: str
     dimensions: int
+    identity: str = field(init=False)
 
     def __post_init__(self) -> None:
         for value in (self.provider, self.runtime, self.preprocessing):
@@ -54,12 +55,22 @@ class EmbeddingSpace:
         ):
             raise ValueError("Unsupported embedding dimensions")
 
-    @property
-    def identity(self) -> str:
-        return sha256(self.encode().encode("utf-8")).hexdigest()
+        object.__setattr__(
+            self, "identity", sha256(self.encode().encode("utf-8")).hexdigest()
+        )
 
     def encode(self) -> str:
-        return json.dumps(asdict(self), sort_keys=True, separators=(",", ":"))
+        return json.dumps(
+            [
+                "cosine-f32-v1",
+                self.provider,
+                self.runtime,
+                self.model_digest,
+                self.preprocessing,
+                self.dimensions,
+            ],
+            separators=(",", ":"),
+        )
 
 
 class EmbeddingProvider(Protocol):

@@ -127,6 +127,9 @@ def test_v2_migration_and_current_only(local):
     store.ingest_bytes(REF, META, NEW)
     with database.write() as db:
         for table in (
+            "vector_link",
+            "vector_cache",
+            "vector_space",
             "search_fts",
             "search_reference",
             "search_fragment",
