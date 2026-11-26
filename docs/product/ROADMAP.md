@@ -187,6 +187,7 @@ une certification de niveau senior ni une promesse commerciale déjà tenue.
 | M3.5.2 Ingestion et fragments | Implémentés sur `feat/m35-knowledge-engine`, qualification locale | Migration SQLite v2, trois formats et stratégies, repères de citation, transactions et mesures sur corpus local. |
 | M3.5.3 SQL exact et FTS5 | Implémentés sur `feat/m35-knowledge-engine`, qualification locale | Migration v3, retraits transactionnels, cloisonnement, citations, corpus historique MDN et charge de 100 000 fragments. |
 | M3.5.4 Embeddings et NumPy | Implémentés sur `feat/m35-knowledge-engine`, qualification locale | Migration v4, cache par collection et espace, reprise, MDN historique, abstention calibrée, repli lexical et 100 000 vecteurs synthétiques. |
+| M3.5.4.1 Performance vectorielle | Implémentée sur `feat/m35-knowledge-engine`, qualification locale | Vue NumPy par génération, lectures concurrentes, retrait et mesures 512D et 768D jusqu'à 100 000 vecteurs. |
 | Contexte et revue v2 | Conçu | Compatibilité v1, budgets vérifiés, citations, abstention, refus des réponses tardives et qualification des ressources Ollama. |
 | Qualification du pilote | Conçu | Cinq bras appariés, jeu final indépendant et critères gelés avant dépouillement. |
 | Maintenance étendue | Conçu | Import Obsidian privé, puis synchronisation publique soumise à une qualification et une approbation distinctes. |

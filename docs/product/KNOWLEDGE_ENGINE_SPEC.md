@@ -619,6 +619,142 @@ référencés sont présents aux tailles attendues. Les deux runtimes et ces
 données restent en place. Le compromis Gemma/Qwen et la calibration
 doivent être rejugés sur un corpus indépendant au niveau passage.
 
+## M3.5.4.1 — Performance de la recherche vectorielle
+
+### Périmètre des mesures
+
+Le p95 de 19,35 ms dans [M3.5-E](M35_RETRIEVAL_BENCHMARK.md#résultats-lexicaux-et-charge)
+couvre le produit matriciel et la sélection des dix voisins de 100 000
+vecteurs 512D déjà normalisés et en mémoire. Les 7,54 s de M3.5.4 couvrent
+le parcours de production avec un fournisseur synthétique. Chaque requête
+ouvre SQLite, contrôle la portée et la disponibilité, lit et vérifie les
+vecteurs, calcule les scores, classe les candidats et résout les citations.
+La génération de l'embedding par Ollama est un autre périmètre.
+
+### Vue NumPy retenue
+
+`knowledge init` migre SQLite de v4 à v5. `vector_generation` conserve
+une révision transactionnelle et une marque de validation. Ces valeurs
+changent avec les associations ou les données susceptibles d'invalider la
+vue. `vector_member_identity` distingue les incarnations d'un même ID
+de fragment SQLite. Une reconstruction SQL ou la réutilisation d'un
+identifiant ne permet donc pas de reprendre le vecteur d'un ancien fragment.
+
+Le moteur conserve une matrice Float32 contiguë et immuable par instance
+de récupérateur, pour la collection et l'espace déjà autorisés. Il ouvre
+une nouvelle transaction de lecture à chaque requête et vérifie l'état
+du stockage, les permissions Unix, la portée, la disponibilité et la
+révision. Le préfiltrage SQL est appliqué avant le produit scalaire quand
+des filtres sont demandés. La partition sélectionne le top-k en départageant
+les ex æquo dans le même ordre que le moteur par blocs. Les passages du
+top-k sont résolus et vérifiés dans la transaction courante.
+
+Au changement de génération, les lignes dont l'identité et l'entrée sont
+inchangées sont recopiées depuis la vue vérifiée. Seules les autres sont
+relues et revalidées. Si le contenu du cache persistant ou une donnée
+d'intégrité est modifiée, la marque de validation empêche cette reprise.
+Une publication qui laisse la couverture incomplète rend l'espace
+indisponible jusqu'au rattrapage. Un retrait validé est visible dès la
+requête suivante et une ancienne citation est rejetée à sa résolution.
+
+Le budget par instance est de 320 Mio pour la matrice et ses tableaux
+d'identité. Un rafraîchissement peut garder temporairement l'ancienne
+et la nouvelle vue. Au-delà du budget, le moteur utilise son parcours
+par blocs. Les lectures indépendantes partagent la vue et construisent
+la nouvelle génération sous verrou. Le cache bénéficie au consommateur
+qui conserve son récupérateur. Chaque invocation du CLI repart à froid
+côté matrice.
+
+### Qualification
+
+Le [probe](../../benchmarks/retrieval/vector_performance.py) construit six
+bases synthétiques indépendantes, avec 1 000, 10 000 et 100 000 vecteurs
+en 512D et 768D. Les recherches utilisent une requête et dix passages
+dans les variantes mesurées. Les mesures à froid correspondent à une
+vue NumPy absente, sans purge du cache disque de l'OS. Le banc compare
+à chaque taille le résultat complet du moteur par blocs et celui du cache,
+teste quatre lecteurs simultanés, puis republie et retire une version.
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+  python -m benchmarks.retrieval.vector_performance --count 100000 \
+  --dimension 768 --work-root data/qualification/m3541-vector
+```
+
+Les valeurs suivantes sont en millisecondes. Le banc utilise 20 répétitions
+à chaud, trois démarrages à froid et quatre répétitions du chemin par blocs.
+Le parcours synthétique complet inclut un calcul de requête synthétique.
+
+| Vecteurs | Dimensions | Par blocs p50 / p95 | À froid p50 / p95 | À chaud p50 / p95 | Complet synthétique p95 | Vue RAM / SQLite (Mio) |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 000 | 512 | 67,0 / 69,5 | 75,8 / 83,3 | 7,2 / 8,6 | 9,5 | 2,0 / 5,7 |
+| 1 000 | 768 | 57,3 / 61,1 | 73,2 / 73,9 | 7,2 / 9,8 | 11,7 | 3,0 / 5,7 |
+| 10 000 | 512 | 671,1 / 694,4 | 718,4 / 721,5 | 19,7 / 22,6 | 27,3 | 20,1 / 53,3 |
+| 10 000 | 768 | 673,7 / 709,4 | 681,9 / 695,9 | 16,7 / 17,8 | 27,5 | 29,9 / 53,3 |
+| 100 000 | 512 | 7 827,3 / 8 435,1 | 9 908,1 / 10 968,2 | 72,8 / 76,3 | 108,1 | 201,4 / 529,1 |
+| 100 000 | 768 | 9 467,1 / 9 912,6 | 10 581,1 / 11 000,5 | 101,2 / 109,8 | 147,9 | 299,1 / 529,1 |
+
+À 100 000 lignes, le chargement vérifié de la vue via une première
+requête mesure 9,55 s en 512D et 10,87 s en 768D.
+Le RSS crête de tout le banc atteint 882,0 et 1 273,5 Mio,
+en incluant le mapping expérimental et des vues concurrentes. Après
+avoir republié un document de 1 000 fragments, le calcul des embeddings
+de reprise prend 1,74 / 1,81 s avec un seul nouveau vecteur et 999
+réutilisations par dimension. La remise à jour de la vue prend
+1,38 / 2,32 s contre 9,86 / 11,53 s pour un rechargement intégral.
+La vue complète est recopiée pendant ce rafraîchissement incrémental.
+Après retrait, la première recherche prend 1,29 / 1,67 s pour les
+deux dimensions et ne renvoie aucun passage de la version retirée.
+
+Le p95 avec un filtre couvrant toute la collection est de 624 / 643 ms
+en 512D/768D. Le travail SQL de sélection reste conséquent. Les groupes
+de quatre lectures simultanées terminent en 222 / 242 ms au p95
+du groupe. Toutes les réponses concordent avec les lectures séquentielles.
+Le p95 passe sous 150 ms à chaud après sélection de la collection
+autorisée. Le filtre large et le redémarrage à froid dépassent cet objectif.
+
+Le profilage isolé à 100 000 × 512D répartit les coûts suivants.
+Les essais de préfiltrage, classement et citation sont chronométrés
+séparément du scan et leurs valeurs ne s'additionnent donc pas.
+
+| Phase | Temps mesuré |
+| --- | ---: |
+| Contrôle des permissions | 0,30 ms |
+| Ouverture SQLite | 0,21 ms |
+| Identité du schéma et disponibilité | 20,26 ms |
+| Parcours SQL des membres autorisés | 374,92 ms |
+| Lecture SQLite des vecteurs et conversion en valeurs Python | 7 169,96 ms |
+| Contrôle des entrées et SHA-256 | 734,36 ms |
+| Assemblage Float32 | 51,01 ms |
+| Contrôle des normes | 201,01 ms |
+| Similarités par blocs | 32,04 ms |
+| Similarités sur matrice contiguë à chaud, p95 | 17,89 ms |
+| Top-10 par partition / tri complet, p95 | 0,81 / 16,14 ms |
+| Résolution et contrôle de dix citations, p95 | 8,69 ms |
+
+Le mapping expérimental ne réduit pas le p95 à chaud du produit
+scalaire dans ce cas (18,9 ms contre 17,9 ms) et demande un fichier additionnel.
+La connexion réutilisée économise l'ouverture et les vérifications
+du microtest (p95 1,41 ms contre 0,004 ms pour la lecture seule du
+marqueur). Ce gain ne motive pas de conserver une connexion partagée.
+
+Avec Qwen3 installé sur Ollama 0.40.18 et 299 fragments MDN, une même
+question HTTP répétée 20 fois donne un p50/p95 complet de
+43,6 / 48,8 ms, contre 11,8 / 14,0 ms avec le vecteur
+de requête déjà calculé. La première requête après déchargement mesure 4,51 s.
+Cette mesure de latence réelle ne constitue pas une qualification de pertinence.
+Les relevés privés sont sous `data/qualification/m3541-vector/`.
+
+Les 112 tests documentaires passent sous Python 3.12.15 et 3.14.6.
+Chaque suite complète compte 1 389 réussites et 121 ignorés. Ruff,
+formatage, Pyright et `git diff --check` passent. Les huit manifestes
+Ollama restent inchangés et le serveur de mesure a été arrêté.
+
+Qwen3 512 devient le candidat principal provisoire. EmbeddingGemma 768
+reste disponible sous les conditions applicables. Les profils, digests
+et seuils restent ceux de M3.5.4. Aucun recalibrage sur le jeu final
+historique.
+
 ## F — Contexte consultatif et analyse versionnée
 
 Conserver les contrats de [snapshot et de projection M3.1](M31_FOUNDATIONS.md),

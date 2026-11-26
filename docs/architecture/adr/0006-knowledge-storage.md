@@ -39,3 +39,10 @@ courante au retrait du fragment SQL dans la transaction de publication.
 Les lots d'embeddings sont calculés hors transaction puis validés à
 l'écriture. La recherche dense attend une couverture complète de
 l'espace demandé et lit ses vecteurs par blocs.
+
+M3.5.4.1 conserve SQLite comme source de vérité et dérive une vue NumPy
+en mémoire. La révision et la marque de validation sont lues dans la
+même transaction SQLite que les citations. La révision reflète les
+changements de membres et la marque force la revalidation des vecteurs
+dès qu'une donnée d'intégrité change. Le stockage privé reste le seul
+support durable du moteur.
