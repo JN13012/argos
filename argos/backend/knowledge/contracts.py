@@ -92,12 +92,15 @@ class Source:
     publisher: str
     origin: str
     rights: str
+    official: bool = False
 
     def __post_init__(self) -> None:
         identifier(self.id)
         bounded_text(self.publisher, "publisher", limit=256)
         bounded_text(self.origin, "source origin", limit=2048)
         bounded_text(self.rights, "usage rights")
+        if type(self.official) is not bool:
+            raise TypeError("Expected a boolean source authority")
 
 
 @dataclass(frozen=True, slots=True)

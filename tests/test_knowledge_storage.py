@@ -120,3 +120,15 @@ def test_transaction_rollback_leaves_collection_reusable(data_root):
     assert "rollback" not in store.list_domains()
     store.register_domain("rollback")
     assert "rollback" in store.list_domains()
+
+
+def test_writable_nonsticky_custom_root_ancestor_is_rejected(tmp_path, monkeypatch):
+    untrusted = tmp_path / "unsafe"
+    untrusted.mkdir()
+    untrusted.chmod(0o777)
+    destination = untrusted / "data"
+    monkeypatch.setenv("ARGOS_DATA_HOME", str(destination))
+    store = CollectionDatabase(Collection(CollectionKind.USER))
+    with pytest.raises(PermissionError, match="ancestor"):
+        store.initialize()
+    assert not destination.exists()

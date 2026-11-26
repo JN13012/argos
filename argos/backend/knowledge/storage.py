@@ -29,7 +29,8 @@ _SCHEMA = (
     "CREATE TABLE domain (id TEXT PRIMARY KEY) WITHOUT ROWID",
     """CREATE TABLE source (
         id TEXT PRIMARY KEY, publisher TEXT NOT NULL, origin TEXT NOT NULL,
-        rights TEXT NOT NULL, registered_at TEXT NOT NULL,
+        rights TEXT NOT NULL, official INTEGER NOT NULL CHECK (official IN (0, 1)),
+        registered_at TEXT NOT NULL,
         approved_at TEXT, withdrawn_at TEXT
     ) WITHOUT ROWID""",
     """CREATE TABLE document (
@@ -94,8 +95,24 @@ class CollectionDatabase:
         if os.geteuid() != self.uid:
             raise PermissionError("Knowledge storage identity changed")
 
+    def _check_ancestors(self) -> None:
+        # A user namespace can display the mounted root owner under another UID.
+        trusted_owners = {0, self.uid, Path("/").stat().st_uid}
+        for parent in self._directories[0].parents:
+            try:
+                info = parent.lstat()
+            except FileNotFoundError:
+                continue
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or info.st_uid not in trusted_owners
+                or (info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX)
+            ):
+                raise PermissionError("Knowledge data root has an untrusted ancestor")
+
     def _check_paths(self) -> None:
         self._check_uid()
+        self._check_ancestors()
         if self.path.parent.resolve() != self.path.parent:
             raise PermissionError("Symlinked knowledge paths are unavailable")
         for path in self._directories:
@@ -111,6 +128,7 @@ class CollectionDatabase:
         self._check_uid()
         if data_path("knowledge") != self._directories[1]:
             raise ValueError("Data root changed since the collection was bound")
+        self._check_ancestors()
         prepare_area("knowledge")
         for directory in self._directories[2:]:
             directory.mkdir(mode=0o700, exist_ok=True)
