@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import os
 import sqlite3
+from contextlib import ExitStack
 from pathlib import Path
 from uuid import UUID
 
@@ -11,10 +12,13 @@ from argos.backend.attack.web.cli import emit, private_path
 from argos.backend.attack.web.receipts import WebIntegrityError
 from argos.backend.attack.web.report_files import load_report_file
 from argos.backend.core.tool_registry import ToolRegistry
+from argos.backend.knowledge.contracts import KnowledgeIntegrityError
+from argos.backend.knowledge.embeddings import EmbeddingProviderError
 from argos.data_paths import prepare_area
 
 from .analysis import DEFAULT_ANALYSIS_CONTEXT_BYTES, analyze_mission
 from .capabilities import capability_registry
+from .cli_v2 import add_v2_parsers, context_for, execute_v2, scope_arguments
 from .context import DEFAULT_CONTEXT_BYTES, mission_review, review_with_memory
 from .journal import (
     MAX_INPUT_BYTES,
@@ -22,6 +26,7 @@ from .journal import (
     read_journal,
     record_decision,
 )
+from .llm import LLMError
 from .memory import MemoryEngine
 from .ollama import OllamaProvider
 from .snapshot import mission_snapshot
@@ -94,6 +99,7 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
         "--expected-head", help="Externally recorded journal head SHA-256"
     )
 
+    add_v2_parsers(actions)
     for command in ("start", "show", "analyze", "annotate", "interrupt", "accept"):
         parser = actions.add_parser(
             "workflow-" + command, help="Persistent supervised review: " + command
@@ -110,6 +116,8 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
             parser.add_argument(
                 "--input", required=True, help="Private operator JSON file"
             )
+        if command == "accept":
+            scope_arguments(parser)
         if command == "show":
             parser.add_argument("--expected-head")
             parser.add_argument(
@@ -164,6 +172,10 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
 
 def execute(args: argparse.Namespace) -> int:
     try:
+        if args.action.startswith("review_v2_"):
+            result = execute_v2(args)
+            emit(result, structured=True)
+            return 1 if result.get("state") in {"failed", "interrupted"} else 0
         if args.action.startswith("review_memory_"):
             emit(_memory(args), structured=True)
             return 0
@@ -222,8 +234,20 @@ def execute(args: argparse.Namespace) -> int:
             )
         else:
             result = mission_snapshot(private_path(args.db), args.mission_id)
-    except (JournalIntegrityError, WebIntegrityError, sqlite3.Error):
+    except LLMError as error:
+        emit({"error": error.code.value}, structured=True)
+        return 1
+    except (
+        JournalIntegrityError,
+        WebIntegrityError,
+        KnowledgeIntegrityError,
+        EmbeddingProviderError,
+        sqlite3.Error,
+    ):
         emit({"error": "review_integrity_or_storage_failed"}, structured=True)
+        return 1
+    except PermissionError:
+        emit({"error": "review_scope_forbidden"}, structured=True)
         return 1
     except (OSError, ValueError, KeyError, TypeError):
         emit({"error": "review_invalid_input"}, structured=True)
@@ -257,9 +281,21 @@ def _workflow(args: argparse.Namespace) -> dict:
             str(private_path(args.input)), max_bytes=MAX_INPUT_BYTES
         )
         if command == "accept":
-            result = accept_workflow(
-                private_path(args.db), journal, args.review_id, supplied
-            )
+            saved = read_workflow(journal, args.review_id)
+            latest = saved["latest_analysis"]
+            context = None
+            with ExitStack() as stack:
+                if latest and latest.get("contract") == "consultative-analyst-v2":
+                    context = context_for(
+                        args, UUID(saved["mission_id"]), stack, retrieve=False
+                    )
+                result = accept_workflow(
+                    private_path(args.db),
+                    journal,
+                    args.review_id,
+                    supplied,
+                    context_v2=context,
+                )
         else:
             if set(supplied) != {"operator", "note"}:
                 raise ValueError("Expected operator and note")

@@ -41,6 +41,7 @@ class Unit:
     text: str
     # Canonical serialized reference (kept out of the prompt).
     pin: str
+    identity: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,8 +109,8 @@ def assemble(
     for unit in units:
         key = (
             (unit.kind, unit.pin)
-            if unit.kind is UnitKind.PASSAGE
-            else (unit.kind, unit.text)
+            if unit.component is Component.KNOWLEDGE
+            else (unit.kind, unit.identity or unit.text)
         )
         if key in seen:
             duplicates[unit.component] += 1
@@ -137,7 +138,7 @@ def assemble(
                     continue
                 unit = queue.popleft()
                 excerpt = unit.text
-                if unit.kind is UnitKind.PASSAGE:
+                if unit.component is Component.KNOWLEDGE:
                     excerpt = excerpt[: budget.passage_chars]
                 rows.append(
                     {
@@ -157,7 +158,9 @@ def assemble(
                     rows.pop()
                     omitted[unit.component] += 1
                     continue
-                selected.append(Unit(unit.kind, unit.component, excerpt, unit.pin))
+                selected.append(
+                    Unit(unit.kind, unit.component, excerpt, unit.pin, unit.identity)
+                )
     payload = encode(data)
     byte_count, token_bound = size(payload)
     if byte_count > budget.max_bytes or token_bound > budget.window - budget.reserve:

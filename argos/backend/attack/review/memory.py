@@ -420,6 +420,20 @@ class MemoryEngine:
         max_items: int = 8,
     ) -> dict:
         """Only exact current proof-linked observations cross this boundary."""
+        result, _ = self.working_context_checkpoint(
+            snapshot, query=query, max_bytes=max_bytes, max_items=max_items
+        )
+        return result
+
+    def working_context_checkpoint(
+        self,
+        snapshot: dict,
+        *,
+        query: str = "",
+        max_bytes: int = 2048,
+        max_items: int = 8,
+    ) -> tuple[dict, str | None]:
+        """Return the evidence and its memory head from the same read."""
         if type(max_bytes) is not int or not 512 <= max_bytes <= 16_384:
             raise ValueError("Memory context must be 512 to 16384 bytes")
         if type(max_items) is not int or not 1 <= max_items <= 32:
@@ -438,7 +452,7 @@ class MemoryEngine:
         }
         if saved["working_snapshot_sha256"] != snapshot["sha256"]:
             result["status"] = "working_snapshot_differs"
-            return result
+            return result, saved["head_sha256"]
         available = {
             canonical(item) for item in _items(snapshot["snapshot"], snapshot["sha256"])
         }
@@ -470,4 +484,4 @@ class MemoryEngine:
             ):
                 result["items"].append(item)
                 result["omitted_items"] -= 1
-        return result
+        return result, saved["head_sha256"]

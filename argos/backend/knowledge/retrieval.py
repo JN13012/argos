@@ -28,6 +28,7 @@ from .projections import fragment_text, normalized_content
 from .references import exact_key
 from .registry import source_record
 from .storage import CollectionDatabase
+from .vector_generation import generation
 
 SearchRow = sqlite3.Row | dict[str, Any]
 
@@ -188,6 +189,18 @@ class SQLiteKnowledgeRetriever:
             raise PermissionError(
                 "Knowledge collection is outside the authorized scope"
             )
+
+    @property
+    def collection(self) -> Collection:
+        return self._collection
+
+    def checkpoint(self) -> str:
+        """Return the authorized collection's current publication revision."""
+        self._authorize()
+        with self._database.read() as db:
+            revision = generation(db)[0].hex()
+        self._authorize()
+        return revision
 
     def retrieve(
         self,

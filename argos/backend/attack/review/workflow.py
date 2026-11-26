@@ -3,6 +3,8 @@
 No runtime execution or authorization interface is imported by this module.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import sqlite3
@@ -10,6 +12,7 @@ from contextlib import closing
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from argos.backend.attack.web.receipts import canonical, digest
@@ -30,6 +33,9 @@ from .journal import (
 )
 from .llm import LLMProvider, LLMRequest
 from .snapshot import mission_snapshot
+
+if TYPE_CHECKING:
+    from .context_v2 import ReviewContextV2
 
 VERSION = "supervised-review-v1"
 _TRANSITIONS = {
@@ -355,7 +361,12 @@ def annotate_workflow(
 
 
 def accept_workflow(
-    database: str | Path, journal: str | Path, review_id: UUID, decision: dict
+    database: str | Path,
+    journal: str | Path,
+    review_id: UUID,
+    decision: dict,
+    *,
+    context_v2: ReviewContextV2 | None = None,
 ) -> dict:
     """Record an explicit human decision; grant no execution permission."""
     saved = read_workflow(journal, review_id)
@@ -371,6 +382,22 @@ def accept_workflow(
     if saved["state"] != "ready":
         raise ValueError("Only a completed analysis can be accepted")
     _verify_archive(database, saved)
+    latest = saved["latest_analysis"]
+    if latest and latest.get("contract") == "consultative-analyst-v2":
+        if context_v2 is None:
+            raise ValueError("V2 acceptance requires the original consultation scope")
+        attempt = next(
+            event
+            for event in saved["events"]
+            if event["sha256"] == latest["attempt_sha256"]
+        )
+        if (
+            context_v2.mission_id != UUID(saved["mission_id"])
+            or context_v2.database is None
+            or context_v2.database.resolve() != Path(database).resolve()
+        ):
+            raise PermissionError("V2 review scope differs from the approved archive")
+        context_v2.validate(attempt["data"]["pins"])
     if decision.get("snapshot_sha256") != saved["snapshot_sha256"]:
         raise ValueError("Decision must refer to the reviewed snapshot")
     entry = record_decision(database, journal, UUID(saved["mission_id"]), decision)

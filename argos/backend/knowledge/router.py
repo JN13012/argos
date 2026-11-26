@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TypedDict
 
-from .contracts import Passage, RetrievalMethod, bounded_text
+from .contracts import Collection, Passage, RetrievalMethod, bounded_text
 from .embeddings import EmbeddingUnavailable
 from .references import reference_keys
 from .retrieval import (
@@ -59,6 +59,10 @@ class RetrievalRouter:
             raise ValueError("Router engines must be bound to the same collection")
         self._sql = sql
         self._dense = dense
+
+    @property
+    def collection(self) -> Collection:
+        return self._sql.collection
 
     def search(
         self,
