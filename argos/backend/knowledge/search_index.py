@@ -105,7 +105,7 @@ def _metadata(row: sqlite3.Row) -> DocumentMetadata:
 
 def _expected_fragments(
     db: sqlite3.Connection, row: sqlite3.Row
-) -> Iterator[tuple[int, str]]:
+) -> Iterator[tuple[int, str, set[str]]]:
     doc = normalized_content(db, row["normalized_sha256"])
     expected = db.execute(
         "SELECT fragment_count FROM chunk_set WHERE id = ?", (row["set_id"],)
@@ -119,13 +119,16 @@ def _expected_fragments(
         if ordinal != size:
             raise KnowledgeIntegrityError("Noncontiguous fragment ordinals")
         size += 1
-        yield ordinal, fragment_text(doc, start, end, digest)
+        body = fragment_text(doc, start, end, digest)
+        yield ordinal, body, set(reference_keys(doc.text, start=start, end=end))
     if size != expected:
         raise KnowledgeIntegrityError("Fragment count differs from projection")
 
 
-def _keys(body: str, title: str, document_id: str, ordinal: int) -> dict[str, int]:
-    keys = dict.fromkeys(reference_keys(body), 1)
+def _keys(
+    body_refs: set[str], title: str, document_id: str, ordinal: int
+) -> dict[str, int]:
+    keys = dict.fromkeys(sorted(body_refs), 1)
     if ordinal == 0:
         keys.update(dict.fromkeys(reference_keys(title), 2))
         value = exact_key(document_id)
@@ -145,7 +148,7 @@ def _insert(db: sqlite3.Connection, row: sqlite3.Row) -> None:
         "INSERT INTO search_tag VALUES (?, ?, ?)",
         ((version_id, tag.dimension, tag.value) for tag in metadata.tags),
     )
-    for ordinal, body in _expected_fragments(db, row):
+    for ordinal, body, body_refs in _expected_fragments(db, row):
         cursor = db.execute(
             "INSERT INTO search_fragment (version_id, ordinal, title, body) "
             "VALUES (?, ?, ?, ?)",
@@ -160,7 +163,7 @@ def _insert(db: sqlite3.Connection, row: sqlite3.Row) -> None:
             (
                 (cursor.lastrowid, key, priority)
                 for key, priority in _keys(
-                    body, metadata.title, document, ordinal
+                    body_refs, metadata.title, document, ordinal
                 ).items()
             ),
         )
@@ -263,7 +266,7 @@ def verify(db: sqlite3.Connection) -> IndexStatus:
             "ORDER BY ordinal",
             (version_id,),
         )
-        for ordinal, body in _expected_fragments(db, row):
+        for ordinal, body, body_refs in _expected_fragments(db, row):
             fragment = stored.fetchone()
             if fragment is None or tuple(fragment)[1:] != (
                 ordinal,
@@ -279,7 +282,7 @@ def verify(db: sqlite3.Connection) -> IndexStatus:
                     (fragment[0],),
                 )
             )
-            if keys != _keys(body, metadata.title, row["document_id"], ordinal):
+            if keys != _keys(body_refs, metadata.title, row["document_id"], ordinal):
                 raise KnowledgeIntegrityError(
                     "Exact references differ from publication"
                 )

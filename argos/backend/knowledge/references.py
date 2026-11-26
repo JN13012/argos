@@ -29,9 +29,14 @@ def _key(match: re.Match[str]) -> str:
     return value
 
 
-def reference_keys(text: str) -> Iterator[str]:
-    for match in _REFERENCE.finditer(text):
-        if match[0].isascii():
+def reference_keys(
+    text: str, *, start: int = 0, end: int | None = None
+) -> Iterator[str]:
+    stop = len(text) if end is None else end
+    # Inspect both sides of a chunk boundary before accepting its references.
+    # The context exceeds the longest token recognized by the bounded grammar.
+    for match in _REFERENCE.finditer(text, max(start - 128, 0), stop + 128):
+        if start <= match.start() and match.end() <= stop and match[0].isascii():
             yield _key(match)
 
 

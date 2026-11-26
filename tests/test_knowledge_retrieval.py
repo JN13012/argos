@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from argos.backend.knowledge import (
+    ChunkConfig,
     Collection,
     CollectionKind,
     DocumentMetadata,
@@ -249,3 +250,17 @@ def test_revoked_collection_grant_is_checked_before_any_storage_access(scope):
     ):
         with pytest.raises(PermissionError, match="authorized scope"):
             action()
+
+
+def test_chunk_boundary_does_not_create_a_false_exact_prefix(scope):
+    store, search = scope
+    ref = DocumentRef("a", "boundary")
+    metadata = DocumentMetadata("References", "text/plain", "fixture:boundary")
+    original = b" " * (64 - len(b"CVE-2024-1234")) + b"CVE-2024-12345"
+    fixed = store.ingest_bytes(ref, metadata, original, ChunkConfig(size=64))
+    store.approve_version(ref, fixed.version.id)
+    assert not search.exact("CVE-2024-1234", limit=10)
+    assert not search.exact("CVE-2024-12345", limit=10)
+    store.ingest_bytes(ref, metadata, original)
+    assert search.exact("CVE-2024-12345", limit=10)
+    assert not search.exact("CVE-2024-1234", limit=10)
