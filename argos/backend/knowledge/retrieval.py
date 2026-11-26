@@ -175,8 +175,15 @@ class SQLiteKnowledgeRetriever:
         if type(weights) is not LexicalWeights:
             raise TypeError("Expected validated lexical weights")
         self._collection = collection
+        self._allowed = allowed_collections
         self._database = CollectionDatabase(collection)
         self._weights = weights
+
+    def _authorize(self) -> None:
+        if self._collection not in self._allowed:
+            raise PermissionError(
+                "Knowledge collection is outside the authorized scope"
+            )
 
     def retrieve(
         self,
@@ -186,6 +193,9 @@ class SQLiteKnowledgeRetriever:
         filters: SearchFilters = _DEFAULT_FILTERS,
         max_bytes: int = DEFAULT_RESULT_BYTES,
     ) -> tuple[Passage, ...]:
+        self._authorize()
+        if type(filters) is not SearchFilters:
+            raise TypeError("Expected validated search filters")
         cap = _limits(limit, max_bytes)
         expression = _lexical_query(query)
         if not expression:
@@ -215,6 +225,9 @@ class SQLiteKnowledgeRetriever:
         filters: SearchFilters = _DEFAULT_FILTERS,
         max_bytes: int = DEFAULT_RESULT_BYTES,
     ) -> tuple[Passage, ...]:
+        self._authorize()
+        if type(filters) is not SearchFilters:
+            raise TypeError("Expected validated search filters")
         cap = _limits(limit, max_bytes)
         key, source, slug = _exact_parts(value)
         if not key and not slug:
@@ -246,6 +259,7 @@ class SQLiteKnowledgeRetriever:
             return self._collect(db, rows, RetrievalMethod.EXACT, limit, max_bytes)
 
     def resolve(self, reference: FragmentRef) -> Passage:
+        self._authorize()
         if (
             type(reference) is not FragmentRef
             or reference.collection != self._collection
@@ -349,13 +363,16 @@ class SQLiteKnowledgeRetriever:
         return tuple(result.values())
 
     def index_status(self) -> search_index.IndexStatus:
+        self._authorize()
         with self._database.read() as db:
             return search_index.status(db)
 
     def verify_index(self) -> search_index.IndexStatus:
+        self._authorize()
         with self._database.write() as db:
             return search_index.verify(db)
 
     def rebuild_index(self) -> search_index.IndexStatus:
+        self._authorize()
         with self._database.write() as db:
             return search_index.rebuild(db)

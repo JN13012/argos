@@ -228,3 +228,24 @@ def test_exact_keeps_standard_parts_and_revision_suffixes(scope):
     assert search.exact("NIST SP 800-63B-4", limit=1)
     assert not search.exact("IEEE 802.1X", limit=1)
     assert not search.exact("NIST SP 800-63", limit=1)
+
+
+def test_revoked_collection_grant_is_checked_before_any_storage_access(scope):
+    store, search = scope
+    _publish(store, "guide", "approved content")
+    ref = search.retrieve("content", limit=1)[0].reference
+    assert ref is not None
+    allowed = {ref.collection}
+    scoped = SQLiteKnowledgeRetriever(ref.collection, allowed_collections=allowed)
+    assert scoped.resolve(ref).text == "approved content"
+    allowed.clear()
+    for action in (
+        lambda: scoped.resolve(ref),
+        lambda: scoped.retrieve("content", limit=1),
+        lambda: scoped.exact("doc:guide", limit=1),
+        scoped.index_status,
+        scoped.verify_index,
+        scoped.rebuild_index,
+    ):
+        with pytest.raises(PermissionError, match="authorized scope"):
+            action()
