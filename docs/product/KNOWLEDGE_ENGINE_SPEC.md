@@ -12,9 +12,9 @@ et dépend uniquement de la bibliothèque standard et du résolveur de données.
 | --- | --- | --- |
 | M3.5-A à C | Dix domaines extensibles et tags multidimensionnels. Collections globale, organisation, utilisateur, mission et connaissances acquises. Sources officielles prioritaires après validation, acquisition locale progressive et import Obsidian privé sur sélection explicite. | Taxonomie, catalogues locaux et frontières de stockage implémentés en M3.5.1. Priorité de recherche, Obsidian et acquisition publique conçus. |
 | M3.5-C.1 | Données privées sous `ARGOS_DATA_HOME/knowledge/`. Ressources redistribuables validées sous `resources/`. | Résolution et stockage privé qualifiés localement. Voir le [lot stockage](M351_DATA_ARCHITECTURE.md). |
-| M3.5-D | Version par contenu et provenance, approbation explicite, base SQLite par frontière d'accès. Normalisation et index FTS5 comme projections dérivées. Index vectoriel interchangeable. | Sources, originaux et versions implémentés en M3.5.1. Normalisation, fragments et index conçus. |
+| M3.5-D | Version par contenu et provenance, approbation explicite, base SQLite par frontière d'accès. Normalisation et index FTS5 comme projections dérivées. Index vectoriel interchangeable. | Sources, originaux et versions implémentés en M3.5.1. Normalisation et fragments qualifiés localement en M3.5.2. Index conçus. |
 | M3.5-E | NumPy exact, EmbeddingGemma 768 sous conditions Gemma et Qwen3 512 en alternative. Dense prioritaire, FTS5 en secours et recherche exacte SQL à qualifier. Lots de 16 à revalider, cache versionné, indexation incrémentale et préfiltrage obligatoire. RRF et reranker reportés. | Mesures de banc consolidées, choix du pilote provisoires. Voir le [rapport M3.5-E](M35_RETRIEVAL_BENCHMARK.md). |
-| M3.5-F à H | Contexte consultatif versionné et borné, benchmark comparatif indépendant, maintenance avec retrait et reconstruction. | Conception ci-dessous. Les contrats de lecture sont le seul point d'entrée de cette tranche pour les futurs consommateurs. |
+| M3.5-F à H | Contexte consultatif versionné et borné, benchmark comparatif indépendant, maintenance avec retrait et reconstruction. | Conception ci-dessous. Les contrats de lecture bornent l'accès des futurs consommateurs aux documents publiés. |
 
 ## Fondations M3.5.1
 
@@ -87,7 +87,12 @@ Les octets importés ne déclenchent aucune ouverture de chemin ni de réseau.
 
 ```python
 from argos.backend.knowledge import (
-    Collection, CollectionKind, DocumentMetadata, DocumentRef, KnowledgeStore, Source,
+    Collection,
+    CollectionKind,
+    DocumentMetadata,
+    DocumentRef,
+    KnowledgeStore,
+    Source,
 )
 
 store = KnowledgeStore(Collection(CollectionKind.USER))
@@ -130,6 +135,158 @@ interpréteur. Ruff, formatage, Pyright, liens documentaires et contrôle
 Git passent. Les essais hôte optionnels ne font pas partie de cette
 qualification. La validation UID porte sur les permissions et un
 changement d'UID simulé, sans qualification de comptes organisationnels.
+
+## M3.5.2 — Ingestion, normalisation et fragments
+
+### Contrats et formats
+
+`KnowledgeStore.ingest_file(path, document, metadata, config)` ouvre un
+fichier local explicitement désigné par l'opérateur. Les chemins relatifs sont
+résolus depuis le répertoire courant. Chaque composant est ouvert sans suivre
+de lien symbolique et les fichiers spéciaux ainsi que les composants `..`
+sont refusés. L'extension est comparée au type de média déclaré. L'adaptateur
+`ingest_bytes(document, metadata, original, config)` accepte des octets déjà
+sélectionnés, avec les mêmes contrôles de normalisation. Le contrat brut de
+M3.5.1, `import_document`, continue de fonctionner pour ses appelants.
+
+- Markdown (`.md`, `.markdown`) et texte (`.txt`) utilisent UTF-8 strict
+  avec BOM facultatif et fins de ligne normalisées en LF. Les blocs Markdown
+  repèrent les titres ATX et Setext, les paragraphes, listes, blocs de code
+  et l'en-tête initial délimité par `---`. Les délimitations et le texte sont
+  conservés. Les repères vont de la première à la dernière ligne de la
+  citation sur l'original, à partir de 1. La reconnaissance des blocs est
+  volontairement limitée pour les constructions Markdown imbriquées. Un
+  bloc de code balisé sans fermeture est refusé.
+- JSON (`.json`) conserve objets, tableaux et valeurs dans une projection
+  textuelle déterministe. Les objets sont ordonnés par clé, les tableaux
+  conservent leur ordre et les nombres conservent leur graphie. Le JSON
+  Pointer cite la valeur ou le conteneur du document original, avec `""` pour
+  la racine et échappement de `~` et `/`. Les doublons de clés, constantes
+  numériques non standard et données malformées sont refusés.
+- Les liens, transclusions Obsidian, macros MDN, code et instructions
+  documentaires sont stockés comme texte inerte. Les métadonnées
+  d'autorisation viennent de l'opérateur. L'import de coffre et la
+  résolution de pièces jointes restent reportés.
+
+Les plafonds sont de 16 Mio à l'entrée et de 32 Mio pour l'enveloppe
+normalisée. Markdown et TXT sont limités à 200 000 lignes, 65 536 caractères
+par ligne et 20 000 blocs. JSON est limité à 48 niveaux de conteneurs,
+20 000 blocs et 2 048 caractères par pointeur. Les entrées dépassant une
+borne sont refusées avant commit.
+
+### Découpage et stockage
+
+`ChunkConfig` exprime une taille de 64 à 16 384 caractères Unicode et un
+chevauchement de zéro à un quart de la taille. Le découpage fixe utilise
+des fenêtres, le structurel privilégie les sections et fins de blocs, et
+le récursif essaie ensuite les fins de lignes et les espaces. Un bloc
+trop long peut être coupé dans les trois modes. Le chevauchement reste
+dans une section pour les deux modes qui respectent les sections et
+chaque projection est plafonnée à 50 000 fenêtres. Le réglage CLI par
+défaut est fixe, 1 024 caractères et zéro chevauchement. Il reste
+provisoire jusqu'à une qualification au niveau passage.
+
+`initialize()` et `argos knowledge init` migrent chaque base v1 ouverte
+vers SQLite v2 en une transaction. Les six tables v1 et leur cycle de vie
+restent en place. La migration laisse les versions historiques intactes.
+Rejouer explicitement l'ingestion des octets et métadonnées d'une version
+ancienne ajoute sa projection sans modifier son identité ni son statut.
+
+| Ajout SQLite v2 | Rôle |
+| --- | --- |
+| `normalized` | Texte et carte de blocs encodés ensemble, uniques par SHA-256 dans la collection. |
+| `normalization` | Correspondance entre SHA-256 original, média, version `normalize-v1` et SHA-256 normalisé. |
+| `chunk_set` | Projection partagée par SHA-256 normalisé et identité `chunk-v1:STRATÉGIE:TAILLE:CHEVAUCHEMENT`. |
+| `fragment` | Ordinal, offsets de début inclus et de fin exclus, et SHA-256 du texte. La lecture reconstruit texte, sections et repères depuis la carte des blocs. |
+| `version_projection` | Association d'une version documentaire à chacun de ses jeux de fragments explicites. |
+
+Une ingestion identique réutilise la normalisation et le jeu de fragments.
+Des métadonnées modifiées conservent la provenance propre à la nouvelle
+version et partagent les projections inchangées. Un nouveau réglage
+redécoupe le contenu normalisé. Le SHA-256 normalisé inclut les repères,
+ce qui prévient le partage entre documents dont les mêmes extraits citent
+des positions distinctes. Les données dédupliquées restent dans leur
+collection. Les originaux, versions et projections sont enregistrés dans la
+même transaction d'ingestion. La publication reste explicite. Le retrait logique masque
+immédiatement les lectures publiées et conserve les données opérateur.
+L'identité version/normaliseur/chunker/ordinal permet aux futurs index de
+référencer ces fragments et de reconstruire leurs projections.
+
+`inspect_projection`, `inspect_normalized` et `inspect_fragments` sont
+des accès opérateur. `read_normalized` et `read_fragments` vérifient la
+source, la version courante et le retrait dans la même lecture SQLite.
+`read_fragments` et `inspect_fragments` paginent par ordinal et renvoient
+des `DocumentFragment` avec version, SHA-256, section et un ou plusieurs
+repères. La vérification d'empreinte s'applique au contenu restitué.
+
+### Utilisation locale
+
+```bash
+export ARGOS_DATA_HOME=/chemin/prive/argos-data
+python -m argos knowledge init
+python -m argos knowledge source-register local --publisher Manuel \
+  --origin notes:local --rights Privé
+python -m argos knowledge import guide.md local guide --title Guide \
+  --origin notes:guide --tag domain=web-api
+python -m argos knowledge versions local guide
+python -m argos knowledge inspect local guide "$VERSION" --normalized
+python -m argos knowledge fragments local guide "$VERSION" --retained --limit 10
+python -m argos knowledge source-approve local
+python -m argos knowledge approve local guide "$VERSION"
+python -m argos knowledge show local guide --normalized
+python -m argos knowledge fragments local guide "$VERSION" --limit 10
+python -m argos knowledge withdraw local guide
+```
+
+`VERSION` est le champ JSON `version.id` renvoyé par `import`. Pour
+une autre stratégie, donner les mêmes `--strategy`, `--size` et
+`--overlap` à `import` et à `fragments`. La collection par défaut est
+`user`. Pour une mission, ajouter `--collection mission --scope-id UUID`
+avant la sous-commande. Le CLI renvoie du JSON et demande un `init`
+explicite pour créer ou migrer une collection.
+
+### Qualification locale
+
+Les tests couvrent les trois formats et stratégies, les bornes, les repères,
+la migration atomique, la reprise après arrêt du processus, les imports
+concurrents, la déduplication, le cycle d'approbation/retrait et le
+cloisonnement. Les formats TXT et JSON sont qualifiés sur fixtures.
+Les 52 tests documentaires passent sous Python 3.12.15 et 3.14.6. La
+suite régulière compte 1 328 réussites et 122 ignorés sur chaque version.
+Ruff, le formatage, Pyright et `git diff --check` passent également.
+
+Le [probe d'ingestion](../../benchmarks/retrieval/ingestion_probe.py) rejoue
+les 38 fichiers MDN locaux de M3.5-E et vérifie leurs empreintes et celle
+de la licence épinglée. Exécuter cette commande par stratégie et
+interpréteur depuis le clone. Le corpus est lu en place et la base
+temporaire est propre à chaque passage.
+
+```bash
+python -m benchmarks.retrieval.ingestion_probe --strategy fixed
+python -m benchmarks.retrieval.ingestion_probe --strategy structural
+python -m benchmarks.retrieval.ingestion_probe --strategy recursive
+```
+
+Mesures locales Linux, SQLite 3.53.1, 290 669 octets d'originaux, taille
+1 024, chevauchement zéro, un passage par couple et une réimportation
+immédiate. Le chronomètre englobe lecture, traitement et transactions
+d'ingestion. Le RSS est le pic du processus complet jusqu'au rejeu. Le
+volume est celui du fichier SQLite après commit. Les empreintes combinées
+des fragments stockés sont identiques entre interpréteurs pour chaque mode.
+Les six relevés JSON de cet essai restent dans le répertoire local
+`data/qualification/m352-ingestion/`.
+
+| Stratégie | Fragments | SQLite (octets) | Import / rejeu 3.12.15 (ms) | RSS 3.12.15 (Kio) | Import / rejeu 3.14.6 (ms) | RSS 3.14.6 (Kio) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Fixe | 299 | 1 069 056 | 220 / 117 | 24 416 | 206 / 92 | 26 040 |
+| Structurel | 564 | 1 118 208 | 240 / 100 | 24 340 | 201 / 113 | 26 144 |
+| Récursif | 567 | 1 114 112 | 225 / 118 | 24 204 | 227 / 96 | 26 164 |
+
+Les écarts de nombre de fragments par rapport à M3.5-E reflètent notamment
+la conservation du front matter, les frontières de blocs et l'absence de
+déduplication destructive des occurrences. Ces mesures décrivent
+l'ingestion sur le corpus disponible. La qualité de recherche, les budgets
+sous charge et la rétention physique restent à qualifier.
 
 ## F — Contexte consultatif et analyse versionnée
 
@@ -228,8 +385,8 @@ publiée.
 
 ## Dépendances et choix à valider
 
-La prochaine tranche doit qualifier SQL exact, FTS5 et la résolution des
-citations au niveau passage avant l'assemblage v2. Les résultats M3.5-E ne
+La prochaine tranche doit qualifier SQL exact, FTS5 et la pertinence
+de la récupération au niveau passage avant l'assemblage v2. Les résultats M3.5-E ne
 qualifient ni les ACL multi-utilisateur, ni les mises à jour concurrentes,
 ni les pics de mémoire à la reconstruction. Les lots de 16 et le choix
 d'embeddings restent des hypothèses de pilote. Le plan d'implémentation et

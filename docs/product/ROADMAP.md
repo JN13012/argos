@@ -62,7 +62,9 @@ d'embeddings, RRF et trois moteurs exacts. La consolidation vérifie le
 rejeu hors ligne, les licences et la séparation des installations Ollama.
 Les choix du pilote restent provisoires. Les [fondations M3.5.1](KNOWLEDGE_ENGINE_SPEC.md)
 implémentent le catalogue de sources et le stockage documentaire versionné et
-cloisonné. Les index, le contexte v2 et le pilote RAG restent à qualifier.
+cloisonné. M3.5.2 ajoute l'ingestion normalisée et trois découpages citables,
+avec mesures sur le corpus MDN local. Les index, le contexte v2 et le pilote
+RAG restent à qualifier.
 
 **Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
@@ -180,7 +182,8 @@ une certification de niveau senior ni une promesse commerciale déjà tenue.
 | Étape | Statut | Porte d'acceptation |
 | --- | --- | --- |
 | M3.5.1 Fondations | Implémentées sur `feat/m35-knowledge-engine`, qualification locale | Identité et permissions, cycle de vie, intégrité et reprise transactionnelle sous Python 3.12 et 3.14. |
-| Ingestion normalisée et recherche | Conçu | Provenance au niveau passage, index SQL exact et FTS5 puis dense, filtrage avant lecture et reconstruction sans exposition d'une génération partielle. |
+| M3.5.2 Ingestion et fragments | Implémentés sur `feat/m35-knowledge-engine`, qualification locale | Migration SQLite v2, trois formats et stratégies, repères de citation, transactions et mesures sur corpus local. |
+| Recherche documentaire | Conçu | Index SQL exact et FTS5 puis dense, pertinence au niveau passage, filtrage avant lecture et reconstruction sans exposition d'une génération partielle. |
 | Contexte et revue v2 | Conçu | Compatibilité v1, budgets vérifiés, citations, abstention, refus des réponses tardives et qualification des ressources Ollama. |
 | Qualification du pilote | Conçu | Cinq bras appariés, jeu final indépendant et critères gelés avant dépouillement. |
 | Maintenance étendue | Conçu | Import Obsidian privé, puis synchronisation publique soumise à une qualification et une approbation distinctes. |
