@@ -2,6 +2,7 @@
 
 import sqlite3
 
+from . import search_index
 from .contracts import (
     Approval,
     KnowledgeConflictError,
@@ -107,4 +108,5 @@ class KnowledgeSourceRegistry:
                 "WHERE id = ?",
                 (now(), source_id),
             )
+            search_index.remove(db, source_id)
             return source_record(db, source_id)

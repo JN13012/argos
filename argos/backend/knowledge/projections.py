@@ -188,6 +188,19 @@ def projection(
     )
 
 
+def fragment_text(doc: NormalizedDocument, start: int, end: int, digest: str) -> str:
+    if (
+        type(start) is not int
+        or type(end) is not int
+        or not 0 <= start < end <= len(doc.text)
+    ):
+        raise KnowledgeIntegrityError("Fragment integrity check failed")
+    text = doc.text[start:end]
+    if sha256(text.encode("utf-8")).hexdigest() != digest:
+        raise KnowledgeIntegrityError("Fragment integrity check failed")
+    return text
+
+
 def fragments(
     db: sqlite3.Connection, info: DocumentProjection, *, offset: int, limit: int
 ) -> tuple[DocumentFragment, ...]:
@@ -203,13 +216,9 @@ def fragments(
         (info.chunk_set_id, offset, limit),
     )
     for ordinal, start, end, digest in rows:
-        text = doc.text[start:end]
-        if (
-            ordinal != offset + len(results)
-            or not 0 <= start < end <= len(doc.text)
-            or sha256(text.encode("utf-8")).hexdigest() != digest
-        ):
+        if ordinal != offset + len(results):
             raise KnowledgeIntegrityError("Fragment integrity check failed")
+        text = fragment_text(doc, start, end, digest)
         results.append(
             DocumentFragment(
                 info,

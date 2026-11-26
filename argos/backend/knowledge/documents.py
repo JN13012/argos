@@ -6,7 +6,7 @@ from dataclasses import asdict
 from hashlib import sha256
 from pathlib import Path
 
-from . import projections
+from . import projections, search_index
 from .chunking import ChunkConfig
 from .contracts import (
     MAX_ORIGINAL_BYTES,
@@ -36,11 +36,7 @@ _VERSION_ROWS = """
     JOIN source ON source.id = document.source_id
     WHERE version.source_id = ? AND version.document_id = ?
 """
-_CURRENT = """
-    AND source.approved_at IS NOT NULL AND source.withdrawn_at IS NULL
-    AND document.withdrawn_at IS NULL AND version.approved_at IS NOT NULL
-    AND version.superseded_at IS NULL
-"""
+_CURRENT = search_index.LIVE
 
 
 def _json(value: object) -> str:
@@ -248,7 +244,10 @@ class KnowledgeStore:
         )
         with self._database.write() as db:
             version = _stage(db, document, metadata, original, original_sha, encoded)
-            return projections.persist(db, version, config, prepared)
+            projection = projections.persist(db, version, config, prepared)
+            if version.status is Approval.APPROVED:
+                search_index.sync(db, document)
+            return projection
 
     def inspect_projection(
         self,
@@ -361,6 +360,7 @@ class KnowledgeStore:
                 "UPDATE version SET approved_at = ? WHERE id = ?",
                 (timestamp, version_id),
             )
+            search_index.sync(db, document)
             return _inspect(db, document, version_id)
 
     def withdraw_document(self, document: DocumentRef) -> None:
@@ -372,6 +372,7 @@ class KnowledgeStore:
             )
             if affected.rowcount != 1:
                 raise KeyError(document)
+            search_index.remove(db, document.source_id, document.document_id)
 
     def current(self, document: DocumentRef) -> DocumentVersion:
         with self._database.read() as db:

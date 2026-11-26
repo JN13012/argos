@@ -146,6 +146,14 @@ def test_migration_preserves_v1_and_is_atomic(local):
     store.sources.approve(SOURCE.id)
     store.approve_version(REF, legacy.id)
     with closing(sqlite3.connect(path)) as db, db:
+        for table in (
+            "search_fts",
+            "search_reference",
+            "search_fragment",
+            "search_tag",
+            "search_document",
+        ):
+            db.execute(f"DROP TABLE {table}")
         for statement in reversed(_SCHEMA_V2):
             db.execute("DROP TABLE " + statement.split()[2])
         db.execute("PRAGMA user_version = 1")

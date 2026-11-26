@@ -19,7 +19,7 @@ from .contracts import (
     identifier,
 )
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 APPLICATION_ID = 0x4152474B  # ARGK
 _SCHEMA_V1 = (
     """CREATE TABLE collection (
@@ -193,7 +193,7 @@ class CollectionDatabase:
             db.execute(f"PRAGMA application_id = {APPLICATION_ID}")
             application, version = APPLICATION_ID, 1
         if application != APPLICATION_ID or not (
-            version == SCHEMA_VERSION or (initialize and version == 1)
+            version == SCHEMA_VERSION or (initialize and 1 <= version < SCHEMA_VERSION)
         ):
             raise KnowledgeIntegrityError("Unsupported knowledge database schema")
         row = db.execute(
@@ -204,6 +204,13 @@ class CollectionDatabase:
         if version == 1:
             for statement in _SCHEMA_V2:
                 db.execute(statement)
+            version = 2
+        if version == 2:
+            from .search_index import SCHEMA_V3, populate
+
+            for statement in SCHEMA_V3:
+                db.execute(statement)
+            populate(db)
             db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     @contextmanager
