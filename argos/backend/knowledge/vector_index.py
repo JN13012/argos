@@ -147,6 +147,14 @@ def vector_coverage(db: sqlite3.Connection, space_id: str) -> tuple[int, int]:
     return row[0], row[1]
 
 
+def check_ready(db: sqlite3.Connection, space: EmbeddingSpace) -> bool:
+    _check_space(db, space)
+    total, indexed = vector_coverage(db, space.identity)
+    if total != indexed:
+        raise VectorIndexNotReady("Current fragments lack vectors in this space")
+    return indexed > 0
+
+
 def prepared_key(provider: EmbeddingProvider, row: sqlite3.Row) -> tuple[str, str, int]:
     if (
         row["title"] != row["version_title"]

@@ -22,10 +22,13 @@ from .contracts import (
     Tag,
 )
 from .documents import KnowledgeStore
+from .embeddings import EmbeddingProvider, EmbeddingSpace, OllamaEmbeddingProvider
 from .normalization import Block, NormalizedDocument
 from .projections import DocumentFragment, DocumentProjection
 from .registry import KnowledgeSourceRegistry
 from .retrieval import LexicalWeights, SearchFilters, SQLiteKnowledgeRetriever
+from .router import RetrievalMode, RetrievalOutcome, RetrievalRouter, RoutedRetrieval
+from .vector_retrieval import CosineCalibration, NumPyKnowledgeRetriever
 
 __all__ = [
     "DEFAULT_DOMAINS",
@@ -42,6 +45,11 @@ __all__ = [
     "DocumentReader",
     "DocumentRef",
     "DocumentVersion",
+    "EmbeddingProvider",
+    "EmbeddingSpace",
+    "OllamaEmbeddingProvider",
+    "CosineCalibration",
+    "NumPyKnowledgeRetriever",
     "FragmentRef",
     "Freshness",
     "KnowledgeConflictError",
@@ -53,6 +61,10 @@ __all__ = [
     "NormalizedDocument",
     "Passage",
     "RetrievalMethod",
+    "RetrievalMode",
+    "RetrievalOutcome",
+    "RetrievalRouter",
+    "RoutedRetrieval",
     "SQLiteKnowledgeRetriever",
     "SearchFilters",
     "Source",

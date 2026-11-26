@@ -161,3 +161,170 @@ def test_v3_migration_keeps_published_lexical_rows(local):
     with db.read() as connection:
         assert status(connection, provider.space).published_fragments == 3
         assert connection.execute("PRAGMA user_version").fetchone()[0] == 4
+
+
+def test_exact_cosine_passages_filters_and_calibration(local):
+    from argos.backend.knowledge import (
+        CosineCalibration,
+        KnowledgeRetriever,
+        NumPyKnowledgeRetriever,
+        RetrievalMethod,
+        SearchFilters,
+    )
+    from argos.backend.knowledge.vector_index import VectorIndexNotReady
+
+    store, _, provider = local
+    _publish(store)
+    scope = Collection(CollectionKind.USER)
+    engine = NumPyKnowledgeRetriever(
+        scope, allowed_collections={scope}, provider=provider
+    )
+    protocol: KnowledgeRetriever = engine
+    with pytest.raises(VectorIndexNotReady):
+        protocol.retrieve("alpha", limit=10)
+    assert engine.build_vectors().status.ready
+    hits = protocol.retrieve("alpha", limit=10)
+    assert [(hit.reference.ordinal, hit.score) for hit in hits if hit.reference] == [
+        (0, 1.0),
+        (1, 0.0),
+    ]
+    assert hits[0].method is RetrievalMethod.VECTOR
+    assert hits[0].reference is not None and hits[0].provenance is not None
+    assert [ref.ordinal for ref in hits[0].occurrences] == [2]
+    assert engine.resolve(hits[0].reference).text == hits[0].text
+    assert not engine.retrieve("alpha", limit=1, max_bytes=2)
+    calls = len(provider.calls)
+    assert not engine.retrieve(
+        "alpha", limit=1, filters=SearchFilters(source_ids=("other",))
+    )
+    assert len(provider.calls) == calls
+    strict = NumPyKnowledgeRetriever(
+        scope,
+        allowed_collections={scope},
+        provider=provider,
+        calibration=CosineCalibration(provider.space.identity, "small-fixture", 0.1),
+    )
+    assert len(strict.retrieve("alpha", limit=10)) == 1
+    with pytest.raises(ValueError, match="another"):
+        NumPyKnowledgeRetriever(
+            scope,
+            allowed_collections={scope},
+            provider=provider,
+            calibration=CosineCalibration("0" * 64, "small-fixture", 0.1),
+        )
+
+
+def test_router_exact_first_fallback_abstention_and_integrity(local):
+    from argos.backend.knowledge import (
+        CosineCalibration,
+        NumPyKnowledgeRetriever,
+        RetrievalMethod,
+        RetrievalMode,
+        RetrievalOutcome,
+        RetrievalRouter,
+        SQLiteKnowledgeRetriever,
+    )
+
+    store, db, provider = local
+    _publish(store, ORIGINAL.replace(b"beta", b"RFC 9110"))
+    scope = Collection(CollectionKind.USER)
+    lexical = SQLiteKnowledgeRetriever(scope, allowed_collections={scope})
+    dense = NumPyKnowledgeRetriever(
+        scope,
+        allowed_collections={scope},
+        provider=provider,
+        calibration=CosineCalibration(provider.space.identity, "fixture", 0.5),
+    )
+    router = RetrievalRouter(lexical, dense)
+    result = router.search("What is RFC 9110?", limit=2)
+    assert result.method is RetrievalMethod.EXACT and result.passages
+    assert router.search("See RFC 9999", limit=2).outcome is RetrievalOutcome.NO_MATCH
+    assert not provider.calls
+    missing = router.search("alpha", limit=2)
+    assert missing.fallback is RetrievalOutcome.INDEX_NOT_READY
+    assert missing.method is RetrievalMethod.LEXICAL
+    dense.build_vectors()
+    provider.stop_after = len(provider.calls)
+    result = router.search("alpha", limit=2)
+    assert result.fallback is RetrievalOutcome.PROVIDER_UNAVAILABLE and result.passages
+    explicit = router.search("alpha", mode=RetrievalMode.DENSE, limit=2)
+    assert (
+        explicit.outcome is RetrievalOutcome.PROVIDER_UNAVAILABLE
+        and not explicit.passages
+    )
+    provider.stop_after = None
+    with db.write() as connection:
+        connection.execute("UPDATE vector_cache SET vector_sha256 = ?", ("0" * 64,))
+    with pytest.raises(KnowledgeIntegrityError, match="checksum"):
+        router.search("alpha", limit=2)
+
+
+def test_vector_abstention_is_distinct_and_does_not_fallback(local, monkeypatch):
+    from argos.backend.knowledge import (
+        CosineCalibration,
+        NumPyKnowledgeRetriever,
+        RetrievalMethod,
+        RetrievalOutcome,
+        RetrievalRouter,
+        SQLiteKnowledgeRetriever,
+    )
+
+    store, _, provider = local
+    _publish(store)
+    scope = Collection(CollectionKind.USER)
+    dense = NumPyKnowledgeRetriever(
+        scope,
+        allowed_collections={scope},
+        provider=provider,
+        calibration=CosineCalibration(provider.space.identity, "fixture", 0.5),
+    )
+    dense.build_vectors()
+    monkeypatch.setattr(
+        provider, "embed", lambda inputs: [(0.0, 0.0, 1.0)] * len(inputs)
+    )
+    router = RetrievalRouter(
+        SQLiteKnowledgeRetriever(scope, allowed_collections={scope}), dense
+    )
+    result = router.search("alpha", limit=3)
+    assert result.outcome is RetrievalOutcome.NO_MATCH
+    assert not result.passages and result.fallback is None
+    assert result.method is RetrievalMethod.VECTOR
+
+
+def test_vector_collection_grants_and_withdrawal(local):
+    from uuid import uuid4
+
+    from argos.backend.knowledge import NumPyKnowledgeRetriever
+
+    store, _, provider = local
+    _publish(store)
+    scope = Collection(CollectionKind.USER)
+    other = Collection(CollectionKind.MISSION, uuid4())
+    allowed = {scope}
+    with pytest.raises(PermissionError):
+        NumPyKnowledgeRetriever(other, allowed_collections=allowed, provider=provider)
+    dense = NumPyKnowledgeRetriever(
+        scope, allowed_collections=allowed, provider=provider
+    )
+    dense.build_vectors()
+    other_store = KnowledgeStore(other)
+    other_store.initialize()
+    other_store.sources.register(Source("local", "Other", "other:notes", "Private"))
+    other_store.sources.approve("local")
+    _publish(other_store)
+    secondary = NumPyKnowledgeRetriever(
+        other, allowed_collections={other}, provider=provider
+    )
+    assert secondary.vector_status().cache_entries == 0
+    secondary.build_vectors()
+    reference = dense.retrieve("alpha", limit=1)[0].reference
+    assert reference is not None
+    with pytest.raises(PermissionError):
+        secondary.resolve(reference)
+    store.withdraw_document(REF)
+    assert not dense.retrieve("alpha", limit=1)
+    with pytest.raises(KeyError):
+        dense.resolve(reference)
+    allowed.clear()
+    with pytest.raises(PermissionError):
+        dense.vector_status()

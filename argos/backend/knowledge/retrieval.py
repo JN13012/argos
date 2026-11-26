@@ -4,8 +4,10 @@ import json
 import re
 import sqlite3
 from collections.abc import Collection as CollectionSet
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, replace
 from functools import lru_cache
+from typing import Any
 
 from . import search_index
 from .chunking import citations
@@ -26,6 +28,8 @@ from .projections import fragment_text, normalized_content
 from .references import exact_key
 from .registry import source_record
 from .storage import CollectionDatabase
+
+SearchRow = sqlite3.Row | dict[str, Any]
 
 DEFAULT_RESULT_BYTES = 128 * 1024
 _MAX_CANDIDATES = 500
@@ -295,7 +299,7 @@ class SQLiteKnowledgeRetriever:
                 normalized_content(db, row["normalized_sha256"]),
             )
 
-    def _reference(self, row: sqlite3.Row) -> FragmentRef:
+    def _reference(self, row: SearchRow) -> FragmentRef:
         return FragmentRef(
             self._collection,
             DocumentRef(row["source_id"], row["document_id"]),
@@ -308,7 +312,7 @@ class SQLiteKnowledgeRetriever:
     def _passage(
         self,
         db: sqlite3.Connection,
-        row: sqlite3.Row,
+        row: SearchRow,
         method: RetrievalMethod,
         doc: NormalizedDocument,
     ) -> Passage:
@@ -333,7 +337,7 @@ class SQLiteKnowledgeRetriever:
     def _collect(
         self,
         db: sqlite3.Connection,
-        rows: sqlite3.Cursor,
+        rows: Iterable[SearchRow],
         method: RetrievalMethod,
         limit: int,
         max_bytes: int,
