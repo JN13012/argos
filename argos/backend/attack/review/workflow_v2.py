@@ -6,7 +6,12 @@ from dataclasses import asdict
 from pathlib import Path
 from uuid import UUID
 
-from argos.backend.consultation.analyst import InvalidSelection, Selector, analyze
+from argos.backend.consultation.analyst import (
+    GROUNDING_POLICY,
+    InvalidSelection,
+    Selector,
+    analyze,
+)
 from argos.backend.consultation.context import Budget, fingerprint
 from argos.backend.knowledge.contracts import KnowledgeIntegrityError
 from argos.backend.knowledge.router import RetrievalMode
@@ -48,6 +53,7 @@ async def analyze_workflow_v2(
         "analyzing",
         {
             "contract": "consultative-analyst-v2",
+            "grounding_policy": GROUNDING_POLICY,
             "configuration": {"model": asdict(model), "budget": asdict(budget)},
             "pins": prepared.pins,
             "units": [
@@ -101,6 +107,7 @@ async def analyze_workflow_v2(
         state = "ready"
         outcome = {
             "abstention": reply["abstention"],
+            "grounding": reply["grounding"],
             "usage": reply["usage"],
             "timings_ms": reply["timings_ms"],
             "selected_ids": [item["id"] for item in reply["claims"]],

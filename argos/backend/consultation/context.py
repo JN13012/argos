@@ -25,6 +25,7 @@ class UnitKind(StrEnum):
     UNCERTAINTY = "uncertainty"
     OBSERVATION = "observation"
     INFERENCE = "inference"
+    HYPOTHESIS = "hypothesis"
     PASSAGE = "passage"
 
 
@@ -42,6 +43,7 @@ class Unit:
     # Canonical serialized reference (kept out of the prompt).
     pin: str
     identity: str | None = None
+    truncated: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +101,7 @@ def assemble(
         UnitKind.OBSERVATION: 1,
         UnitKind.PASSAGE: 1,
         UnitKind.INFERENCE: 2,
+        UnitKind.HYPOTHESIS: 2,
     }
     queues: dict[int, dict[Component, deque[Unit]]] = defaultdict(
         lambda: defaultdict(deque)
@@ -146,7 +149,7 @@ def assemble(
                         "kind": unit.kind,
                         "component": unit.component,
                         "text": excerpt,
-                        "excerpt": excerpt != unit.text,
+                        "excerpt": unit.truncated or excerpt != unit.text,
                     }
                 )
                 omitted[unit.component] -= 1
@@ -159,7 +162,14 @@ def assemble(
                     omitted[unit.component] += 1
                     continue
                 selected.append(
-                    Unit(unit.kind, unit.component, excerpt, unit.pin, unit.identity)
+                    Unit(
+                        unit.kind,
+                        unit.component,
+                        excerpt,
+                        unit.pin,
+                        unit.identity,
+                        unit.truncated or excerpt != unit.text,
+                    )
                 )
     payload = encode(data)
     byte_count, token_bound = size(payload)

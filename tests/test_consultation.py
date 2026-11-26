@@ -114,3 +114,61 @@ def test_empty_and_omission_paths():
     assert json.loads(envelope.data_json)["omitted"]["knowledge"] == 1
     reply = asyncio.run(analyze(packet(selector), selector, PIN, lambda: None))
     assert reply["abstention"] == "total" and selector.calls == 0
+
+
+def test_epistemic_status_never_promotes_reference_to_an_answer():
+    selector = Selector('{"refs":[1,2,3,4]}')
+    units = (
+        Unit(UnitKind.OBSERVATION, Component.ARCHIVE, "status=200", "{}"),
+        Unit(UnitKind.PASSAGE, Component.KNOWLEDGE, "retry may help", '{"id":2}'),
+        Unit(UnitKind.INFERENCE, Component.ARCHIVE, "perhaps logged in", "{}"),
+        Unit(UnitKind.HYPOTHESIS, Component.ARCHIVE, "might be an administrator", "{}"),
+    )
+    reply = asyncio.run(analyze(packet(selector, *units), selector, PIN, lambda: None))
+    assert [row["status"] for row in reply["claims"]] == [
+        "verified_fact",
+        "supported_documentary_statement",
+        "inference",
+        "hypothesis",
+    ]
+    assert reply["grounding"]["objective_status"] == "unknown"
+    assert reply["abstention"] == "partial"
+
+
+@pytest.mark.parametrize("conflict", [False, True])
+def test_literal_attribution_requires_complete_exact_nonconflicted_passage(conflict):
+    selector = Selector()
+    exact = Unit(UnitKind.PASSAGE, Component.KNOWLEDGE, "The flag is off.", "{}")
+    units = [exact, CONFLICT] if conflict else [exact]
+    envelope = assemble(
+        "documentary_question",
+        f"citation exacte: {exact.text}",
+        units,
+        TEST_BUDGET,
+        selector.size,
+        coverage={},
+    )
+    reply = asyncio.run(analyze(envelope, selector, PIN, lambda: None))
+    assert selector.calls == 0
+    assert reply["claims"][0]["support_scope"] == "verbatim_attribution_only"
+    assert reply["grounding"]["objective_status"] == (
+        "unknown" if conflict else "supported_documentary_statement"
+    )
+
+
+def test_literal_attribution_refuses_clipped_or_case_changed_text():
+    selector = Selector()
+    text = "A" * 64
+    for objective, source in ((text, text + " B"), (text.lower(), text)):
+        unit = Unit(UnitKind.PASSAGE, Component.KNOWLEDGE, source, "{}")
+        envelope = assemble(
+            "documentary_question",
+            f"citation exacte: {objective}",
+            [unit],
+            TEST_BUDGET,
+            selector.size,
+            coverage={},
+        )
+        reply = asyncio.run(analyze(envelope, selector, PIN, lambda: None))
+        assert reply["abstention"] == "total" and not reply["claims"]
+    assert selector.calls == 0
