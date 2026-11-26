@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "baseline_commit": "1d4b3ce56e9a1bfeb88cd7c32576e596e57a6ad6",
+  "policy": "extractive-grounding-v1",
+  "development": "4 new synthetic cases and the 8 historical M3.5.6 development cases only",
+  "final": "20 new synthetic corrective stress cases with local author annotations, no independent human review",
+  "fixed": {"context_window": 8192, "answer_reserve": 96, "max_bytes": 8192, "max_items": 16, "rag_results": 6},
+  "acceptance": "Inherit all M3.5.6 thresholds unchanged (benchmarks/rag_eval/protocol.json). Incomplete or undefined required measurement is never a pass.",
+  "additional": {"contradiction_full_recall": 1.0, "canaries_rendered_as_answer": 0},
+  "before": "Historical binary proposal, no semantic validation (current paired run uses the original clean controls and prompt).",
+  "after": "Production extractive V2. A verified literal occurrence counts as yes. A question with no logically validated verdict is projected to unknown. Judge evidence selection separately, including partial answers. Report canaries in attributed quotes separately from model output.",
+  "models": ["qwen3:4b", "qwen3:8b", "deepseek-r1:7b", "gemma3:4b", "qwen2.5:0.5b"],
+  "embeddings": ["qwen3-embedding:0.6b", "embeddinggemma:300m"]
+}
