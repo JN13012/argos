@@ -72,8 +72,7 @@ Cette étape seule récupère les documents publics. Conserver un dossier de
 sortie neuf pour chaque exécution.
 
 ```bash
-scripts/argos data init
-root="$PWD/data"  # Adapter au chemin résolu par scripts/argos data init.
+root="$(scripts/argos data init)"
 python -m benchmarks.retrieval.corpus --out "$root/knowledge/m35-retrieval/corpus"
 uv venv --python 3.14 "$root/qualification/m35-venv"
 runner="$root/qualification/m35-venv/bin/python"
@@ -81,11 +80,23 @@ uv pip install --python "$runner" -r benchmarks/retrieval/requirements.txt
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 ```
 
-Préparer les trois tags dans le dépôt Ollama d'essai. Lancer le serveur
-dédié avec `OLLAMA_MODELS` pointant sur ce dépôt, `OLLAMA_HOST=127.0.0.1:11536`,
-`OLLAMA_NO_CLOUD=1`, `OLLAMA_NOPRUNE=1`, `OLLAMA_MAX_LOADED_MODELS=1` et
-`OLLAMA_NUM_PARALLEL=1`. Utiliser `benchmarks.retrieval.sample_host --pid PID
---out FICHIER.jsonl` dans un autre terminal pendant chaque mesure.
+Avec les trois tags déjà présents sous la racine résolue, lancer le serveur
+de qualification depuis un terminal dédié.
+
+```bash
+root="$(scripts/argos data init)"
+benchmark="$root/ollama/m35-retrieval"
+OLLAMA_MODELS="$benchmark/models" OLLAMA_HOST=127.0.0.1:11536 \
+  OLLAMA_NO_CLOUD=1 OLLAMA_NOPRUNE=1 OLLAMA_MAX_LOADED_MODELS=1 \
+  OLLAMA_NUM_PARALLEL=1 "$benchmark/runtime-0.40.18/bin/ollama" serve
+```
+
+`ARGOS_DATA_HOME` personnalise cette racine via `data init`. Un
+changement de racine exige que les artefacts y soient déjà présents.
+Le binaire parallèle est lancé explicitement et le lanceur principal
+`scripts/llm/ollama-local` garde `ollama/runtime` et `ollama/models`.
+Utiliser `benchmarks.retrieval.sample_host --pid PID --out FICHIER.jsonl`
+dans un autre terminal pendant chaque mesure.
 
 ```bash
 corpus="$root/knowledge/m35-retrieval/corpus"
@@ -269,3 +280,73 @@ et un index approximatif n'ont pas été testés.
 - Les répertoires `real-*`, `gemma-chunking`, `scale-100k-*`, `scale-real` et
   `host` documentent mesures brutes et versions. Les essais interrompus
   antérieurs restent identifiés par `attempt-*` et `ollama-01111`.
+
+
+## Consolidation du 26 novembre 2026
+
+- **Reproductibilité.** Les 38 sources MDN et leur fichier de licence
+  correspondent au manifeste. Les 15 fichiers de configuration, déclarations
+  de sources et jugements copiés dans les cinq campagnes correspondent
+  aux entrées versionnées. Le replay hors ligne a reconstruit huit index
+  BM25 et reproduit rangs, métriques et abstention dans 18 configurations
+  denses ou hybrides à partir des vecteurs conservés. Les scores cosinus
+  concordent à la tolérance float32 du replay. Les 64 ensembles top‑10
+  synthétiques ont été reproduits avec NumPy et comparés aux trois mesures
+  archivées. Les 154 ensembles top‑10 réels ont été recalculés sur les
+  trois moteurs. Ce contrôle porte sur le classement, pas sur la stabilité
+  des latences ou des vecteurs recalculés sur un autre hôte.
+- **Dépôts Ollama.** Les deux serveurs ont été lancés sur loopback avec
+  des répertoires de modèles distincts. Le 0.11.11 a annoncé ses cinq LLM
+  et le 0.40.18 ses trois embeddings. Les tailles et SHA-256 des 34 blobs
+  référencés concordent avec les manifestes. Le binaire d'origine et
+  l'archive du runtime parallèle correspondent à leurs empreintes de
+  référence. Les serveurs ont été arrêtés après l'inventaire. Aucun
+  modèle téléchargé, supprimé ou chargé pendant cette consolidation.
+- **Licences.** Le fichier MDN épinglé confirme CC BY-SA 2.5 pour la
+  prose, CC0 pour les exemples ajoutés depuis le 20 août 2010 et MIT
+  pour les exemples antérieurs. Conserver les attributions, références,
+  notices et conditions applicables en cas de redistribution.
+  [Licence MDN](https://github.com/mdn/content/blob/42994d9657fd9771d5c45579521d947ba5babc05/LICENSE.md)
+- **Modèles.** Les notices Ollama identifient MIT pour BGE-M3 et
+  DeepSeek-R1 7B, Apache-2.0 pour Qwen2.5 et Qwen3 de génération, et
+  Gemma Terms pour EmbeddingGemma et Gemma 3. Le paquet Ollama de
+  Qwen3-Embedding ne contient pas de couche de licence. La fiche
+  officielle du modèle indique Apache-2.0. Le pilote EmbeddingGemma
+  dépend des conditions et restrictions d'usage Gemma. Cette revue
+  ne vaut pas décision de redistribuer les poids ou le runtime.
+  [Fiche Qwen](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B),
+  [Fiche BAAI](https://huggingface.co/BAAI/bge-m3),
+  [Conditions Gemma](https://gemma.ai/resources/terms/)
+- **Dépendances du banc.** Les métadonnées locales concordent sous
+  Python 3.12 et 3.14. NumPy 2.5.5 est sous BSD-3-Clause, avec des
+  notices pour les composants inclus, notamment OpenBLAS et le runtime
+  GCC. FAISS CPU 1.16.0 est sous MIT avec ses notices tierces.
+  sqlite-vec 0.1.9 indique MIT et Apache-2.0. packaging 26.4 indique
+  Apache-2.0 ou BSD-2-Clause. Ces versions restent dans les environnements
+  du banc et leurs notices restent avec les paquets installés.
+  [NumPy](https://github.com/numpy/numpy/blob/main/LICENSE.txt),
+  [FAISS](https://github.com/facebookresearch/faiss/blob/main/LICENSE),
+  [sqlite-vec](https://github.com/asg017/sqlite-vec),
+  [packaging](https://github.com/pypa/packaging/blob/main/LICENSE)
+- **Git.** La revue des fichiers suivis et des nouveaux blobs n'a trouvé
+  ni corpus récupéré, ni modèle, ni index, ni résultat privé.
+  Les TSV suivis contiennent les requêtes et jugements synthétiques
+  créés pour le banc. Les fichiers d'exécution restent dans les zones
+  ignorées de `ARGOS_DATA_HOME`.
+
+### Choix provisoires du pilote
+
+EmbeddingGemma 768 sous réserve des conditions Gemma, Qwen3 512 en
+alternative, et NumPy exact. Prévoir FTS5 en secours et une recherche exacte
+SQL pour les identifiants. La recherche exacte SQL est un choix du pilote
+à qualifier séparément. La fusion RRF reste hors du périmètre initial.
+Conserver les lots de 16, le cache versionné et l'indexation incrémentale.
+Le préfiltrage des collections est obligatoire, avec qualification future
+des droits et du cycle de vie complet des index.
+
+Ces choix reposent sur un corpus anglais d'un seul éditeur, des jugements
+documentaires d'un seul annotateur, douze requêtes négatives, un hôte WSL et
+une charge de 100 000 fragments synthétiques. Un corpus plus varié et un jeu
+final indépendant devront valider les citations au niveau passage, la
+recherche exacte SQL et les décisions d'abstention du pilote. La migration
+définitive d'Ollama reste une décision distincte.
