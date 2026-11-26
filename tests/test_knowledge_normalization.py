@@ -51,8 +51,11 @@ def test_json_pointer_and_lossless_numbers():
     raw = b'{"x/y~z":[1e999,{"":true},[]],"z":null,"a":{}}'
     doc = normalize(raw, "application/json")
     assert [b.pointer for b in doc.blocks] == [
+        "",
         "/a",
+        "/x~1y~0z",
         "/x~1y~0z/0",
+        "/x~1y~0z/1",
         "/x~1y~0z/1/",
         "/x~1y~0z/2",
         "/z",
@@ -66,6 +69,15 @@ def test_json_pointer_and_lossless_numbers():
         ).blocks
         == normalize(raw.replace(b"1e999", b"1"), "application/json").blocks
     )
+
+
+def test_json_keeps_container_types_even_with_identical_leaf_pointers():
+    mapping = normalize(b'{"0":"x"}', "application/json")
+    array = normalize(b'["x"]', "application/json")
+    assert mapping.blocks[0].kind == "object"
+    assert array.blocks[0].kind == "array"
+    assert mapping.blocks[1].pointer == array.blocks[1].pointer == "/0"
+    assert mapping.encode() != array.encode()
 
 
 @pytest.mark.parametrize(

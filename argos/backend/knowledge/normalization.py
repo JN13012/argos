@@ -84,8 +84,10 @@ def _markdown_kind(line: str) -> str:
 
 
 def _line_blocks(text: str, *, markdown: bool) -> tuple[Block, ...]:
+    if text.count("\n") >= MAX_LINES:
+        raise ValueError("Document exceeds line limits")
     lines = text.split("\n")
-    if len(lines) > MAX_LINES or any(len(line) > MAX_LINE for line in lines):
+    if any(len(line) > MAX_LINE for line in lines):
         raise ValueError("Document exceeds line limits")
     offsets = [0]
     for line in lines:
@@ -212,32 +214,38 @@ def _json_document(raw: str) -> NormalizedDocument:
     size = 0
     offset = 0
 
-    def visit(node: object, pointer: str) -> None:
+    def add(pointer: str, kind: str, description: str) -> None:
         nonlocal size, offset
+        line = f"{json.dumps(pointer, ensure_ascii=False)} {description}"
+        size += len(line.encode("utf-8")) + 1
+        if size > MAX_NORMALIZED_BYTES or len(blocks) >= MAX_BLOCKS:
+            raise ValueError("JSON exceeds normalization limits")
+        blocks.append(Block(kind, offset, offset + len(line), None, pointer))
+        lines.append(line)
+        offset += len(line) + 1
+
+    def visit(node: object, pointer: str) -> None:
         if len(pointer) > 2048 or _CONTROL.search(pointer):
             raise ValueError("Invalid or oversized JSON pointer")
-        if isinstance(node, dict) and node:
+        if isinstance(node, dict):
+            add(pointer, "object", "[object]" if node else "= {}")
             for key in sorted(node):
                 visit(
                     node[key], pointer + "/" + key.replace("~", "~0").replace("/", "~1")
                 )
-            return
-        if isinstance(node, list) and node:
+        elif isinstance(node, list):
+            add(pointer, "array", "[array]" if node else "= []")
             for index, item in enumerate(node):
                 visit(item, f"{pointer}/{index}")
-            return
-        if isinstance(node, str) and _CONTROL.search(node):
-            raise ValueError("Unsupported control character in JSON string")
-        scalar = (
-            node if isinstance(node, _Number) else json.dumps(node, ensure_ascii=False)
-        )
-        line = f"{json.dumps(pointer, ensure_ascii=False)} = {scalar}"
-        size += len(line.encode("utf-8")) + 1
-        if size > MAX_NORMALIZED_BYTES or len(blocks) >= MAX_BLOCKS:
-            raise ValueError("JSON exceeds normalization limits")
-        blocks.append(Block("value", offset, offset + len(line), None, pointer))
-        lines.append(line)
-        offset += len(line) + 1
+        else:
+            if isinstance(node, str) and _CONTROL.search(node):
+                raise ValueError("Unsupported control character in JSON string")
+            scalar = (
+                node
+                if isinstance(node, _Number)
+                else json.dumps(node, ensure_ascii=False)
+            )
+            add(pointer, "value", f"= {scalar}")
 
     visit(value, "")
     return NormalizedDocument("\n".join(lines), tuple(blocks))
