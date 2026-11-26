@@ -163,3 +163,71 @@ def test_cli_search_exact_and_index_maintenance(tmp_path, monkeypatch, capsys):
     run("withdraw", "local", "guide")
     assert not run("search", "reference")
     assert run("index-verify")["indexed_fragments"] == 0
+
+
+def test_cli_vector_build_status_verify_and_routing(tmp_path, monkeypatch, capsys):
+    from argos.backend.knowledge.embeddings import QWEN, OllamaEmbeddingProvider
+
+    monkeypatch.setenv("ARGOS_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "semantic.txt").write_text("RFC 9110 HTTP cache", encoding="utf-8")
+    monkeypatch.setattr(
+        OllamaEmbeddingProvider,
+        "embed",
+        lambda self, inputs: [[1.0] * 512] * len(inputs),
+    )
+    selected = ("--model", QWEN.model)
+
+    def run(*args):
+        assert main(["knowledge", *args]) == 0
+        return json.loads(capsys.readouterr().out)
+
+    run("init")
+    run(
+        "source-register",
+        "local",
+        "--publisher",
+        "Operator",
+        "--origin",
+        "notes:local",
+        "--rights",
+        "Private",
+    )
+    imported = run(
+        "import",
+        "semantic.txt",
+        "local",
+        "guide",
+        "--title",
+        "Guide",
+        "--origin",
+        "notes:guide",
+    )
+    run("source-approve", "local")
+    run("approve", "local", "guide", imported["version"]["id"])
+    assert not run("vector-status", *selected)["ready"]
+    assert run("retrieve", "cache", *selected)["fallback"] == "index_not_ready"
+    assert run("retrieve", "See RFC 9110", *selected)["method"] == "exact"
+    assert run("vector-build", *selected)["embedded"] == 1
+    assert run("vector-status", *selected)["ready"]
+    assert run("vector-verify", *selected)["indexed_fragments"] == 1
+    assert run("vector-cache", *selected)["bytes"] == 4 * 512
+    assert run("vector-rebuild", *selected)["embedded"] == 0
+    response = run(
+        "retrieve",
+        "cache",
+        "--mode",
+        "dense",
+        *selected,
+        "--minimum-cosine",
+        "0.5",
+        "--calibration-corpus",
+        "test",
+    )
+    assert response["method"] == "vector"
+    assert response["passages"][0]["provenance"]["id"] == "local"
+    assert not run("retrieve", "cache", "--mode", "dense")["passages"]
+    assert (
+        main(["knowledge", "retrieve", "cache", *selected, "--minimum-cosine", "0.5"])
+        == 1
+    )

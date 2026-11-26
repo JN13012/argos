@@ -18,6 +18,12 @@ from .contracts import (
     Tag,
 )
 from .documents import KnowledgeStore
+from .embeddings import (
+    DEFAULT_BATCH,
+    OLLAMA_PROFILES,
+    EmbeddingProviderError,
+    OllamaEmbeddingProvider,
+)
 from .loader import file_media_type
 from .retrieval import (
     DEFAULT_RESULT_BYTES,
@@ -25,6 +31,8 @@ from .retrieval import (
     SearchFilters,
     SQLiteKnowledgeRetriever,
 )
+from .router import RetrievalMode, RetrievalRouter
+from .vector_retrieval import CosineCalibration, NumPyKnowledgeRetriever
 
 
 def _parse_tag(raw: str) -> Tag:
@@ -57,6 +65,17 @@ def _search_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--domain", action="append", default=[])
     parser.add_argument("--tag", type=_parse_tag, action="append", default=[])
     parser.add_argument("--declared-version")
+
+
+def _embedding_arguments(parser: argparse.ArgumentParser, *, required: bool) -> None:
+    parser.add_argument("--model", choices=tuple(OLLAMA_PROFILES), required=required)
+    parser.add_argument("--model-digest", help="Expected digest from Ollama /api/tags")
+    parser.add_argument("--runtime-version", default="0.40.18")
+    parser.add_argument("--port", type=int, default=11536)
+    parser.add_argument("--dimensions", type=int)
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH)
+    parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--keep-alive", type=int, default=60)
 
 
 def add_parser(commands: argparse._SubParsersAction) -> None:
@@ -129,6 +148,129 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
     command("index-verify", "Verify SQLite, FTS and published search projections")
     command("index-rebuild", "Rebuild the authorized collection's search indexes")
 
+    retrieval = command("retrieve", "Route exact, lexical or dense documentary search")
+    _search_arguments(retrieval)
+    _embedding_arguments(retrieval, required=False)
+    retrieval.add_argument(
+        "--mode",
+        type=RetrievalMode,
+        choices=tuple(RetrievalMode),
+        default=RetrievalMode.AUTO,
+    )
+    retrieval.add_argument("--minimum-cosine", type=float)
+    retrieval.add_argument("--calibration-corpus")
+    for name, help_text in (
+        ("vector-build", "Resume incremental embedding of published fragments"),
+        ("vector-status", "Inspect current coverage for an embedding space"),
+        ("vector-cache", "Inspect the collection-local embedding cache"),
+        ("vector-verify", "Verify cached Float32 vectors and live membership"),
+        ("vector-rebuild", "Rebuild vector membership from the cache"),
+        ("vector-unload", "Unload the selected local embedding model"),
+    ):
+        parser = command(name, help_text)
+        _embedding_arguments(parser, required=True)
+        if name == "vector-rebuild":
+            parser.add_argument("--discard-cache", action="store_true")
+
+
+def _filters(args: argparse.Namespace) -> SearchFilters:
+    return SearchFilters(
+        tuple(args.source),
+        tuple(args.domain),
+        tuple(args.tag),
+        args.declared_version,
+    )
+
+
+def _provider(args: argparse.Namespace) -> OllamaEmbeddingProvider:
+    return OllamaEmbeddingProvider(
+        args.model,
+        port=args.port,
+        runtime=args.runtime_version,
+        digest=args.model_digest,
+        dimensions=args.dimensions,
+        batch_size=args.batch_size,
+        timeout=args.timeout,
+        keep_alive=args.keep_alive,
+    )
+
+
+def _routed_action(collection: Collection, args: argparse.Namespace) -> dict:
+    allowed = (collection,)
+    sql = SQLiteKnowledgeRetriever(collection, allowed_collections=allowed)
+
+    def search(dense: NumPyKnowledgeRetriever | None = None) -> dict:
+        result = RetrievalRouter(sql, dense).search(
+            args.query,
+            mode=args.mode,
+            filters=_filters(args),
+            limit=args.limit,
+            max_bytes=args.max_bytes,
+        )
+        return asdict(result)
+
+    if args.mode in (RetrievalMode.EXACT, RetrievalMode.LEXICAL):
+        return search()
+    calibrated = args.minimum_cosine is not None
+    if calibrated != bool(args.calibration_corpus) or calibrated and args.model is None:
+        raise ValueError("A cosine threshold requires a corpus identity and a model")
+    if args.model is None:
+        return search()
+    with _provider(args) as provider:
+        calibration = (
+            CosineCalibration(
+                provider.space.identity, args.calibration_corpus, args.minimum_cosine
+            )
+            if calibrated
+            else None
+        )
+        return search(
+            NumPyKnowledgeRetriever(
+                collection,
+                allowed_collections=allowed,
+                provider=provider,
+                calibration=calibration,
+            )
+        )
+
+
+def _vector_action(
+    collection: Collection, action: str, args: argparse.Namespace
+) -> dict:
+    with _provider(args) as provider:
+        if action == "vector-unload":
+            provider.unload()
+            return {"status": "unloaded", "space": asdict(provider.space)}
+        dense = NumPyKnowledgeRetriever(
+            collection,
+            allowed_collections=(collection,),
+            provider=provider,
+        )
+        match action:
+            case "vector-status":
+                status = dense.vector_status()
+            case "vector-cache":
+                status = dense.vector_status()
+                return {
+                    "space": asdict(status.space),
+                    "entries": status.cache_entries,
+                    "bytes": status.cache_bytes,
+                }
+            case "vector-verify":
+                status = dense.verify_vectors()
+            case "vector-build" | "vector-rebuild":
+                report = (
+                    dense.build_vectors()
+                    if action == "vector-build"
+                    else dense.rebuild_vectors(discard_cache=args.discard_cache)
+                )
+                result = asdict(report)
+                result["status"]["ready"] = report.status.ready
+                return result
+            case _:
+                raise ValueError("Unknown vector action")
+        return asdict(status) | {"ready": status.ready}
+
 
 def _search_action(
     collection: Collection, action: str, args: argparse.Namespace
@@ -149,18 +291,12 @@ def _search_action(
             return asdict(engine.verify_index())
         case "index-rebuild":
             return asdict(engine.rebuild_index())
-    filters = SearchFilters(
-        tuple(args.source),
-        tuple(args.domain),
-        tuple(args.tag),
-        args.declared_version,
-    )
     query = engine.retrieve if action == "search" else engine.exact
     return [
         asdict(hit)
         for hit in query(
             args.query,
-            filters=filters,
+            filters=_filters(args),
             limit=args.limit,
             max_bytes=args.max_bytes,
         )
@@ -218,7 +354,11 @@ def execute(args: argparse.Namespace) -> int:
     try:
         collection = Collection(args.collection, args.scope_id)
         action = args.action.removeprefix("knowledge_")
-        if action in ("search", "exact") or action.startswith("index-"):
+        if action == "retrieve":
+            output = _routed_action(collection, args)
+        elif action.startswith("vector-"):
+            output = _vector_action(collection, action, args)
+        elif action in ("search", "exact") or action.startswith("index-"):
             output = _search_action(collection, action, args)
         else:
             store = KnowledgeStore(collection)
@@ -247,6 +387,12 @@ def execute(args: argparse.Namespace) -> int:
         # Escape control characters from documentary data in terminal output.
         print(json.dumps(output, default=str))
         return 0
-    except (KeyError, OSError, ValueError, sqlite3.Error) as error:
+    except (
+        KeyError,
+        OSError,
+        ValueError,
+        sqlite3.Error,
+        EmbeddingProviderError,
+    ) as error:
         print(f"Error: {str(error).splitlines()[0]}", file=sys.stderr)
         return 1
