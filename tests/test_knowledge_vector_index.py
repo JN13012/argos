@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from collections.abc import Sequence
 from dataclasses import replace
 
@@ -328,3 +330,60 @@ def test_vector_collection_grants_and_withdrawal(local):
     allowed.clear()
     with pytest.raises(PermissionError):
         dense.vector_status()
+
+
+def test_abrupt_process_exit_leaves_only_committed_vector_batches(local):
+    store, db, provider = local
+    _publish(store)
+    recipe = r"""
+import os
+from argos.backend.knowledge import Collection, CollectionKind, EmbeddingSpace
+from argos.backend.knowledge import NumPyKnowledgeRetriever
+
+class Provider:
+    space = EmbeddingSpace("test", "v1", "a" * 64, "title-v1", 3)
+    batch_size = 1
+    calls = 0
+
+    def document_input(self, title, text):
+        return title + "\n" + text
+
+    def embed(self, inputs):
+        if self.calls:
+            os._exit(19)
+        self.calls += 1
+        return [(1.0, 0.0, 0.0)]
+
+scope = Collection(CollectionKind.USER)
+NumPyKnowledgeRetriever(
+    scope, allowed_collections={scope}, provider=Provider()
+).build_vectors()
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", recipe],
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 19, result.stderr
+    with db.read() as connection:
+        checkpoint = verify(connection, provider)
+    assert checkpoint.indexed_fragments == checkpoint.cache_entries == 1
+    assert not checkpoint.ready
+    resumed = build(db, provider, authorize=_authorize)
+    assert resumed.status.ready and resumed.embedded == 1
+    assert resumed.attached == 2
+
+
+def test_invalid_vectors_do_not_publish_partial_batches(local, monkeypatch):
+    from argos.backend.knowledge.embeddings import EmbeddingResponseError
+
+    store, db, provider = local
+    _publish(store)
+    for invalid in ([(1.0,)], [(0.0, 0.0, 0.0)] * 2, [(float("nan"), 1.0, 0.0)] * 2):
+        monkeypatch.setattr(provider, "embed", lambda inputs, invalid=invalid: invalid)
+        with pytest.raises(EmbeddingResponseError):
+            build(db, provider, authorize=_authorize)
+        with db.read() as connection:
+            result = status(connection, provider.space)
+        assert result.published_fragments == 3
+        assert result.indexed_fragments == result.cache_entries == 0
