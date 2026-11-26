@@ -1,0 +1,187 @@
+"""Versioned private SQLite storage scoped to the effective Unix identity."""
+
+import os
+import sqlite3
+import stat
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, closing, contextmanager
+from datetime import UTC, datetime
+from pathlib import Path
+
+from argos.data_paths import data_path, prepare_area
+
+from .contracts import (
+    DEFAULT_DOMAINS,
+    MAX_ORIGINAL_BYTES,
+    Collection,
+    CollectionKind,
+    KnowledgeIntegrityError,
+    identifier,
+)
+
+SCHEMA_VERSION = 1
+APPLICATION_ID = 0x4152474B  # ARGK
+_SCHEMA = (
+    """CREATE TABLE collection (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        uid INTEGER NOT NULL, kind TEXT NOT NULL, scope_id TEXT NOT NULL
+    )""",
+    "CREATE TABLE domain (id TEXT PRIMARY KEY) WITHOUT ROWID",
+    """CREATE TABLE source (
+        id TEXT PRIMARY KEY, publisher TEXT NOT NULL, origin TEXT NOT NULL,
+        rights TEXT NOT NULL, registered_at TEXT NOT NULL,
+        approved_at TEXT, withdrawn_at TEXT
+    ) WITHOUT ROWID""",
+    """CREATE TABLE document (
+        source_id TEXT REFERENCES source(id), id TEXT NOT NULL, withdrawn_at TEXT,
+        PRIMARY KEY (source_id, id)
+    ) WITHOUT ROWID""",
+    f"""CREATE TABLE original (
+        sha256 TEXT PRIMARY KEY, content BLOB NOT NULL,
+        CHECK (typeof(content) = 'blob'
+               AND length(content) BETWEEN 1 AND {MAX_ORIGINAL_BYTES})
+    ) WITHOUT ROWID""",
+    """CREATE TABLE version (
+        id TEXT PRIMARY KEY, source_id TEXT NOT NULL, document_id TEXT NOT NULL,
+        original_sha256 TEXT NOT NULL REFERENCES original(sha256),
+        metadata_json TEXT NOT NULL, imported_at TEXT NOT NULL, approved_at TEXT,
+        superseded_at TEXT,
+        FOREIGN KEY (source_id, document_id) REFERENCES document(source_id, id),
+        CHECK (superseded_at IS NULL OR approved_at IS NOT NULL)
+    ) WITHOUT ROWID""",
+    """CREATE INDEX version_document ON version(source_id, document_id)""",
+    """CREATE UNIQUE INDEX version_current ON version(source_id, document_id)
+       WHERE approved_at IS NOT NULL AND superseded_at IS NULL""",
+)
+
+
+def now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _private(path: Path, uid: int, *, directory: bool) -> None:
+    info = path.lstat()
+    expected = stat.S_ISDIR if directory else stat.S_ISREG
+    if (
+        not expected(info.st_mode)
+        or info.st_uid != uid
+        or info.st_mode & 0o077
+        or (not directory and info.st_nlink != 1)
+    ):
+        raise PermissionError("Knowledge storage must be private and owned by this UID")
+
+
+class CollectionDatabase:
+    def __init__(self, collection: Collection):
+        if type(collection) is not Collection:
+            raise TypeError("Expected a validated collection")
+        if collection.kind is CollectionKind.ORGANIZATION:
+            raise PermissionError("Organizational sharing is unavailable")
+        self.uid = os.geteuid()
+        scope = str(collection.scope_id) if collection.scope_id is not None else ""
+        self.identity = (self.uid, collection.kind.value, scope)
+        area = data_path("knowledge")
+        suffix = f"-{scope}" if scope else ""
+        self._directories = (
+            area.parent,
+            area,
+            area / f"uid-{self.uid}",
+            area / f"uid-{self.uid}" / f"{collection.kind.value}{suffix}",
+        )
+        self.path = self._directories[-1] / "knowledge.sqlite3"
+
+    def _check_uid(self) -> None:
+        if os.geteuid() != self.uid:
+            raise PermissionError("Knowledge storage identity changed")
+
+    def _check_paths(self) -> None:
+        self._check_uid()
+        if self.path.parent.resolve() != self.path.parent:
+            raise PermissionError("Symlinked knowledge paths are unavailable")
+        for path in self._directories:
+            _private(path, self.uid, directory=True)
+        _private(self.path, self.uid, directory=False)
+        for suffix in ("-journal", "-wal", "-shm"):
+            try:
+                _private(Path(str(self.path) + suffix), self.uid, directory=False)
+            except FileNotFoundError:
+                continue
+
+    def initialize(self) -> None:
+        self._check_uid()
+        if data_path("knowledge") != self._directories[1]:
+            raise ValueError("Data root changed since the collection was bound")
+        prepare_area("knowledge")
+        for directory in self._directories[2:]:
+            directory.mkdir(mode=0o700, exist_ok=True)
+            _private(directory, self.uid, directory=True)
+        try:
+            descriptor = os.open(
+                self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600
+            )
+        except FileExistsError:
+            pass
+        else:
+            os.close(descriptor)
+        with self._transaction(write=True, initialize=True):
+            pass
+
+    def _check_schema(self, db: sqlite3.Connection, *, initialize: bool) -> None:
+        application = db.execute("PRAGMA application_id").fetchone()[0]
+        version = db.execute("PRAGMA user_version").fetchone()[0]
+        if initialize and (application, version) == (0, 0):
+            if db.execute("SELECT 1 FROM sqlite_schema LIMIT 1").fetchone():
+                raise KnowledgeIntegrityError(
+                    "Refusing to initialize an unrelated database"
+                )
+            for statement in _SCHEMA:
+                db.execute(statement)
+            db.execute("INSERT INTO collection VALUES (1, ?, ?, ?)", self.identity)
+            db.executemany(
+                "INSERT INTO domain VALUES (?)", [(d,) for d in DEFAULT_DOMAINS]
+            )
+            db.execute(f"PRAGMA application_id = {APPLICATION_ID}")
+            db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        elif (application, version) != (APPLICATION_ID, SCHEMA_VERSION):
+            raise KnowledgeIntegrityError("Unsupported knowledge database schema")
+        else:
+            row = db.execute(
+                "SELECT uid, kind, scope_id FROM collection WHERE singleton = 1"
+            ).fetchone()
+            if row is None or tuple(row) != self.identity:
+                raise KnowledgeIntegrityError("Knowledge collection identity differs")
+
+    @contextmanager
+    def _transaction(
+        self, *, write: bool, initialize: bool = False
+    ) -> Iterator[sqlite3.Connection]:
+        self._check_paths()
+        mode = "rw" if write else "ro"
+        with closing(
+            sqlite3.connect(f"{self.path.as_uri()}?mode={mode}", uri=True)
+        ) as db:
+            db.row_factory = sqlite3.Row
+            db.execute("PRAGMA foreign_keys = ON")
+            db.execute("PRAGMA trusted_schema = OFF")
+            with db:
+                db.execute("BEGIN IMMEDIATE" if write else "BEGIN")
+                self._check_schema(db, initialize=initialize)
+                yield db
+
+    def read(self) -> AbstractContextManager[sqlite3.Connection]:
+        return self._transaction(write=False)
+
+    def write(self) -> AbstractContextManager[sqlite3.Connection]:
+        return self._transaction(write=True)
+
+    def list_domains(self) -> tuple[str, ...]:
+        with self.read() as db:
+            return tuple(
+                row[0] for row in db.execute("SELECT id FROM domain ORDER BY id")
+            )
+
+    def register_domain(self, domain_id: str) -> None:
+        with self.write() as db:
+            db.execute(
+                "INSERT OR IGNORE INTO domain VALUES (?)", (identifier(domain_id),)
+            )
