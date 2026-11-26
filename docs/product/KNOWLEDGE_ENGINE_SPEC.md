@@ -755,53 +755,161 @@ reste disponible sous les conditions applicables. Les profils, digests
 et seuils restent ceux de M3.5.4. Aucun recalibrage sur le jeu final
 historique.
 
-## F — Contexte consultatif et analyse versionnée
+## F / M3.5.5 — Contexte et analyste consultatifs V2
 
-Conserver les contrats de [snapshot et de projection M3.1](M31_FOUNDATIONS.md),
-d'[analyse extractive M3.2](M32_LOCAL_LLM_ANALYST.md), de [revue M3.3](M33_SUPERVISED_REVIEW.md)
-et de [mémoire M3.4](M34_MEMORY_ENGINE.md). Le snapshot vérifie la cohérence
-de l'archive et expose sa couverture partielle. La mémoire admissible reste
-bornée, expurgée et liée au même snapshot. Les droits d'exécution restent
-la responsabilité du runtime, indépendamment des résultats consultatifs.
+Le contrat `consultative-context-v2` assemble une revue d’archive ou une
+question documentaire explicite. `ReviewContextV2` raccorde les
+[snapshots M3.1](M31_FOUNDATIONS.md), les preuves vérifiées par les lecteurs
+d’archive, la [mémoire M3.4](M34_MEMORY_ENGINE.md) et jusqu’à quatre collections
+explicitement autorisées. Les contrats des [analyses V1](M32_LOCAL_LLM_ANALYST.md)
+et du [journal de revue](M33_SUPERVISED_REVIEW.md) restent disponibles. La
+décision de conception est décrite dans l’[ADR du contexte V2](../architecture/adr/0007-consultative-context.md).
 
-La v2 se sélectionne explicitement. Résoudre d'abord l'identité, la mission
-et les collections autorisées. Épingler le snapshot, la tête mémoire et
-les versions documentaires qui seront citées. Pour une question utilisateur,
-récupérer dans les collections autorisées. Pour une analyse d'archive,
-former la requête à partir de champs expurgés. Le préfiltrage s'applique
-avant ouverture des index, score ou accès au cache.
+- Pour une question documentaire, le routeur prend la question explicite. Pour
+  une archive, la requête utilise des statuts HTTP et les noms de technologies
+  du catalogue expurgé. L’objectif de l’opérateur est transmis séparément.
+  Le routeur réutilise le SQL exact, le dense et le repli lexical existants.
+  Qwen3-Embedding 512 est le candidat CLI par défaut. EmbeddingGemma 768
+  reste disponible aux conditions du modèle. Un seuil dense exige une
+  identité de corpus explicite. Les seuils historiques restent inchangés.
+- Le journal mémoire est contrôlé dans le périmètre UID, mission et snapshot.
+  Seuls les éléments `verified_archive` admissibles rejoignent le contexte.
+  L’assembleur déduplique l’observation par identité entre archive et mémoire,
+  conserve les origines distinctes et expose les omissions.
+- Le trio taille de fenêtre, octets UTF-8 de la consigne encadrée et nombre
+  d’unités est contrôlé avant envoi. La priorité va aux contradictions et
+  incertitudes, puis aux observations et passages, puis aux inférences.
+  Les places disponibles dans une même priorité sont partagées entre
+  composants. Les passages utilisent un préfixe déterministe de 1 200
+  caractères par défaut. Les repères du fragment original sont conservés.
+  La fenêtre initiale est de 8 192 tokens, dont 384 réservés à la sélection,
+  et le plafond indépendant est de 32 768 octets et 48 unités.
+- Le fournisseur `Selector` est interchangeable. L’adaptateur livré épingle
+  Qwen3 4B par digest local et version d’Ollama, vérifie la fenêtre GGUF et utilise
+  un prompt Qwen3 encadré. Le JSON échappe les marqueurs de contrôle de rôle.
+  La borne avant envoi est calculée en octets encadrés avec marge pour les
+  jetons spéciaux du tokenizer Qwen3. Les compteurs d’entrée et de sortie
+  exposés après inférence proviennent d’Ollama. Une réponse dépassant une
+  limite ou privée de compteurs valides est refusée.
+- Le contrat `consultative-analyst-v2` restitue des extraits et observations
+  sélectionnés par identifiants locaux à la tentative. Argos construit la
+  synthèse par gabarit et les relations typées `observed_in_archive`,
+  `inferred_in_archive` et `excerpt_from_document`. Les contradictions,
+  incertitudes et limites transmises sont restituées indépendamment du choix
+  du modèle. L’absence d’élément sélectionné de la catégorie requise entraîne
+  une abstention totale. Les limites et conflits explicites déclenchent une
+  abstention partielle lorsque des éléments utiles subsistent.
+- Les versions supplantées ou retirées sont exclues par le Knowledge Engine.
+  Les passages approuvés étiquetés `lifecycle=obsolete` sont omis et comptés.
+  Les passages étiquetés `lifecycle=contradictory` sont restitués comme
+  contestés par leur source ou leur opérateur. Le pilote ne déduit pas de
+  contradiction sémantique entre passages et ne la tranche pas. Une citation
+  admissible démontre le lien avec l’extrait transmis, sans établir la vérité
+  de l’extrait ou sa pertinence pour toutes les questions.
+- Le validateur relit l’archive, la tête de mémoire et les révisions documentaires
+  avant et après l’inférence. Il résout les références sous les droits courants
+  et compare la provenance et le condensat du préfixe transmis. Le retrait,
+  le changement d’autorisation et la modification d’une génération bloquent la
+  restitution. La vérification se fait par lecture de chaque magasin. Il n’y a
+  pas de transaction couvrant tous les magasins et l’affichage au terminal.
+- La revue V2 épingle avant la sélection les références, révisions, digests,
+  budget et empreinte du contexte transmis dans la chaîne existante.
+  Le journal conserve les identifiants sélectionnés, compteurs et états, ainsi
+  qu’une empreinte de réponse. Le prompt, les extraits et la sortie brute de
+  l’analyste V2 sont transitoires. L’acceptation exige le même périmètre et
+  revalide les données au moment de la décision. L’interruption rejette une
+  sortie tardive par vérification de la tête du journal.
 
-Prioriser preuves, contradictions, incertitudes et couverture avant les
-compléments. Regrouper par identité de preuve et de passage en conservant
-les origines distinctes. Utiliser des extraits déterministes et compter les
-omissions. Réserver un budget mesuré pour le gabarit, le schéma et la réponse.
-La limite d'entrée dépend de la fenêtre effective du modèle. Un tokenizer
-compatible ou une borne conservatrice qualifiée doit permettre le contrôle
-avant envoi, avec des plafonds indépendants en octets, nombre d'entrées et
-durée.
+### Commandes
 
-Le modèle reçoit des données expurgées et des références locales à la
-tentative. Les instructions viennent d'Argos et les autorisations du
-runtime. Le modèle sélectionne des unités citables et des relations typées.
-La réponse du pilote reste extractive ou produite par gabarit. Chaque
-citation doit viser le passage transmis, la bonne version et une source
-admissible pour l'affirmation. Une référence documentaire explique une règle
-générale et une preuve archivée établit une observation de mission. En cas
-d'appui insuffisant, de contradiction non résolue ou de retrait, conserver
-une réponse partielle ou une abstention motivée. La validation sémantique
-de la prose libre reste une étape distincte.
+Après initialisation des collections par `knowledge init` et publication
+des documents, le mode auto utilise le fournisseur d’embeddings et l’index
+vectoriel existants. Le mode lexical fonctionne sans ce fournisseur.
 
-La revue supervisée persiste la tentative avant l'inférence et vérifie de
-nouveau preuves, droits et retraits avant restitution ou acceptation.
-Préserver le rejet des réponses tardives et la reprise explicite. La
-conservation des prompts complets v2 dépend d'une politique de rétention,
-car ils peuvent contenir des extraits privés.
+```bash
+python -m argos review context-v2 --collection user --mode exact \
+  --objective 'doc:mdn/etag'
+python -m argos review documentary-v2 --collection user --mode lexical \
+  --objective 'Quel est le rôle d’un ETag ?'
+python -m argos review workflow-analyze-v2 --db "$ARCHIVE" --journal "$JOURNAL" \
+  --review-id "$REVIEW_ID" --collection user --memory --objective 'Relire les observations'
+python -m argos review workflow-accept --db "$ARCHIVE" --journal "$JOURNAL" \
+  --review-id "$REVIEW_ID" --collection user --memory --input "$DECISION"
+```
 
-Sur l'hôte du pilote, comparer le séquencement embeddings puis génération
-à une variante embeddings sur CPU. Deux serveurs Ollama ont des limites
-indépendantes. Un futur garde de ressources coordonnera les chargements
-Argos, vérifiera le déchargement et refusera un dépassement mesuré. Le
-pilote ne décharge que ses propres modèles.
+L’archive et le journal utilisent les permissions du parcours V1. `--memory`
+choisit `ARGOS_MEMORY_HOME` ou la zone `memory` de `ARGOS_DATA_HOME`.
+`--memory-root` sélectionne un emplacement explicite. Le moteur de connaissances
+continue à résoudre ses magasins sous `ARGOS_DATA_HOME`. Le mode documentaire
+utilise la collection privée utilisateur par défaut. Une revue d’archive doit
+indiquer les collections voulues. Une collection mission est liée à la mission
+du journal. Les collections organisationnelles restent indisponibles.
+
+### Qualification locale
+
+Trois documents MDN présents localement ont donné 11 fragments. Une même
+question ETag a été répétée trois fois par scénario sur les deux installations
+Ollama 0.11.11 et 0.40.18, avec Qwen3 4B et Qwen3-Embedding 512. Le contexte,
+les citations et les compteurs étaient identiques sur les neuf appels.
+Le modèle a retenu six extraits dont cinq de la page ETag. Le contexte encadré
+de 6 914 octets avait une borne de 6 922 tokens. Ollama a compté 1 971 tokens
+d’entrée et 25 de sortie par appel. Une inspection CLI a trouvé la référence
+exacte et une autre a confirmé le repli FTS5 avec le serveur d’embeddings arrêté.
+
+| Résidence | Premier appel complet | Deux appels suivants | Pic VRAM GPU échantillonné | Pic RAM PSS des deux groupes Ollama |
+| --- | ---: | ---: | ---: | ---: |
+| Séquentielle avec expiration à chaque appel | 21,05 s | 14,17 / 13,01 s | 4 337 Mio | 3 044 Mio |
+| Embeddings CPU résidents et génération GPU | 11,13 s | 1,27 / 1,24 s | 4 271 Mio | 3 994 Mio |
+| Les deux résidents sur GPU | 9,15 s | 1,02 / 1,04 s | 5 556 Mio | 3 498 Mio |
+
+Sur les neuf appels, l’assemblage a pris 0,3 à 0,7 ms et les deux passes de
+validation 26 à 37 ms. Pour les deux appels suivants de chaque scénario,
+récupération puis génération ont pris respectivement 4,29–6,41 s et
+6,21–9,48 s en séquentiel, 184–211 ms et 846–851 ms en CPU/GPU, et
+37–49 ms et 825–836 ms en résidence GPU simultanée. Le runtime génératif
+a signalé 2,05 à 9,66 s pour démarrer le runner à froid selon le scénario.
+La première requête d’embeddings a pris 3,27 s sur CPU et 3,66 s sur GPU
+dans les scénarios résidents, chargement et calcul inclus. Le point de passage
+séquentiel a observé l’absence du modèle d’embeddings après 208 à 231 ms
+d’attente suivant sa requête. La fenêtre reste fixée à 8 192 tokens pendant
+l’essai.
+
+Rejouer depuis la racine sur Linux avec les deux runtimes locaux et un dossier
+de sortie neuf. Les mesures brutes, logs et la base d’essai sont privés sous
+`data/qualification/m355-context/`.
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m \
+  benchmarks.retrieval.consultation_probe --out data/qualification/m355-replay
+```
+
+Le protocole versionné a répété les neuf sélections avec les mêmes
+références de fragments, extraits et compteurs. Sur ce second essai, les deux
+appels résidents ont pris 1,27–1,78 s en CPU/GPU et environ 1,24 s en GPU/GPU.
+Le pic GPU/GPU était à nouveau de 5 556 Mio. Les mesures de ce rejeu sont
+conservées dans `data/qualification/m355-replay/`. Les huit manifestes
+installés conservent leurs empreintes et le GPU était revenu à 0 Mio à
+la fin des essais.
+
+Ces essais qualifient le raccord local et l’occupation échantillonnée
+sur une RTX 4060 Laptop de 8 Gio. Les deux variantes résidentes gardent les
+modèles chargés pour les deux appels suivants, tandis que le séquentiel
+déclenche de nouveaux chargements. Les pics PSS concernent les processus
+Ollama et excluent le processus Argos. En production le CLI demande une
+expiration immédiate pour les modèles utilisés. Il ne coordonne pas les
+demandes d’autres processus ni ne garantit la disponibilité de la VRAM.
+La résidence simultanée reste un réglage expérimental. L’essai réel
+a utilisé Qwen3-Embedding. L’alternative Gemma et les parcours archive et
+mémoire ont été couverts par les contrats et tests locaux, avec le raccord
+archive et mémoire testé par fournisseur simulé.
+
+La matrice NumPy reste froide au premier chargement d’un processus CLI.
+À 100 000 vecteurs, les rafraîchissements restent de l’ordre de la seconde
+ou davantage, les filtres couvrant tout le corpus et les lectures multiples
+peuvent dépasser 150 ms, et un rafraîchissement peut temporairement conserver
+deux vues. Voir les mesures précises de M3.5.4.1 ci-dessus. La pertinence
+inter-domaines, l’abstention calibrée de bout en bout et la robustesse
+sémantique à l’injection relèvent de la qualification indépendante M3.5.6.
 
 ## G — Qualification de bout en bout
 
