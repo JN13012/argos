@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
 
+from .contracts import Citation as Citation
 from .normalization import NormalizedDocument
 
 CHUNKER = "chunk-v1"
@@ -42,14 +43,6 @@ class ChunkSpan:
     start: int
     end: int
     sha256: str
-
-
-@dataclass(frozen=True, slots=True)
-class Citation:
-    line_start: int | None
-    line_end: int | None
-    pointer: str | None
-    headings: tuple[str, ...]
 
 
 def _windows(doc: NormalizedDocument, config: ChunkConfig) -> Iterator[tuple[int, int]]:

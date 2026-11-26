@@ -182,16 +182,64 @@ class DocumentReader(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class Citation:
+    line_start: int | None
+    line_end: int | None
+    pointer: str | None
+    headings: tuple[str, ...]
+
+
+class RetrievalMethod(StrEnum):
+    LEXICAL = "lexical"
+    EXACT = "exact"
+    VECTOR = "vector"
+    CITATION = "citation"
+
+
+class Freshness(StrEnum):
+    CURRENT = "current"
+
+
+@dataclass(frozen=True, slots=True)
+class FragmentRef:
+    collection: Collection
+    document: DocumentRef
+    version_id: str
+    chunk_set_id: str
+    ordinal: int
+    sha256: str
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.collection) is not Collection
+            or type(self.document) is not DocumentRef
+        ):
+            raise TypeError("Expected a collection and document reference")
+        for value in (self.version_id, self.chunk_set_id, self.sha256):
+            sha256_id(value)
+        if type(self.ordinal) is not int or not 0 <= self.ordinal < 50_000:
+            raise ValueError("Invalid fragment ordinal")
+
+
+@dataclass(frozen=True, slots=True)
 class Passage:
-    """Reference returned by a future retriever in its bound collection."""
+    """Bounded documentary evidence shared by lexical and future vector retrieval."""
 
     document: DocumentRef
     version_id: str
     locator: str
     text: str
+    reference: FragmentRef | None = None
+    citations: tuple[Citation, ...] = ()
+    provenance: Source | None = None
+    version: DocumentVersion | None = None
+    freshness: Freshness | None = None
+    method: RetrievalMethod | None = None
+    score: float | None = None
+    occurrences: tuple[FragmentRef, ...] = ()
 
 
 class KnowledgeRetriever(Protocol):
-    """Future retrieval interface bound to an already authorized collection."""
+    """Retrieve passages from a collection explicitly authorized by the caller."""
 
     def retrieve(self, query: str, *, limit: int) -> tuple[Passage, ...]: ...

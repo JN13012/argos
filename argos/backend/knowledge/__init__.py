@@ -10,10 +10,13 @@ from .contracts import (
     DocumentReader,
     DocumentRef,
     DocumentVersion,
+    FragmentRef,
+    Freshness,
     KnowledgeConflictError,
     KnowledgeIntegrityError,
     KnowledgeRetriever,
     Passage,
+    RetrievalMethod,
     Source,
     SourceRecord,
     Tag,
@@ -22,6 +25,7 @@ from .documents import KnowledgeStore
 from .normalization import Block, NormalizedDocument
 from .projections import DocumentFragment, DocumentProjection
 from .registry import KnowledgeSourceRegistry
+from .retrieval import LexicalWeights, SearchFilters, SQLiteKnowledgeRetriever
 
 __all__ = [
     "DEFAULT_DOMAINS",
@@ -38,13 +42,19 @@ __all__ = [
     "DocumentReader",
     "DocumentRef",
     "DocumentVersion",
+    "FragmentRef",
+    "Freshness",
     "KnowledgeConflictError",
     "KnowledgeIntegrityError",
     "KnowledgeRetriever",
     "KnowledgeSourceRegistry",
     "KnowledgeStore",
+    "LexicalWeights",
     "NormalizedDocument",
     "Passage",
+    "RetrievalMethod",
+    "SQLiteKnowledgeRetriever",
+    "SearchFilters",
     "Source",
     "SourceRecord",
     "Tag",
