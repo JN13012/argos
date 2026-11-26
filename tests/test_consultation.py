@@ -29,6 +29,9 @@ class Selector:
         size = len(prompt(data).encode())
         return size, size + 1
 
+    async def identify(self):
+        return PIN
+
     async def select(self, data, budget, model):
         self.calls += 1
         return Selection(self.content, self.tokens, 10)
