@@ -911,31 +911,25 @@ deux vues. Voir les mesures précises de M3.5.4.1 ci-dessus. La pertinence
 inter-domaines, l’abstention calibrée de bout en bout et la robustesse
 sémantique à l’injection relèvent de la qualification indépendante M3.5.6.
 
-## G — Qualification de bout en bout
+## G / M3.5.6 — Qualification de bout en bout
 
-Comparer les cinq bras avec les mêmes questions, modèle, format de sortie
-et plafonds. Exécuter LLM seul, LLM avec contexte de mission, puis contexte
-avec mémoire, avec RAG et avec mémoire plus RAG. La version extractive v1
-garde ses propres tests de non-régression. Une mémoire qui n'apporte aucun
-nouvel élément après déduplication peut légitimement produire un gain nul.
+Le [bilan M3.5.6](M356_RAG_EVALUATION.md) documente les cinq bras appariés,
+les seuils figés, les trois replays d’archive, les mesures de ressources
+et les commandes. Le corpus de 115 cas est distinct de M3.5-E. Ses annotations
+proviennent d’un seul assistant.
 
-Constituer un corpus indépendant avec plusieurs éditeurs, langues et
-familles de documents. Préparer des cas synthétiques à vérité contrôlée,
-des preuves partielles, des contradictions et des cas sans réponse ou hors
-collection. Annoter les passages qui appuient ou réfutent chaque affirmation
-et arbitrer un échantillon avec un second annotateur. Séparer les jeux par
-famille de documents, mission et variante de question. Geler jugements,
-seuils et configurations avant le test final. Le jeu final M3.5-E reste
-un repère historique.
+Le RAG améliore l’exactitude du verdict structuré de 47,8 % à 81,7 % face
+au LLM seul sur ce jeu. Les seuils absolus du pilote génératif échouent sur
+l’exactitude, la précision des citations, l’appui et l’abstention. Le
+Memory Engine n’a apporté aucun nouvel élément après déduplication sur les
+trois replays crAPI, DVWA et Juice Shop. Les deux embeddings satisfont le
+seuil de rappel. Gemma obtient le meilleur classement de passages sur
+ce corpus, tandis que le gain de verdict est mesuré avec Qwen3-Embedding.
 
-Mesurer pertinence, exactitude, couverture critique, appui des affirmations,
-précision et rappel des citations, abstention correcte et réponses utiles
-perdues, hallucinations brutes et rendues, tokens et ressources. Rapporter
-latence par étape et à froid/chaud, RAM et VRAM, et écarts appariés par cas.
-Les critères bloquants sont une fuite entre collections, une citation hors
-droits rendue, une action déclenchée ou un dépassement de budget accepté.
-Les seuils de qualité et de ressources seront fixés sur le jeu de réglage
-avant l'ouverture du jeu final.
+Le contrat extractif V2 garde son rôle de restitution consultative. Les
+priorités de qualification portent sur l’abstention avec des distracteurs,
+les contradictions, la validation indépendante des appuis et la séparation
+entre verdict généré et sélection extractive.
 
 ## H — Maintenance conçue
 
@@ -960,8 +954,8 @@ publiée.
 
 ## Dépendances et choix à valider
 
-Le prochain pilote doit qualifier la pertinence sur un corpus indépendant
-annoté au niveau passage avant l'assemblage v2. Les résultats M3.5-E ne
+La poursuite du pilote exige des jugements indépendants de support sur
+des documents à plusieurs passages, puis une nouvelle mesure des verdicts. Les résultats M3.5-E ne
 qualifient ni les ACL multi-utilisateur, ni les mises à jour concurrentes,
 ni les pics de mémoire à la reconstruction. Les lots de 16 et le choix
 d'embeddings restent des hypothèses de pilote. Le plan d'implémentation et
