@@ -24,6 +24,8 @@ from .backend.intel.osint.reporting import (
     write_search_report,
 )
 from .backend.intel.osint.storage import SQLiteStorage
+from .backend.knowledge.cli import add_parser as add_knowledge_parser
+from .backend.knowledge.cli import execute as execute_knowledge
 from .data_paths import initialize_data, prepare_area
 
 
@@ -91,6 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_web_parser(commands)
     add_recon_parser(commands)
     add_review_parser(commands)
+    add_knowledge_parser(commands)
     return parser
 
 
@@ -154,6 +157,8 @@ def main(argv: list[str] | None = None) -> int:
         return doctor(args)
     if args.action.startswith(("web_", "recon_")):
         return execute_web(args)
+    if args.action.startswith("knowledge_"):
+        return execute_knowledge(args)
     if args.action.startswith("review_"):
         return execute_review(args)
     try:
