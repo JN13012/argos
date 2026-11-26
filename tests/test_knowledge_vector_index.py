@@ -488,3 +488,25 @@ def test_partial_top_k_uses_all_ties_and_applies_threshold():
     assert select_top(scores, tie_order, 3, 0).tolist() == [1, 3, 0]
     assert select_top(scores, tie_order, 3, 0.6).tolist() == [1]
     assert select_top(scores, tie_order, 3, 0.9).tolist() == []
+
+
+def test_warm_matrix_rejects_noncanonical_input_key(local):
+    from argos.backend.knowledge import NumPyKnowledgeRetriever
+
+    store, db, provider = local
+    scope = Collection(CollectionKind.USER)
+    engine = NumPyKnowledgeRetriever(
+        scope, allowed_collections={scope}, provider=provider
+    )
+    _publish(store)
+    engine.build_vectors()
+    assert engine.retrieve("alpha", limit=10)
+    with db.write() as connection:
+        connection.execute(
+            "INSERT INTO vector_cache "
+            "SELECT space_id, upper(input_sha256), payload, vector_sha256 "
+            "FROM vector_cache"
+        )
+        connection.execute("UPDATE vector_link SET input_sha256 = upper(input_sha256)")
+    with pytest.raises(KnowledgeIntegrityError, match="input digest"):
+        engine.retrieve("alpha", limit=10)

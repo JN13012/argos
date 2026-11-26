@@ -66,15 +66,27 @@ class MatrixCache:
                 current_keys = keys[size:end]
                 current_ids[:] = [row[0] for row in rows]
                 ties[size:end] = [row[2] for row in rows]
-                try:
-                    decoded = [bytes.fromhex(row[1]) + row[3] for row in rows]
-                    if any(len(key) != 48 for key in decoded):
-                        raise ValueError("Bad vector key")
-                    current_keys[:] = decoded
-                except (TypeError, ValueError) as error:
-                    raise KnowledgeIntegrityError(
-                        "Invalid vector input digest"
-                    ) from error
+                decoded = []
+                for _, digest, _, token in rows:
+                    if (
+                        type(digest) is not str
+                        or len(digest) != 64
+                        or digest != digest.lower()
+                        or type(token) is not bytes
+                        or len(token) != 16
+                    ):
+                        raise KnowledgeIntegrityError(
+                            "Invalid vector input digest or identity"
+                        )
+                    try:
+                        decoded.append(bytes.fromhex(digest) + token)
+                    except ValueError as error:
+                        raise KnowledgeIntegrityError(
+                            "Invalid vector input digest"
+                        ) from error
+                if any(len(key) != 48 for key in decoded):
+                    raise KnowledgeIntegrityError("Invalid vector input digest")
+                current_keys[:] = decoded
                 keep = np.zeros(len(rows), dtype=np.bool_)
                 if old is not None and len(old.ids):
                     offsets = np.minimum(
