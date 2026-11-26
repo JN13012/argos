@@ -33,3 +33,12 @@ local a comparé la résidence CPU/GPU et GPU/GPU, avec suffisamment de mémoire
 sur l’hôte mesuré. Les acquisitions de ressources de deux processus Argos
 ou de clients tiers restent indépendantes. Les limites et les résultats
 du pilote figurent dans la [spécification canonique](../../product/KNOWLEDGE_ENGINE_SPEC.md#f--m355--contexte-et-analyste-consultatifs-v2).
+
+## Appui explicite à partir de M3.5.6.1
+
+La restitution V2 associe un statut épistémique et un périmètre d’appui aux
+éléments transmis. Un résolveur vérifie la source, les droits et le texte
+exact. Le modèle sélectionne des références. L’attribution textuelle suit
+un contrôle déterministe, tandis que l’implication sémantique pour une
+question ouverte reste indéterminée. Le coût est mesuré sur le
+[jeu de stress M3.5.6.1](../../product/M3561_RAG_RELIABILITY.md).

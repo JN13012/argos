@@ -796,9 +796,8 @@ décision de conception est décrite dans l’[ADR du contexte V2](../architectu
   synthèse par gabarit et les relations typées `observed_in_archive`,
   `inferred_in_archive` et `excerpt_from_document`. Les contradictions,
   incertitudes et limites transmises sont restituées indépendamment du choix
-  du modèle. L’absence d’élément sélectionné de la catégorie requise entraîne
-  une abstention totale. Les limites et conflits explicites déclenchent une
-  abstention partielle lorsque des éléments utiles subsistent.
+  du modèle. La section M3.5.6.1 décrit les niveaux d’appui utilisés pour
+  décider de l’abstention à partir des éléments sélectionnés.
 - Les versions supplantées ou retirées sont exclues par le Knowledge Engine.
   Les passages approuvés étiquetés `lifecycle=obsolete` sont omis et comptés.
   Les passages étiquetés `lifecycle=contradictory` sont restitués comme
@@ -930,6 +929,24 @@ Le contrat extractif V2 garde son rôle de restitution consultative. Les
 priorités de qualification portent sur l’abstention avec des distracteurs,
 les contradictions, la validation indépendante des appuis et la séparation
 entre verdict généré et sélection extractive.
+
+### M3.5.6.1 — Appui des affirmations et abstention
+
+La politique `extractive-grounding-v1` conserve le contrat V2 et qualifie
+chaque élément et le degré d’appui de l’objectif. Les observations vérifiées
+sont bornées au constat archivé. Un passage approuvé et résolu appuie
+l’attribution de son texte exact à sa source. Les inférences, hypothèses,
+conflits déclarés et inconnues conservent leur statut. Les contrôles de
+droits, de provenance, de version et de fraîcheur s’appliquent avant et
+après sélection. Une demande `citation exacte: <texte>` peut vérifier
+déterministement un passage complet dans le contexte sélectionné.
+
+Les réponses ordinaires peuvent rendre des éléments partiels et signaler
+explicitement que leur implication pour l’objectif reste indéterminée. Le
+[bilan M3.5.6.1](M3561_RAG_RELIABILITY.md) mesure le coût de cette prudence.
+Aucun des deux embeddings ne permet d’atteindre les portes du pilote sur
+ce jeu. Les prochains essais doivent mesurer un appui par proposition, la
+pertinence des extraits et la résolution des conflits propres à l’objectif.
 
 ## H — Maintenance conçue
 

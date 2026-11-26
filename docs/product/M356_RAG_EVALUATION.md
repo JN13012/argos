@@ -1,5 +1,8 @@
 # M3.5.6 — Évaluation comparée du RAG
 
+Le [bilan M3.5.6.1](M3561_RAG_RELIABILITY.md) audite les sorties de cette
+qualification puis mesure la politique d’appui sur un nouveau jeu.
+
 ## Protocole et portée
 
 Le [protocole](../../benchmarks/rag_eval/README.md), les seuils et les jugements

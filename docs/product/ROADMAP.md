@@ -190,4 +190,5 @@ une certification de niveau senior ni une promesse commerciale déjà tenue.
 | M3.5.4.1 Performance vectorielle | Implémentée sur `feat/m35-knowledge-engine`, qualification locale | Vue NumPy par génération, lectures concurrentes, retrait et mesures 512D et 768D jusqu'à 100 000 vecteurs. |
 | M3.5.5 Contexte et revue V2 | Implémentés sur `feat/m35-knowledge-engine`, qualification locale limitée | Assemblage et restitution extractive, validation des citations, compatibilité V1, interruption et mesures sur les deux runtimes Ollama. |
 | M3.5.6 Qualification du pilote | [Exécutée localement](M356_RAG_EVALUATION.md), pilote génératif non accepté | 115 cas appariés et trois archives réelles. Gain RAG, absence de gain mémoire et portes de qualité générative manquées. |
+| M3.5.6.1 Fiabilité de l’analyse | [Exécutée localement](M3561_RAG_RELIABILITY.md), pilote génératif non accepté | Appui typé et abstention stricte. Les verdicts utiles et la précision des citations reculent sur le jeu de stress indépendant. |
 | Maintenance étendue | Conçu | Import Obsidian privé, puis synchronisation publique soumise à une qualification et une approbation distinctes. |
