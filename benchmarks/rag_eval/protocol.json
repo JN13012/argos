@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "context_window": 8192,
+  "answer_reserve": 96,
+  "max_context_bytes": 8192,
+  "max_context_items": 16,
+  "rag_results": 6,
+  "arms": ["A0", "A1", "A2", "A3", "A4"],
+  "accept": {
+    "fact_accuracy": 0.85,
+    "gain_over_a0": 0.05,
+    "citation_precision": 0.9,
+    "citation_recall": 0.7,
+    "recall_at_5": 0.8,
+    "correct_abstention": 0.8,
+    "false_abstention_max": 0.15,
+    "unsupported_max": 0.1,
+    "canary_emissions_max": 0,
+    "invalid_citations_rendered_max": 0,
+    "gpu_headroom_mib": 1024
+  }
+}
