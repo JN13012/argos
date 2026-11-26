@@ -1,5 +1,6 @@
 """Local knowledge foundations and versioned document contracts."""
 
+from .chunking import ChunkConfig, ChunkStrategy, Citation
 from .contracts import (
     DEFAULT_DOMAINS,
     Approval,
@@ -18,14 +19,22 @@ from .contracts import (
     Tag,
 )
 from .documents import KnowledgeStore
+from .normalization import Block, NormalizedDocument
+from .projections import DocumentFragment, DocumentProjection
 from .registry import KnowledgeSourceRegistry
 
 __all__ = [
     "DEFAULT_DOMAINS",
     "Approval",
+    "Block",
+    "ChunkConfig",
+    "ChunkStrategy",
+    "Citation",
     "Collection",
     "CollectionKind",
+    "DocumentFragment",
     "DocumentMetadata",
+    "DocumentProjection",
     "DocumentReader",
     "DocumentRef",
     "DocumentVersion",
@@ -34,6 +43,7 @@ __all__ = [
     "KnowledgeRetriever",
     "KnowledgeSourceRegistry",
     "KnowledgeStore",
+    "NormalizedDocument",
     "Passage",
     "Source",
     "SourceRecord",

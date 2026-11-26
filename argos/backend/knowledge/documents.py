@@ -4,7 +4,10 @@ import json
 import sqlite3
 from dataclasses import asdict
 from hashlib import sha256
+from pathlib import Path
 
+from . import projections
+from .chunking import ChunkConfig
 from .contracts import (
     MAX_ORIGINAL_BYTES,
     Approval,
@@ -17,9 +20,13 @@ from .contracts import (
     Tag,
     sha256_id,
 )
+from .loader import load_file
+from .normalization import NormalizedDocument
+from .projections import DocumentFragment, DocumentProjection
 from .registry import KnowledgeSourceRegistry, source_record
 from .storage import CollectionDatabase, now
 
+_DEFAULT_CHUNKS = ChunkConfig()
 _VERSION_ROWS = """
     SELECT version.*, document.withdrawn_at AS document_withdrawn,
            source.withdrawn_at AS source_withdrawn
@@ -117,6 +124,73 @@ def _inspect(
     )
 
 
+def _import_identity(metadata: DocumentMetadata, original: bytes) -> tuple[str, str]:
+    if type(metadata) is not DocumentMetadata:
+        raise TypeError("Expected validated document metadata")
+    if type(original) is not bytes or not 1 <= len(original) <= MAX_ORIGINAL_BYTES:
+        raise ValueError("Expected a nonempty bounded document original")
+    original_sha = sha256(original).hexdigest()
+    encoded = _json(asdict(metadata))
+    return original_sha, encoded
+
+
+def _stage(
+    db: sqlite3.Connection,
+    document: DocumentRef,
+    metadata: DocumentMetadata,
+    original: bytes,
+    original_sha: str,
+    encoded: str,
+) -> DocumentVersion:
+    key = _document_params(document)
+    version_id = _version_id(document, original_sha, encoded)
+    if source_record(db, document.source_id).status is Approval.WITHDRAWN:
+        raise KnowledgeConflictError("Cannot import into a withdrawn source")
+    domains = {row[0] for row in db.execute("SELECT id FROM domain")}
+    if any(
+        tag.dimension == "domain" and tag.value not in domains for tag in metadata.tags
+    ):
+        raise ValueError("Unknown taxonomy domain")
+    db.execute(
+        "INSERT INTO document (source_id, id) VALUES (?, ?) "
+        "ON CONFLICT (source_id, id) DO NOTHING",
+        key,
+    )
+    withdrawn_at = db.execute(
+        "SELECT withdrawn_at FROM document WHERE source_id = ? AND id = ?", key
+    ).fetchone()[0]
+    if withdrawn_at is not None:
+        raise KnowledgeConflictError("Cannot import into a withdrawn document")
+    db.execute(
+        "INSERT INTO original VALUES (?, ?) ON CONFLICT (sha256) DO NOTHING",
+        (original_sha, original),
+    )
+    if _original(db, original_sha) != original:
+        raise KnowledgeIntegrityError("Different originals have the same digest")
+    db.execute(
+        "INSERT INTO version "
+        "(id, source_id, document_id, original_sha256, metadata_json, "
+        "imported_at) "
+        "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING",
+        (version_id, *key, original_sha, encoded, now()),
+    )
+    return _inspect(db, document, version_id)
+
+
+def _published(
+    db: sqlite3.Connection,
+    document: DocumentRef,
+    version_id: str,
+) -> DocumentVersion:
+    return _from_row(
+        document,
+        db.execute(
+            _VERSION_ROWS + _CURRENT + " AND version.id = ?",
+            (*_document_params(document), sha256_id(version_id)),
+        ).fetchone(),
+    )
+
+
 class KnowledgeStore:
     """Manage one local collection. Model-facing callers use DocumentReader."""
 
@@ -137,49 +211,105 @@ class KnowledgeStore:
         self, document: DocumentRef, metadata: DocumentMetadata, original: bytes
     ) -> DocumentVersion:
         """Stage exact input bytes from a trusted local caller for review."""
-        key = _document_params(document)
-        if type(metadata) is not DocumentMetadata:
-            raise TypeError("Expected validated document metadata")
-        if type(original) is not bytes or not 1 <= len(original) <= MAX_ORIGINAL_BYTES:
-            raise ValueError("Expected a nonempty bounded document original")
-        original_sha = sha256(original).hexdigest()
-        encoded = _json(asdict(metadata))
-        version_id = _version_id(document, original_sha, encoded)
+        original_sha, encoded = _import_identity(metadata, original)
         with self._database.write() as db:
+            return _stage(db, document, metadata, original, original_sha, encoded)
+
+    def ingest_file(
+        self,
+        path: Path,
+        document: DocumentRef,
+        metadata: DocumentMetadata,
+        config: ChunkConfig = _DEFAULT_CHUNKS,
+    ) -> DocumentProjection:
+        """Stage one explicitly named local file with its normalized projection."""
+        media_type, original = load_file(path)
+        if media_type != metadata.media_type:
+            raise ValueError("File extension and declared media type differ")
+        return self.ingest_bytes(document, metadata, original, config)
+
+    def ingest_bytes(
+        self,
+        document: DocumentRef,
+        metadata: DocumentMetadata,
+        original: bytes,
+        config: ChunkConfig = _DEFAULT_CHUNKS,
+    ) -> DocumentProjection:
+        """Stage a version and its projection atomically within this collection."""
+        if type(config) is not ChunkConfig:
+            raise TypeError("Expected a validated chunk configuration")
+        _document_params(document)
+        original_sha, encoded = _import_identity(metadata, original)
+        with self._database.read() as db:
             if source_record(db, document.source_id).status is Approval.WITHDRAWN:
                 raise KnowledgeConflictError("Cannot import into a withdrawn source")
-            domains = {row[0] for row in db.execute("SELECT id FROM domain")}
-            if any(
-                tag.dimension == "domain" and tag.value not in domains
-                for tag in metadata.tags
-            ):
-                raise ValueError("Unknown taxonomy domain")
-            db.execute(
-                "INSERT INTO document (source_id, id) VALUES (?, ?) "
-                "ON CONFLICT (source_id, id) DO NOTHING",
-                key,
+        prepared = projections.prepare(
+            self._database, original, original_sha, metadata.media_type, config
+        )
+        with self._database.write() as db:
+            version = _stage(db, document, metadata, original, original_sha, encoded)
+            return projections.persist(db, version, config, prepared)
+
+    def inspect_projection(
+        self,
+        document: DocumentRef,
+        version_id: str,
+        config: ChunkConfig = _DEFAULT_CHUNKS,
+    ) -> DocumentProjection:
+        """Inspect projection metadata, including retained versions."""
+        with self._database.read() as db:
+            return projections.projection(
+                db, _inspect(db, document, version_id), config
             )
-            withdrawn_at = db.execute(
-                "SELECT withdrawn_at FROM document WHERE source_id = ? AND id = ?", key
-            ).fetchone()[0]
-            if withdrawn_at is not None:
-                raise KnowledgeConflictError("Cannot import into a withdrawn document")
-            db.execute(
-                "INSERT INTO original VALUES (?, ?) ON CONFLICT (sha256) DO NOTHING",
-                (original_sha, original),
+
+    def inspect_normalized(
+        self,
+        document: DocumentRef,
+        version_id: str,
+    ) -> NormalizedDocument:
+        with self._database.read() as db:
+            return projections.version_content(db, _inspect(db, document, version_id))
+
+    def read_normalized(
+        self,
+        document: DocumentRef,
+        version_id: str,
+    ) -> NormalizedDocument:
+        """Read the normalized content of the current approved version."""
+        with self._database.read() as db:
+            version = _published(db, document, version_id)
+            return projections.version_content(db, version)
+
+    def inspect_fragments(
+        self,
+        document: DocumentRef,
+        version_id: str,
+        config: ChunkConfig = _DEFAULT_CHUNKS,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> tuple[DocumentFragment, ...]:
+        with self._database.read() as db:
+            info = projections.projection(
+                db, _inspect(db, document, version_id), config
             )
-            if _original(db, original_sha) != original:
-                raise KnowledgeIntegrityError(
-                    "Different originals have the same digest"
-                )
-            db.execute(
-                "INSERT INTO version "
-                "(id, source_id, document_id, original_sha256, metadata_json, "
-                "imported_at) "
-                "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING",
-                (version_id, *key, original_sha, encoded, now()),
+            return projections.fragments(db, info, offset=offset, limit=limit)
+
+    def read_fragments(
+        self,
+        document: DocumentRef,
+        version_id: str,
+        config: ChunkConfig = _DEFAULT_CHUNKS,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> tuple[DocumentFragment, ...]:
+        """Read fragments from the current approved version and source only."""
+        with self._database.read() as db:
+            info = projections.projection(
+                db, _published(db, document, version_id), config
             )
-            return _inspect(db, document, version_id)
+            return projections.fragments(db, info, offset=offset, limit=limit)
 
     def inspect_version(
         self, document: DocumentRef, version_id: str
@@ -254,11 +384,4 @@ class KnowledgeStore:
 
     def read_original(self, document: DocumentRef, version_id: str) -> bytes:
         with self._database.read() as db:
-            version = _from_row(
-                document,
-                db.execute(
-                    _VERSION_ROWS + _CURRENT + " AND version.id = ?",
-                    (*_document_params(document), sha256_id(version_id)),
-                ).fetchone(),
-            )
-            return _original(db, version.original_sha256)
+            return _original(db, _published(db, document, version_id).original_sha256)

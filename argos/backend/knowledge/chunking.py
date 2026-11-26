@@ -94,8 +94,10 @@ def citations(doc: NormalizedDocument, start: int, end: int) -> tuple[Citation, 
     result: list[Citation] = []
     for block in doc.blocks[first:last]:
         line_start = line_end = block.line
-        if line_start is not None:
-            line_start += doc.text.count("\n", block.start, max(start, block.start))
+        if block.line is not None:
+            line_start = block.line + doc.text.count(
+                "\n", block.start, max(start, block.start)
+            )
             line_end = block.line + doc.text.count(
                 "\n", block.start, min(end, block.end) - 1
             )

@@ -8,12 +8,17 @@ from .contracts import MAX_ORIGINAL_BYTES
 from .normalization import MEDIA_TYPES
 
 
-def load_file(path: Path) -> tuple[str, bytes]:
-    if ".." in path.parts or any(ord(char) < 32 for char in str(path)):
-        raise ValueError("Invalid local document path")
+def file_media_type(path: Path) -> str:
     media_type = MEDIA_TYPES.get(path.suffix.lower())
     if media_type is None:
         raise ValueError("Unsupported document extension")
+    return media_type
+
+
+def load_file(path: Path) -> tuple[str, bytes]:
+    if ".." in path.parts or any(ord(char) < 32 for char in str(path)):
+        raise ValueError("Invalid local document path")
+    media_type = file_media_type(path)
     path = path.absolute()
     directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     directory = os.open(path.anchor, directory_flags)

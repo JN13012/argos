@@ -19,9 +19,9 @@ from .contracts import (
     identifier,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 APPLICATION_ID = 0x4152474B  # ARGK
-_SCHEMA = (
+_SCHEMA_V1 = (
     """CREATE TABLE collection (
         singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
         uid INTEGER NOT NULL, kind TEXT NOT NULL, scope_id TEXT NOT NULL
@@ -53,6 +53,38 @@ _SCHEMA = (
     """CREATE INDEX version_document ON version(source_id, document_id)""",
     """CREATE UNIQUE INDEX version_current ON version(source_id, document_id)
        WHERE approved_at IS NOT NULL AND superseded_at IS NULL""",
+)
+
+_SCHEMA_V2 = (
+    """CREATE TABLE normalized (
+        sha256 TEXT PRIMARY KEY, content TEXT NOT NULL
+    ) WITHOUT ROWID""",
+    """CREATE TABLE normalization (
+        original_sha256 TEXT NOT NULL REFERENCES original(sha256),
+        media_type TEXT NOT NULL, normalizer TEXT NOT NULL,
+        normalized_sha256 TEXT NOT NULL REFERENCES normalized(sha256),
+        PRIMARY KEY (original_sha256, media_type, normalizer)
+    ) WITHOUT ROWID""",
+    """CREATE TABLE chunk_set (
+        id TEXT PRIMARY KEY,
+        normalized_sha256 TEXT NOT NULL REFERENCES normalized(sha256),
+        chunker TEXT NOT NULL,
+        fragment_count INTEGER NOT NULL CHECK (fragment_count > 0),
+        UNIQUE (normalized_sha256, chunker)
+    ) WITHOUT ROWID""",
+    """CREATE TABLE fragment (
+        chunk_set_id TEXT NOT NULL REFERENCES chunk_set(id),
+        ordinal INTEGER NOT NULL CHECK (ordinal >= 0),
+        start INTEGER NOT NULL CHECK (start >= 0),
+        end INTEGER NOT NULL CHECK (end > start),
+        sha256 TEXT NOT NULL,
+        PRIMARY KEY (chunk_set_id, ordinal)
+    ) WITHOUT ROWID""",
+    """CREATE TABLE version_projection (
+        version_id TEXT NOT NULL REFERENCES version(id),
+        chunk_set_id TEXT NOT NULL REFERENCES chunk_set(id),
+        PRIMARY KEY (version_id, chunk_set_id)
+    ) WITHOUT ROWID""",
 )
 
 
@@ -152,22 +184,27 @@ class CollectionDatabase:
                 raise KnowledgeIntegrityError(
                     "Refusing to initialize an unrelated database"
                 )
-            for statement in _SCHEMA:
+            for statement in _SCHEMA_V1:
                 db.execute(statement)
             db.execute("INSERT INTO collection VALUES (1, ?, ?, ?)", self.identity)
             db.executemany(
                 "INSERT INTO domain VALUES (?)", [(d,) for d in DEFAULT_DOMAINS]
             )
             db.execute(f"PRAGMA application_id = {APPLICATION_ID}")
-            db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-        elif (application, version) != (APPLICATION_ID, SCHEMA_VERSION):
+            application, version = APPLICATION_ID, 1
+        if application != APPLICATION_ID or not (
+            version == SCHEMA_VERSION or (initialize and version == 1)
+        ):
             raise KnowledgeIntegrityError("Unsupported knowledge database schema")
-        else:
-            row = db.execute(
-                "SELECT uid, kind, scope_id FROM collection WHERE singleton = 1"
-            ).fetchone()
-            if row is None or tuple(row) != self.identity:
-                raise KnowledgeIntegrityError("Knowledge collection identity differs")
+        row = db.execute(
+            "SELECT uid, kind, scope_id FROM collection WHERE singleton = 1"
+        ).fetchone()
+        if row is None or tuple(row) != self.identity:
+            raise KnowledgeIntegrityError("Knowledge collection identity differs")
+        if version == 1:
+            for statement in _SCHEMA_V2:
+                db.execute(statement)
+            db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     @contextmanager
     def _transaction(

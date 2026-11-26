@@ -25,7 +25,7 @@ _HEADING = re.compile(r" {0,3}(#{1,6})(?:[ \t]+(.*)|$)")
 _SETEXT = re.compile(r" {0,3}(=+|-+)[ \t]*$")
 _FENCE = re.compile(r" {0,3}(`{3,}|~{3,})(.*)")
 _LIST = re.compile(r"[ \t]*(?:[-+*]|[0-9]{1,9}[.)])[ \t]+")
-_JSON_MARK = re.compile(r'"(?:[^"\\]|\\.)*"|[][{},:"]')
+_JSON_MARK = re.compile(r'[][{},:"]')
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,18 +182,21 @@ def _object(pairs: list[tuple[str, object]]) -> dict[str, object]:
 
 
 def _json_document(raw: str) -> NormalizedDocument:
-    depth = 0
-    for count, token in enumerate(_JSON_MARK.finditer(raw), 1):
-        mark = token[0]
-        if mark == '"':
-            raise ValueError("Malformed JSON document")
-        if mark in ("[", "{"):
-            depth += 1
-        elif mark in ("]", "}"):
-            depth -= 1
-        if not 0 <= depth <= MAX_DEPTH or count > 4 * MAX_BLOCKS:
-            raise ValueError("JSON exceeds depth or complexity limits")
+    depth = count = position = 0
+    decoder = json.JSONDecoder()
     try:
+        while token := _JSON_MARK.search(raw, position):
+            count += 1
+            position = token.end()
+            mark = token[0]
+            if mark == '"':
+                _, position = decoder.raw_decode(raw, position - 1)
+            elif mark in ("[", "{"):
+                depth += 1
+            elif mark in ("]", "}"):
+                depth -= 1
+            if not 0 <= depth <= MAX_DEPTH or count > 4 * MAX_BLOCKS:
+                raise ValueError("JSON exceeds depth or complexity limits")
         value = json.loads(
             raw,
             object_pairs_hook=_object,
