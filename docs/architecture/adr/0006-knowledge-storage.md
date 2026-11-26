@@ -1,6 +1,6 @@
 # ADR 0006 — Un fichier SQLite par frontière documentaire
 
-**Statut** — adopté en M3.5.1 et appliqué aux index M3.5.3.
+**Statut** — adopté en M3.5.1 et appliqué aux index M3.5.3 et M3.5.4.
 
 **Décision.** Une base privée par collection ouverte, sous le répertoire de
 l'UID effectif. Le fichier porte sa propre identité de portée et refuse une
@@ -31,3 +31,11 @@ jour explicites dans la transaction de publication permettent de garder les
 déclencheurs de l'application indépendants des tables virtuelles et de
 conserver `trusted_schema=OFF`. Le classement n'utilise que les statistiques
 de cette base, et la vérification compare la projection au corpus publié.
+
+Les vecteurs Float32 et leur cache restent dans cette même base. L'espace
+inclut le digest du modèle, sa version de prétraitement, sa dimension et
+son runtime. Une clé étrangère fait disparaître chaque association
+courante au retrait du fragment SQL dans la transaction de publication.
+Les lots d'embeddings sont calculés hors transaction puis validés à
+l'écriture. La recherche dense attend une couverture complète de
+l'espace demandé et lit ses vecteurs par blocs.

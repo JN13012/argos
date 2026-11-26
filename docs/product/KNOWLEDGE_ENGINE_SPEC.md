@@ -12,8 +12,8 @@ et dépend uniquement de la bibliothèque standard et du résolveur de données.
 | --- | --- | --- |
 | M3.5-A à C | Dix domaines extensibles et tags multidimensionnels. Collections globale, organisation, utilisateur, mission et connaissances acquises. Sources officielles prioritaires après validation, acquisition locale progressive et import Obsidian privé sur sélection explicite. | Taxonomie, catalogues locaux et frontières de stockage implémentés en M3.5.1. Priorité de recherche, Obsidian et acquisition publique conçus. |
 | M3.5-C.1 | Données privées sous `ARGOS_DATA_HOME/knowledge/`. Ressources redistribuables validées sous `resources/`. | Résolution et stockage privé qualifiés localement. Voir le [lot stockage](M351_DATA_ARCHITECTURE.md). |
-| M3.5-D | Version par contenu et provenance, approbation explicite, base SQLite par frontière d'accès. Normalisation et index FTS5 comme projections dérivées. Index vectoriel interchangeable. | Sources, originaux et versions implémentés en M3.5.1. Normalisation et fragments qualifiés en M3.5.2, SQL exact et FTS5 en M3.5.3. Index vectoriel conçu. |
-| M3.5-E | NumPy exact, EmbeddingGemma 768 sous conditions Gemma et Qwen3 512 en alternative. Dense prioritaire et FTS5 en secours pour le futur pilote. Recherche exacte SQL qualifiée sur fixtures en M3.5.3. Lots de 16 à revalider, cache versionné, indexation incrémentale et préfiltrage obligatoire. RRF et reranker reportés. | Mesures de banc consolidées, choix du pilote provisoires. Voir le [rapport M3.5-E](M35_RETRIEVAL_BENCHMARK.md). |
+| M3.5-D | Version par contenu et provenance, approbation explicite, base SQLite par frontière d'accès. Normalisation et index FTS5 comme projections dérivées. Index vectoriel interchangeable. | Sources, originaux et versions implémentés en M3.5.1. Normalisation et fragments qualifiés en M3.5.2, SQL exact et FTS5 en M3.5.3. Cache et recherche NumPy exacts qualifiés localement en M3.5.4. |
+| M3.5-E | NumPy exact, EmbeddingGemma 768 sous conditions Gemma et Qwen3 512 en alternative. Dense prioritaire et FTS5 en secours pour le futur pilote. Recherche exacte SQL qualifiée sur fixtures en M3.5.3. Lots de 16 à revalider, cache versionné, indexation incrémentale et préfiltrage obligatoire. RRF et reranker reportés. | Mesures de banc consolidées, moteur NumPy qualifié en M3.5.4, choix du pilote provisoires. Voir le [rapport M3.5-E](M35_RETRIEVAL_BENCHMARK.md). |
 | M3.5-F à H | Contexte consultatif versionné et borné, benchmark comparatif indépendant, maintenance avec retrait et reconstruction. | Conception ci-dessous. Les contrats de lecture bornent l'accès des futurs consommateurs aux documents publiés. |
 
 ## Fondations M3.5.1
@@ -435,6 +435,189 @@ arrêt du processus, les retraits, la révocation d'une collection et la
 détection puis la reconstruction d'un index altéré. La suite régulière
 compte 1 364 réussites et 122 ignorés sous chaque interpréteur. Ruff, le
 formatage, Pyright et `git diff --check` passent également.
+
+## M3.5.4 — Embeddings et récupération vectorielle
+
+### Fournisseur et espaces compatibles
+
+`EmbeddingProvider` définit l'identité de l'espace, le prétraitement
+document/requête et l'embedding par lots. `OllamaEmbeddingProvider`
+appelle uniquement le runtime local sur `127.0.0.1`. Il vérifie la
+version du runtime et le digest annoncé par `/api/tags` avant et après
+chaque lot. Un tag absent est indisponible, un digest ou runtime différent
+est une erreur d'intégrité. Les délais, tailles de réponse et d'entrée
+sont bornés, sans redirection ni proxy. Le lot par défaut est de 16,
+avec un maximum de 32 et 256 Kio par lot. La troncature implicite côté
+serveur est désactivée.
+
+| Profil | Dimensions | Prétraitement |
+| --- | --- | --- |
+| `embeddinggemma:300m` | 768 par défaut, 256 et 512 autorisées | `embeddinggemma-search-v1`, préfixe distinct pour documents et requêtes. Candidat sous réserve des conditions Gemma. |
+| `qwen3-embedding:0.6b` | 512 par défaut, 256 et 1024 autorisées | `qwen3-technical-search-v1`, instruction côté requête, titre et texte côté document. |
+
+Les vecteurs natifs sont projetés par préfixe de dimensions puis
+normalisés en Float32, selon les conventions de M3.5-E. Le pin Qwen
+est le digest annoncé par Ollama et diffère du SHA du fichier manifeste
+conservé localement. Les profils sont sélectionnés explicitement.
+Les licences et empreintes de référence sont documentées dans le
+[rapport M3.5-E](M35_RETRIEVAL_BENCHMARK.md#consolidation-du-26-novembre-2026).
+
+### SQLite v4 et cycle de vie
+
+`argos knowledge init` migre le fichier de la collection. La migration
+ne construit aucun embedding. Chaque espace est identifié par le
+fournisseur, le runtime, le digest modèle, le prétraitement et les
+dimensions, avec versionnement du stockage cosinus Float32.
+
+| Ajout SQLite v4 | Rôle |
+| --- | --- |
+| `vector_space` | Identité de configuration et dimension attendue. |
+| `vector_cache` | Un vecteur Float32 little-endian unitaire et son SHA-256 pour chaque empreinte d'entrée prétraitée, dans cet espace et cette collection. |
+| `vector_link` | Association des fragments publiés aux vecteurs, supprimée dans la transaction qui retire ou remplace leurs fragments. |
+
+Le calcul se fait hors transaction. Avant d'enregistrer un lot, la
+construction revérifie le fragment courant et le digest de son entrée.
+Les lots validés servent à la reprise après interruption. Les archives
+de contenu et le cache restent privés dans la collection. Les entrées
+orphelines peuvent être réutilisées au rejeu ou écartées par une
+reconstruction explicite avec `--discard-cache` pour l'espace demandé.
+
+Un changement d'identité ouvre un nouvel espace à construire. Un
+espace est prêt quand tous les fragments SQL courants ont leur lien.
+Une mise à jour suspend donc la recherche dense dans cet espace jusqu'au
+rattrapage, avec repli lexical disponible. La reconstruction remplace
+les liens et réutilise les vecteurs intègres sans appel Ollama pour
+les entrées déjà en cache. Une reconstruction SQL peut également
+supprimer les liens et demander un rejeu vectoriel depuis ce cache.
+
+### NumPy, routage et abstention
+
+`NumPyKnowledgeRetriever` implémente le contrat `KnowledgeRetriever`.
+Il vérifie l'autorisation et filtre les fragments avant lecture des
+vecteurs. Le classement cosinus exact traite des blocs de 128 lignes,
+vérifie SHA-256, dimension, valeurs finies et norme puis conserve un
+nombre borné de candidats. La provenance, les citations et les budgets
+de restitution suivent M3.5.3, avec départage par source, document et
+ordinal. Le modèle n'est sollicité ni pour une collection vide ni pour
+un filtre qui exclut tous les fragments. Les vecteurs de requêtes restent
+en mémoire pendant la recherche.
+
+`RetrievalRouter` expose les modes `exact`, `lexical`, `dense` et
+`auto`. Le mode automatique privilégie les identifiants documentaires
+et techniques explicites. Une référence explicite absente rend
+`no_match`. Pour les autres demandes, le routeur essaie le dense et
+retombe sur BM25 si le fournisseur est indisponible ou l'espace
+incomplet. L'enveloppe indique `provider_unavailable` ou
+`index_not_ready` comme motif de repli. Une erreur d'intégrité ou une
+réponse invalide du fournisseur remonte à l'appelant. RRF et reranking
+restent reportés.
+
+`CosineCalibration` associe un minimum cosinus à l'identité de l'espace
+et à un corpus nommé. Une recherche dense sous le seuil rend `no_match`
+sans repli automatique. Le score est une similarité de récupération.
+La véracité et l'appui d'une affirmation demandent une validation
+distincte. Les deux seuils ci-dessous sont des résultats de calibration
+sur MDN, sans valeur par défaut pour une autre collection.
+
+### Commandes et ressources
+
+```bash
+python -m argos knowledge init
+python -m argos knowledge vector-build --model qwen3-embedding:0.6b
+python -m argos knowledge retrieve 'revalidation HTTP par ETag' --mode dense \
+  --model qwen3-embedding:0.6b
+python -m argos knowledge retrieve 'Que décrit RFC 9110 ?' --mode auto
+python -m argos knowledge vector-status --model qwen3-embedding:0.6b
+python -m argos knowledge vector-cache --model qwen3-embedding:0.6b
+python -m argos knowledge vector-verify --model qwen3-embedding:0.6b
+python -m argos knowledge vector-rebuild --model qwen3-embedding:0.6b
+python -m argos knowledge vector-unload --model qwen3-embedding:0.6b
+```
+
+Le port par défaut est 11536 pour le runtime parallèle déjà installé.
+Le choix du modèle, de la dimension, du digest et du runtime doit être
+cohérent pour toute la série de commandes. Pour activer l'abstention,
+fournir ensemble `--minimum-cosine` et `--calibration-corpus` à
+`retrieve`. Les filtres et la sélection de collection de M3.5.3 restent
+disponibles.
+
+NumPy 2.5.5 est la seule dépendance ajoutée. Le runtime qualifié utilise
+un seul modèle simultané avec `OLLAMA_NUM_PARALLEL=1`. La durée de
+résidence est configurable et le déchargement explicite cible uniquement
+le digest sélectionné. La future orchestration devra réserver la VRAM
+entre embeddings et génération. Le pilote a mesuré le déchargement
+séquentiel des embeddings, sans appel génératif.
+
+### Qualification locale
+
+Le [probe vectoriel](../../benchmarks/retrieval/vector_probe.py) utilise
+les 38 documents épinglés de M3.5-E, 299 fragments et les jugements
+documentaires historiques. Le seuil est choisi sur les 20 requêtes de
+développement puis appliqué aux 134 requêtes historiques. Un second
+scénario construit 100 000 vecteurs synthétiques distincts dans une base
+temporaire, sans Ollama.
+
+```bash
+python -m benchmarks.retrieval.vector_probe mdn --model qwen3-embedding:0.6b \
+  --work-root data/qualification/m354-vector
+python -m benchmarks.retrieval.vector_probe mdn --model embeddinggemma:300m \
+  --work-root data/qualification/m354-vector
+python -m benchmarks.retrieval.vector_probe synthetic \
+  --work-root data/qualification/m354-vector
+```
+
+| Modèle | Recall@5 / Recall@10 | MRR / nDCG@10 | Seuil MDN | Abstentions correctes | Résultats pertinents perdus |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| EmbeddingGemma 768 | 97,5 % / 99,2 % | 0,840 / 0,872 | 0,418580 | 10/12 | 9 |
+| Qwen3 512 | 99,6 % / 100 % | 0,863 / 0,889 | 0,458773 | 5/12 | 0 |
+
+Le classement ci-dessus est calculé avant seuil. Les pertes comptent
+les requêtes dont une réponse pertinente apparaissait parmi les dix
+premiers documents puis a été écartée par le seuil. Sur les 27 requêtes
+d'identifiants historiques, le dense a placé le bon document au premier
+rang 27 fois avec Gemma et 26 fois avec Qwen. Le routeur a résolu les
+quatre références documentaires explicites utilisées sur MDN et
+correctement renvoyé une absence. Il a aussi réussi les dix replis
+lexicaux par modèle avec un port Ollama local indisponible.
+
+| Mesure locale Python 3.14.6 | EmbeddingGemma 768 | Qwen3 512 |
+| --- | ---: | ---: |
+| Latence chaude p50 / p95 | 121,6 / 144,5 ms | 105,0 / 132,0 ms |
+| Requête après déchargement du modèle | 5,42 s | 4,23 s |
+| Construction initiale / reconstruction depuis cache | 16,81 / 0,38 s | 26,85 / 0,36 s |
+| Réindexation d'une version à trois fragments | 137 ms, 1 calcul et 2 réutilisations | 127 ms, 1 calcul et 2 réutilisations |
+| SQLite total / blobs du cache initial | 3,08 Mio / 897 Kio | 3,09 Mio / 598 Kio |
+| RSS crête client / serveur Ollama et descendants | 55,2 / 1 226 Mio | 55,0 / 881 Mio |
+| VRAM crête mesurée par échantillonnage | 787 Mio | 1 289 Mio |
+| Déchargement / VRAM ensuite | 373 ms / 0 Mio | 234 ms / 0 Mio |
+
+Les deux reconstructions ont réutilisé les 299 vecteurs sans appel de
+calcul. La mesure à froid décharge le modèle et garde le cache disque de
+l'OS. Les latences chaudes incluent les vérifications Ollama, SQLite,
+le classement et la restitution de jusqu'à 50 passages. Elles diffèrent
+du microbanc M3.5-E, qui mesurait notamment une matrice NumPy déjà chargée.
+
+Sur les **100 000 vecteurs synthétiques 512D**, les dix requêtes ont
+retrouvé leur passage cible au premier rang. L'indexation prend **103,2 s**,
+la reconstruction **87,0 s** avec 100 000 réutilisations et la
+vérification **15,0 s**. Le parcours complet lit et contrôle les vecteurs
+depuis SQLite. Sa latence p50/p95 est de **6,55 / 7,54 s** et son RSS
+crête de **57,7 Mio**. La base complète occupe **525,7 Mio**, dont
+**195,3 Mio** de vecteurs bruts. Le remplacement d'une version à 1 000
+fragments prend **229 ms** à publier puis **1,38 s** à réindexer, avec
+un nouveau vecteur et 999 réutilisations. Cette latence de recherche
+limite l'usage interactif à cette échelle avec le parcours actuel.
+
+Les **108 tests documentaires** réussissent sur Python 3.12.15 et 3.14.6.
+La suite complète réussit avec **1 385 tests passés et 121 ignorés**
+sur chacun. NumPy active un test auparavant ignoré. Ruff, le formatage,
+Pyright, `git diff --check` et la validation du verrou hors ligne passent.
+
+Les relevés privés sont sous `data/qualification/m354-vector/`. Les huit
+manifestes Ollama sont identiques avant et après l'essai et les 34 blobs
+référencés sont présents aux tailles attendues. Les deux runtimes et ces
+données restent en place. Le compromis Gemma/Qwen et la calibration
+doivent être rejugés sur un corpus indépendant au niveau passage.
 
 ## F — Contexte consultatif et analyse versionnée
 
