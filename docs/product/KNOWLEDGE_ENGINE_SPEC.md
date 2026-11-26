@@ -12,8 +12,8 @@ et dépend uniquement de la bibliothèque standard et du résolveur de données.
 | --- | --- | --- |
 | M3.5-A à C | Dix domaines extensibles et tags multidimensionnels. Collections globale, organisation, utilisateur, mission et connaissances acquises. Sources officielles prioritaires après validation, acquisition locale progressive et import Obsidian privé sur sélection explicite. | Taxonomie, catalogues locaux et frontières de stockage implémentés en M3.5.1. Priorité de recherche, Obsidian et acquisition publique conçus. |
 | M3.5-C.1 | Données privées sous `ARGOS_DATA_HOME/knowledge/`. Ressources redistribuables validées sous `resources/`. | Résolution et stockage privé qualifiés localement. Voir le [lot stockage](M351_DATA_ARCHITECTURE.md). |
-| M3.5-D | Version par contenu et provenance, approbation explicite, base SQLite par frontière d'accès. Normalisation et index FTS5 comme projections dérivées. Index vectoriel interchangeable. | Sources, originaux et versions implémentés en M3.5.1. Normalisation et fragments qualifiés localement en M3.5.2. Index conçus. |
-| M3.5-E | NumPy exact, EmbeddingGemma 768 sous conditions Gemma et Qwen3 512 en alternative. Dense prioritaire, FTS5 en secours et recherche exacte SQL à qualifier. Lots de 16 à revalider, cache versionné, indexation incrémentale et préfiltrage obligatoire. RRF et reranker reportés. | Mesures de banc consolidées, choix du pilote provisoires. Voir le [rapport M3.5-E](M35_RETRIEVAL_BENCHMARK.md). |
+| M3.5-D | Version par contenu et provenance, approbation explicite, base SQLite par frontière d'accès. Normalisation et index FTS5 comme projections dérivées. Index vectoriel interchangeable. | Sources, originaux et versions implémentés en M3.5.1. Normalisation et fragments qualifiés en M3.5.2, SQL exact et FTS5 en M3.5.3. Index vectoriel conçu. |
+| M3.5-E | NumPy exact, EmbeddingGemma 768 sous conditions Gemma et Qwen3 512 en alternative. Dense prioritaire et FTS5 en secours pour le futur pilote. Recherche exacte SQL qualifiée sur fixtures en M3.5.3. Lots de 16 à revalider, cache versionné, indexation incrémentale et préfiltrage obligatoire. RRF et reranker reportés. | Mesures de banc consolidées, choix du pilote provisoires. Voir le [rapport M3.5-E](M35_RETRIEVAL_BENCHMARK.md). |
 | M3.5-F à H | Contexte consultatif versionné et borné, benchmark comparatif indépendant, maintenance avec retrait et reconstruction. | Conception ci-dessous. Les contrats de lecture bornent l'accès des futurs consommateurs aux documents publiés. |
 
 ## Fondations M3.5.1
@@ -288,6 +288,154 @@ déduplication destructive des occurrences. Ces mesures décrivent
 l'ingestion sur le corpus disponible. La qualité de recherche, les budgets
 sous charge et la rétention physique restent à qualifier.
 
+## M3.5.3 — Recherche SQL exacte et FTS5
+
+### Stockage et cycle de vie
+
+`argos knowledge init` applique la migration v3 et indexe les versions
+courantes approuvées dont la source reste approuvée et qui possèdent une
+projection. Les versions brutes M3.5.1 deviennent cherchables après rejeu
+explicite de leur ingestion normalisée. Une seule projection par version
+alimente la recherche. Le moteur préfère le découpage fixe par défaut quand
+il existe, puis trie les autres identités de chunker lexicalement.
+
+| Ajout SQLite v3 | Rôle |
+| --- | --- |
+| `search_document` et `search_tag` | Projection courante, source, identifiant documentaire et filtres. |
+| `search_fragment` et `search_fts` | Titre et corps des fragments publiés et index FTS5 à contenu externe. |
+| `search_reference` | Clés exactes et priorité documentaire, par occurrence. |
+
+L'approbation, le remplacement et le retrait synchronisent les index dans
+la transaction du cycle de vie. Un retrait de document ou de source enlève
+les entrées FTS5 et SQL et conserve les originaux pour l'inspection. Le
+rejeu à projection inchangée évite la réindexation. La reconstruction
+repart des projections déjà conservées, sans rouvrir les fichiers sources.
+La vérification contrôle SQLite, l'index FTS5 contre son contenu externe,
+les tags, les clés exactes et le corpus effectivement publié.
+
+### Contrat et comportement
+
+`SQLiteKnowledgeRetriever` implémente `KnowledgeRetriever.retrieve` et
+expose `exact`, `resolve`, `index_status`, `verify_index` et
+`rebuild_index`. Le constructeur reçoit une collection et la liste autorisée
+fournie par l'appelant de confiance. Chaque opération contrôle la collection
+avant ouverture. Les permissions Unix et l'identité de la base continuent
+de s'appliquer. La CLI opère sur la collection explicitement choisie par
+l'opérateur local sous son UID.
+
+Un `Passage` conserve le document, la version, le texte, la provenance
+source et documentaire, la méthode, le score, le `FragmentRef` et ses
+repères de citation. Le statut `current` décrit l'état de publication. La
+date ou l'applicabilité métier de l'information reste à évaluer. `resolve`
+revérifie la portée, la version courante, le retrait et l'empreinte.
+Une citation cesse d'être résoluble après remplacement ou retrait de sa
+version, ou après un changement de projection active.
+
+- **Lexical.** BM25 avec poids titre/corps configurables, 2/1 par défaut.
+  Les mots littéraux et les expressions entre guillemets sont combinés
+  par OU. La tokenisation Unicode rend la recherche insensible aux accents
+  et traite la ponctuation technique comme séparateur. Les égalités sont
+  triées par source, identifiant documentaire et ordinal.
+- **Exact.** Clés pour CVE, CWE, RFC et des références ISO/IEC, IEC, IEEE,
+  NIST SP, OWASP ASVS et WSTG. La comparaison ignore la casse des familles
+  officielles et préserve les numéros, parties, années et révisions. Un
+  identifiant documentaire local est comparé dans sa graphie canonique.
+  `doc:source/identifiant` sélectionne un document d'une source précise.
+  L'identité du document précède les mentions dans le titre puis le corps.
+  Les homonymes de sources distinctes conservent chacun leur provenance.
+  Une mention doit tenir dans un fragment. Le contexte de coupure empêche
+  d'indexer son préfixe comme une référence entière.
+- **Filtres et bornes.** Source et domaine sont des filtres alternatifs au
+  sein de leur famille, les tags sont cumulatifs et la version déclarée
+  est comparée exactement. Ces filtres agissent avant la limite de résultats.
+  BM25 utilise les statistiques de la collection autorisée en entier. Les
+  requêtes lexicales sont plafonnées à 1 024 octets et 32 termes ou
+  expressions, les requêtes exactes à 256 octets. La récupération traite
+  jusqu'à 500 candidats et rend au plus 100 passages, dans un budget JSON
+  de 128 Kio par défaut. Les répétitions identiques dans une version sont
+  regroupées avec leurs références alternatives dans ces bornes. Les
+  fragments d'origines distinctes restent citables séparément.
+
+### Commandes
+
+```bash
+python -m argos knowledge init
+python -m argos knowledge search '"strict transport" certificat' --limit 10
+python -m argos knowledge exact 'RFC 9110' --source mdn
+python -m argos knowledge exact 'doc:mdn/etag'
+python -m argos knowledge index-status
+python -m argos knowledge index-verify
+python -m argos knowledge index-rebuild
+```
+
+Ajouter `--collection mission --scope-id UUID` avant la sous-commande
+pour une mission. `search` et `exact` acceptent `--source`, `--domain`,
+`--tag`, `--declared-version`, `--limit` et `--max-bytes`. `search`
+accepte aussi `--title-weight` et `--body-weight`.
+
+### Qualification locale
+
+Le [probe de production](../../benchmarks/retrieval/production_probe.py)
+sépare les jugements historiques documentaires des fixtures annotées au
+niveau passage. Le scénario de charge génère un corpus distinct de
+100 000 fragments, sans télécharger de données. Chaque scénario utilise
+une base temporaire propre.
+
+```bash
+python -m benchmarks.retrieval.production_probe mdn
+python -m benchmarks.retrieval.production_probe fixture
+python -m benchmarks.retrieval.production_probe load
+```
+
+#### Qualité documentaire et qualité passage
+
+| Jeu | Requêtes | Recall@5 | Recall@10 | MRR | nDCG@10 | Exactitude au rang 1 |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| MDN M3.5-E, documents, BM25 | 134 | 77,2 % | 81,6 % | 0,643 | 0,672 | 26/27 identifiants historiques, avec BM25 |
+| Fixtures, passages, BM25 | 6 | 100 % | 100 % | 1,000 | 1,000 | — |
+| Fixtures, passages, SQL exact | 12 | 100 % | 100 % | 1,000 | 1,000 | 8/8 références présentes, 4/4 absentes sans résultat |
+
+La campagne MDN utilise les 38 fichiers épinglés et 299 fragments fixes.
+Le probe prend jusqu'à 50 passages avant regroupement par document. Les 12
+requêtes historiques sans réponse ont toutes reçu des résultats lexicaux.
+Les fixtures vérifient des repères contrôlés, des accents et expressions,
+des références positives et des versions ou identifiants absents. Leur
+faible taille limite la généralisation. Le jeu historique ne constitue pas
+une qualification indépendante au niveau passage.
+
+#### Temps et ressources
+
+Mesures Linux avec SQLite 3.53.1. Les temps de recherche incluent
+l'ouverture SQLite, le classement et la construction des résultats. Le
+cache du système n'a pas été purgé. Le RSS est le pic du processus de
+qualification. La taille SQLite inclut les originaux et les projections.
+
+| Scénario | Mesure | Python 3.12.15 | Python 3.14.6 |
+| --- | --- | ---: | ---: |
+| MDN | BM25 p50 / p95 | 31,9 / 53,2 ms | 47,1 / 62,1 ms |
+| MDN | Indexation / reconstruction / vérification | 139 / 68 / 73 ms | 155 / 63 / 75 ms |
+| MDN | Modification de 3 fragments, préparation / publication / rejeu | 5,8 / 3,6 / 3,1 ms | 4,9 / 3,1 / 2,6 ms |
+| MDN | RSS / SQLite | 28,8 / 1,71 Mio | 29,4 / 1,71 Mio |
+| 100 000 fragments synthétiques | BM25 sélectif p50 / p95 | 5,6 / 6,6 ms | 3,1 / 3,7 ms |
+| 100 000 fragments synthétiques | BM25 terme présent partout p50 / p95 | 522 / 574 ms | 519 / 600 ms |
+| 100 000 fragments synthétiques | SQL exact p50 / p95 | 5,4 / 6,7 ms | 3,4 / 5,6 ms |
+| 100 000 fragments synthétiques | Indexation / reconstruction / vérification | 7,93 / 8,91 / 7,15 s | 8,62 / 8,97 / 6,85 s |
+| 100 000 fragments synthétiques | Modification d'un document à 1 000 fragments, préparation / publication / rejeu | 26 / 149 / 6 ms | 14 / 84 / 5 ms |
+| 100 000 fragments synthétiques | RSS / SQLite après reconstruction | 41,2 / 83,9 Mio | 43,6 / 83,9 Mio |
+
+Le terme commun couvre tout le corpus synthétique, même avec une limite
+de dix résultats. La mise à jour incrémentale reste à la granularité du
+document publié. Les relevés bruts sont sous
+`data/qualification/m353-retrieval/`. Aucun modèle, corpus ou index ne
+figure dans le patch Git.
+
+Les 88 tests documentaires passent sous les deux interpréteurs. Ils
+couvrent la migration v2, les publications concurrentes, la reprise après
+arrêt du processus, les retraits, la révocation d'une collection et la
+détection puis la reconstruction d'un index altéré. La suite régulière
+compte 1 364 réussites et 122 ignorés sous chaque interpréteur. Ruff, le
+formatage, Pyright et `git diff --check` passent également.
+
 ## F — Contexte consultatif et analyse versionnée
 
 Conserver les contrats de [snapshot et de projection M3.1](M31_FOUNDATIONS.md),
@@ -385,8 +533,8 @@ publiée.
 
 ## Dépendances et choix à valider
 
-La prochaine tranche doit qualifier SQL exact, FTS5 et la pertinence
-de la récupération au niveau passage avant l'assemblage v2. Les résultats M3.5-E ne
+Le prochain pilote doit qualifier la pertinence sur un corpus indépendant
+annoté au niveau passage avant l'assemblage v2. Les résultats M3.5-E ne
 qualifient ni les ACL multi-utilisateur, ni les mises à jour concurrentes,
 ni les pics de mémoire à la reconstruction. Les lots de 16 et le choix
 d'embeddings restent des hypothèses de pilote. Le plan d'implémentation et

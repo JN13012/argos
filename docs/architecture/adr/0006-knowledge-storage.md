@@ -1,6 +1,6 @@
 # ADR 0006 — Un fichier SQLite par frontière documentaire
 
-**Statut** — adopté pour les fondations M3.5.1.
+**Statut** — adopté en M3.5.1 et appliqué aux index M3.5.3.
 
 **Décision.** Une base privée par collection ouverte, sous le répertoire de
 l'UID effectif. Le fichier porte sa propre identité de portée et refuse une
@@ -23,3 +23,11 @@ un même UID partagent le même domaine de confiance. Le retrait logique
 préserve les versions et originaux retenus pour inspection. Le débit des
 imports et la taille de sauvegarde devront être mesurés si les bornes du
 pilote changent. Voir la [spécification canonique](../../product/KNOWLEDGE_ENGINE_SPEC.md).
+
+
+Les index SQL et FTS5 restent dans le fichier de la collection. L'index
+FTS5 référence une projection interne des fragments publiés. Les mises à
+jour explicites dans la transaction de publication permettent de garder les
+déclencheurs de l'application indépendants des tables virtuelles et de
+conserver `trusted_schema=OFF`. Le classement n'utilise que les statistiques
+de cette base, et la vérification compare la projection au corpus publié.
