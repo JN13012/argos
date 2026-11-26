@@ -19,6 +19,12 @@ from .contracts import (
 )
 from .documents import KnowledgeStore
 from .loader import file_media_type
+from .retrieval import (
+    DEFAULT_RESULT_BYTES,
+    LexicalWeights,
+    SearchFilters,
+    SQLiteKnowledgeRetriever,
+)
 
 
 def _parse_tag(raw: str) -> Tag:
@@ -41,6 +47,16 @@ def _chunk_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--size", type=int, default=defaults.size)
     parser.add_argument("--overlap", type=int, default=defaults.overlap)
+
+
+def _search_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("query")
+    parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--max-bytes", type=int, default=DEFAULT_RESULT_BYTES)
+    parser.add_argument("--source", action="append", default=[])
+    parser.add_argument("--domain", action="append", default=[])
+    parser.add_argument("--tag", type=_parse_tag, action="append", default=[])
+    parser.add_argument("--declared-version")
 
 
 def add_parser(commands: argparse._SubParsersAction) -> None:
@@ -103,6 +119,53 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
     for parser in (inspect, fragments, approve):
         parser.add_argument("version")
 
+    search = command("search", "Rank published fragments by BM25")
+    _search_arguments(search)
+    weights = LexicalWeights()
+    search.add_argument("--title-weight", type=float, default=weights.title)
+    search.add_argument("--body-weight", type=float, default=weights.body)
+    _search_arguments(command("exact", "Find an exact technical or document reference"))
+    command("index-status", "Count published versions and indexed search entries")
+    command("index-verify", "Verify SQLite, FTS and published search projections")
+    command("index-rebuild", "Rebuild the authorized collection's search indexes")
+
+
+def _search_action(
+    collection: Collection, action: str, args: argparse.Namespace
+) -> object:
+    weights = (
+        LexicalWeights(args.title_weight, args.body_weight)
+        if action == "search"
+        else LexicalWeights()
+    )
+    # The local operator explicitly selects the collection for this invocation.
+    engine = SQLiteKnowledgeRetriever(
+        collection, allowed_collections=(collection,), weights=weights
+    )
+    match action:
+        case "index-status":
+            return asdict(engine.index_status())
+        case "index-verify":
+            return asdict(engine.verify_index())
+        case "index-rebuild":
+            return asdict(engine.rebuild_index())
+    filters = SearchFilters(
+        tuple(args.source),
+        tuple(args.domain),
+        tuple(args.tag),
+        args.declared_version,
+    )
+    query = engine.retrieve if action == "search" else engine.exact
+    return [
+        asdict(hit)
+        for hit in query(
+            args.query,
+            filters=filters,
+            limit=args.limit,
+            max_bytes=args.max_bytes,
+        )
+    ]
+
 
 def _document_action(
     store: KnowledgeStore, action: str, args: argparse.Namespace
@@ -154,32 +217,35 @@ def _document_action(
 def execute(args: argparse.Namespace) -> int:
     try:
         collection = Collection(args.collection, args.scope_id)
-        store = KnowledgeStore(collection)
         action = args.action.removeprefix("knowledge_")
-        match action:
-            case "init":
-                store.initialize()
-                output = {"status": "initialized"}
-            case "source-register":
-                output = asdict(
-                    store.sources.register(
-                        Source(
-                            args.source,
-                            args.publisher,
-                            args.origin,
-                            args.rights,
-                            args.official,
+        if action in ("search", "exact") or action.startswith("index-"):
+            output = _search_action(collection, action, args)
+        else:
+            store = KnowledgeStore(collection)
+            match action:
+                case "init":
+                    store.initialize()
+                    output = {"status": "initialized"}
+                case "source-register":
+                    output = asdict(
+                        store.sources.register(
+                            Source(
+                                args.source,
+                                args.publisher,
+                                args.origin,
+                                args.rights,
+                                args.official,
+                            )
                         )
                     )
-                )
-            case "source-approve":
-                output = asdict(store.sources.approve(args.source))
-            case "source-withdraw":
-                output = asdict(store.sources.withdraw(args.source))
-            case _:
-                output = _document_action(store, action, args)
+                case "source-approve":
+                    output = asdict(store.sources.approve(args.source))
+                case "source-withdraw":
+                    output = asdict(store.sources.withdraw(args.source))
+                case _:
+                    output = _document_action(store, action, args)
         # Escape control characters from documentary data in terminal output.
-        print(json.dumps(output))
+        print(json.dumps(output, default=str))
         return 0
     except (KeyError, OSError, ValueError, sqlite3.Error) as error:
         print(f"Error: {str(error).splitlines()[0]}", file=sys.stderr)

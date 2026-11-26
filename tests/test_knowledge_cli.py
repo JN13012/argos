@@ -110,3 +110,56 @@ def test_cli_collection_scope_is_explicit(tmp_path, monkeypatch, capsys):
         == 0
     )
     assert f"mission-{scope}" in next(tmp_path.rglob("*.sqlite3")).parent.name
+
+
+def test_cli_search_exact_and_index_maintenance(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("ARGOS_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "standard.txt").write_text("Référence RFC 9110", encoding="utf-8")
+    mission = str(uuid4())
+
+    def run(*args):
+        assert (
+            main(["knowledge", "--collection", "mission", "--scope-id", mission, *args])
+            == 0
+        )
+        return json.loads(capsys.readouterr().out)
+
+    run("init")
+    run(
+        "source-register",
+        "local",
+        "--publisher",
+        "Operator",
+        "--origin",
+        "notes:local",
+        "--rights",
+        "Private",
+    )
+    imported = run(
+        "import",
+        "standard.txt",
+        "local",
+        "guide",
+        "--title",
+        "Guide",
+        "--origin",
+        "notes:guide",
+        "--tag",
+        "domain=web-api",
+    )
+    assert run("index-status")["indexed_fragments"] == 0
+    assert run("exact", "RFC-9110") == []
+    run("source-approve", "local")
+    run("approve", "local", "guide", imported["version"]["id"])
+    assert run("index-verify")["indexed_fragments"] == 1
+    assert run("index-rebuild")["exact_occurrences"] == 1
+    (hit,) = run("search", "reference", "--source", "local", "--domain", "web-api")
+    assert hit["reference"]["collection"]["scope_id"] == mission
+    assert hit["method"] == "lexical"
+    (exact,) = run("exact", "rfc 9110", "--tag", "domain=web-api")
+    assert exact["method"] == "exact"
+    assert exact["reference"] == hit["reference"]
+    run("withdraw", "local", "guide")
+    assert not run("search", "reference")
+    assert run("index-verify")["indexed_fragments"] == 0
