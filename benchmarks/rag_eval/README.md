@@ -12,7 +12,7 @@ l'assistant à partir de ces notices, sans seconde annotation humaine.
 | MITRE CWE 5.0 | `https://cwe.mitre.org/data/definitions/` | [CWE Terms of Use](https://cwe.mitre.org/about/termsofuse.html) et attribution à The MITRE Corporation. Les notices sont rédigées pour ce banc |
 | IETF/RFC Editor | `https://www.rfc-editor.org/rfc/` | [IETF Trust](https://trustee.ietf.org/about/faq/) et notices propres à chaque RFC. Les paraphrases ne sont pas des RFC modifiés |
 | MDN Web Docs | `https://developer.mozilla.org/en-US/docs/` | [CC BY-SA 2.5 pour la prose](https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines/Attrib_copyright_license) |
-| ANSSI | `https://messervices.cyber.gouv.fr/documents-guides/` | [Licence Ouverte 1.0 sauf mention explicite](https://cyber.gouv.fr/mentions-legales/), voir la notice dans chaque guide |
+| ANSSI | `https://messervices.cyber.gouv.fr/documents-guides/` | Licence Ouverte 2.0 d’après les notices des deux guides. [ANSSI-BP-100, 18 octobre 2023](https://messervices.cyber.gouv.fr/documents-guides/anssi-fondamentaux-sauvegarde_systemes_dinformation_v1-0.pdf) et [ANSSI-PA-022, 11 mai 2021](https://messervices.cyber.gouv.fr/documents-guides/anssi-guide-admin_securisee_si_v3-0.pdf) |
 
 Le développement regroupe huit questions sur quatre notices à part. Le final
 regroupe 100 questions bilingues sur 25 notices et 15 scénarios synthétiques.
@@ -50,3 +50,11 @@ Le gain en exactitude se mesure en points absolus sur le final. Les seuils
 de citations et d'appui concernent les bras RAG. La porte de rappel et le
 nDCG comparent les deux classements d'embeddings avant compression. Les portes
 de sécurité portent sur les citations rendues et le canari brut.
+
+Repères ANSSI des notices de sauvegarde `backup-test` et `backup-isolate`
+dans ANSSI-BP-100 §3.2, avec §3.1 pour le cloisonnement. Pour ANSSI-PA-022,
+`hyg-assets` renvoie au chap. 3, `hyg-forward` au §9.2 et
+`hyg-accounts` aux §2 et §7.1. Le libellé de licence utilisé par les premiers
+index locaux a repris le régime général du site par erreur. La notice
+spécifique des deux PDF confirme la version 2.0. Cette correction concerne
+l'attribution et ne change ni le texte des fragments ni les jugements.
