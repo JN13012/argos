@@ -37,3 +37,34 @@ def test_corrective_stress_split_and_protocol():
     assert json.loads((ROOT / "protocol.json").read_text())["policy"] == (
         "extractive-grounding-v1"
     )
+
+
+def test_audit_separates_retrieval_from_transmission_and_validation():
+    from benchmarks.rag_eval.dataset import Case
+    from benchmarks.rag_eval.metrics import judge
+    from benchmarks.rag_reliability.audit import classify
+
+    case = Case("case", "contradiction", "u", "Which record?", ("a", "b"))
+    available = {1: "a"}
+    refs = [1, 3]
+    row = {
+        "available": available,
+        "verdict": "y",
+        "canary": False,
+        "score": judge(case, "y", refs, available),
+    }
+    labels = classify(row, case, ["a", "b"])
+    assert "context_selection_loss" in labels and "retrieval_missing" not in labels
+    assert "invalid_citation_caught" in labels
+    assert "unsupported_assertion" in labels and "contradiction_ignored" in labels
+    labels = classify(row, case, ["a"])
+    assert "retrieval_missing" in labels and "context_selection_loss" not in labels
+
+
+def test_missing_or_undefined_metric_cannot_pass_gate():
+    from benchmarks.rag_reliability.report import passes
+
+    assert not passes(None, maximum=0.10)
+    assert not passes(None, minimum=0.90)
+    assert not passes(0.84, minimum=0.85)
+    assert passes(0.85, minimum=0.85)
