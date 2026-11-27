@@ -1,5 +1,7 @@
 import asyncio
 import json
+import sqlite3
+from contextlib import closing
 from uuid import UUID, uuid4
 
 import pytest
@@ -8,7 +10,9 @@ from argos.backend.attack.review.context_v2 import (
     Purpose,
     ReviewContextV2,
 )
+from argos.backend.attack.review.journal import JournalIntegrityError
 from argos.backend.attack.review.workflow import (
+    _append,
     accept_workflow,
     create_workflow,
     interrupt_workflow,
@@ -17,6 +21,7 @@ from argos.backend.attack.review.workflow import (
 from argos.backend.attack.review.workflow_v2 import (
     analyze_documentary,
     analyze_workflow_v2,
+    read_restitution,
 )
 from argos.backend.consultation.analyst import ModelPin, Selection, prompt
 from argos.backend.consultation.context import Budget
@@ -188,6 +193,13 @@ def test_supervised_v2_freezes_references_with_current_memory(captured, document
     assert "evidence_sha256" not in model_data
     historical = read_workflow(journal, rid)
     assert "Private sample passage" not in json.dumps(historical)
+    recovered = read_restitution(journal, rid, context)
+    assert recovered["consultation"] == reply
+    assert (
+        recovered["attempt_sha256"] == historical["latest_analysis"]["attempt_sha256"]
+    )
+    with pytest.raises(PermissionError):
+        read_restitution(journal, rid, ReviewContextV2(database=db, mission_id=uuid4()))
     assert (
         historical["events"][1]["data"]["pins"]["memory_head"]
         == memory.info()["head_sha256"]
@@ -273,10 +285,101 @@ def test_supervised_v2_revalidates_document_at_acceptance(
     )
     assert result["state"] == "ready"
     store.withdraw_document(published.version.document)
+    with pytest.raises(KnowledgeIntegrityError, match="no longer current"):
+        read_restitution(journal, rid, context)
     decision = operator_input(saved["events"][0]["data"]["snapshot"])
     with pytest.raises(KnowledgeIntegrityError, match="no longer current"):
         accept_workflow(db, journal, rid, decision, context_v2=context)
     assert read_workflow(journal, rid)["human_decision"] is None
+
+
+def test_restitution_cli_and_tampering(archived, tmp_path, capsys):
+    from argos.cli import main
+
+    db, mid, _, _ = archived
+    journal = tmp_path / "review.sqlite"
+    saved = create_workflow(db, journal, mid)
+    rid = UUID(saved["review_id"])
+    context = ReviewContextV2(database=db, mission_id=mid)
+    args = ["review", "workflow-restitution-v2", "--db", str(db)]
+    args.extend(["--journal", str(journal), "--review-id", str(rid)])
+    assert main(args) == 1
+    assert json.loads(capsys.readouterr().out)["error"] == "no_completed_v2_attempt"
+    result = asyncio.run(
+        analyze_workflow_v2(
+            journal,
+            rid,
+            context,
+            "Review evidence",
+            RetrievalMode.AUTO,
+            Budget(),
+            Selector(),
+        )
+    )
+    assert main([*args, "--expected-head", result["head_sha256"]]) == 0
+    assert json.loads(capsys.readouterr().out)["consultation"] == result["consultation"]
+    with closing(sqlite3.connect(journal)) as connection, connection:
+        connection.execute("UPDATE review_restitutions SET payload = ?", (b"{}",))
+    with pytest.raises(JournalIntegrityError, match="fingerprint"):
+        read_restitution(journal, rid, context)
+
+
+def test_legacy_ready_restitution_is_explicitly_unavailable(archived, tmp_path):
+    db, mid, _, _ = archived
+    journal = tmp_path / "review.sqlite"
+    saved = create_workflow(db, journal, mid)
+    rid = UUID(saved["review_id"])
+    started = _append(
+        journal,
+        str(rid),
+        "analyzing",
+        "analyzing",
+        {},
+        saved["review_head_sha256"],
+    )
+    _append(
+        journal,
+        str(rid),
+        "ready",
+        "ready",
+        {"contract": "consultative-analyst-v2", "attempt_sha256": started["sha256"]},
+        started["sha256"],
+    )
+    result = read_restitution(
+        journal, rid, ReviewContextV2(database=db, mission_id=mid)
+    )
+    assert result == {"error": "historical_restitution_unavailable"}
+    assert read_workflow(journal, rid)["state"] == "ready"
+
+
+def test_restitution_insert_failure_rolls_back_ready_event(archived, tmp_path):
+    db, mid, _, _ = archived
+    journal = tmp_path / "review.sqlite"
+    rid = UUID(create_workflow(db, journal, mid)["review_id"])
+    with closing(sqlite3.connect(journal)) as connection, connection:
+        connection.executescript(
+            "CREATE TABLE review_restitutions("
+            "event_sha256 TEXT PRIMARY KEY, payload BLOB);"
+            "CREATE TRIGGER reject BEFORE INSERT ON review_restitutions "
+            "BEGIN SELECT RAISE(ABORT, 'fixture failure'); END;"
+        )
+    context = ReviewContextV2(database=db, mission_id=mid)
+    with pytest.raises(sqlite3.IntegrityError, match="fixture failure"):
+        asyncio.run(
+            analyze_workflow_v2(
+                journal,
+                rid,
+                context,
+                "Review evidence",
+                RetrievalMode.AUTO,
+                Budget(),
+                Selector(),
+            )
+        )
+    assert read_workflow(journal, rid)["state"] == "analyzing"
+    assert read_restitution(journal, rid, context) == {
+        "error": "no_completed_v2_attempt"
+    }
 
 
 def test_documentary_literal_request_through_lexical_retrieval(documents):

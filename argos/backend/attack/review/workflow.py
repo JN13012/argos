@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from argos.backend.attack.web.cli import private_path
 from argos.backend.attack.web.receipts import canonical, digest
+from argos.backend.consultation.context import encode, fingerprint
 
 from .analysis import _request, analyze_context
 from .context import _items, review_snapshot
@@ -38,6 +40,7 @@ if TYPE_CHECKING:
     from .context_v2 import ReviewContextV2
 
 VERSION = "supervised-review-v1"
+MAX_RESTITUTION_BYTES = 4 * 1024 * 1024
 _TRANSITIONS = {
     "created": {"analyzing"},
     "analyzing": {"ready", "failed", "interrupted"},
@@ -115,7 +118,24 @@ def _chain(connection) -> tuple[list[dict], str | None]:
     return events, head
 
 
-def _append(journal, rid, kind, state, data, expected=None):
+def _private_review_file(path: str | Path) -> Path:
+    file = private_path(str(path))
+    if file.resolve() != file or file.stat().st_nlink != 1:
+        raise PermissionError("Use a private review file without links")
+    return file
+
+
+def _append(journal, rid, kind, state, data, expected=None, *, restitution=None):
+    payload = None
+    if restitution is not None:
+        journal = _private_review_file(journal)
+        payload = encode(restitution).encode("utf-8")
+        if (
+            len(payload) > MAX_RESTITUTION_BYTES
+            or kind != "ready"
+            or fingerprint(restitution) != data["response_sha256"]
+        ):
+            raise JournalIntegrityError("Invalid V2 restitution")
     with closing(_connect(journal)) as connection, connection:
         connection.execute("BEGIN IMMEDIATE")
         _initialize(connection)
@@ -156,6 +176,14 @@ def _append(journal, rid, kind, state, data, expected=None):
             "UPDATE review_head SET count=?,sha256=? WHERE id=1",
             (event["sequence"], sha),
         )
+        if payload is not None:
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS review_restitutions ("
+                "event_sha256 TEXT PRIMARY KEY, payload BLOB NOT NULL)"
+            )
+            connection.execute(
+                "INSERT INTO review_restitutions VALUES (?,?)", (sha, payload)
+            )
     return {**event, "sha256": sha}
 
 
@@ -163,17 +191,10 @@ def read_workflow(
     journal: str | Path, review_id: UUID, *, expected_head: str | None = None
 ) -> dict:
     """Verify all events; an external global head detects rollback of the whole file."""
-    if expected_head is not None:
-        _hash(expected_head)
     uri = Path(journal).resolve().as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True)) as connection:
         connection.execute("BEGIN")
-        events, head = _chain(connection)
-    if expected_head is not None and expected_head != head:
-        raise JournalIntegrityError("Review head differs from external checkpoint")
-    history = [event for event in events if event["review_id"] == str(review_id)]
-    if not history:
-        raise ValueError("Unknown review")
+        history, head = _checked_history(connection, review_id, expected_head)
     created = history[0]["data"]
     attempts = [e for e in history if e["kind"] in {"ready", "failed"}]
     return {
@@ -198,6 +219,18 @@ def read_workflow(
         "execution_authorized": False,
         "events": history,
     }
+
+
+def _checked_history(connection, review_id: UUID, expected_head: str | None):
+    if expected_head is not None:
+        _hash(expected_head)
+    events, head = _chain(connection)
+    if expected_head is not None and expected_head != head:
+        raise JournalIntegrityError("Review head differs from external checkpoint")
+    history = [event for event in events if event["review_id"] == str(review_id)]
+    if not history:
+        raise ValueError("Unknown review")
+    return history, head
 
 
 def create_workflow(

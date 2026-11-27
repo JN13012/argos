@@ -30,7 +30,7 @@ from .memory import MemoryEngine
 from .ollama import OllamaProvider
 from .ollama_v2 import QWEN3_4B, OllamaSelector
 from .workflow import read_workflow
-from .workflow_v2 import analyze_documentary, analyze_workflow_v2
+from .workflow_v2 import analyze_documentary, analyze_workflow_v2, read_restitution
 
 _DEFAULT_GENERATOR_DIGEST = (
     "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7"
@@ -55,6 +55,16 @@ def scope_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def add_v2_parsers(actions: argparse._SubParsersAction) -> None:
+    recover = actions.add_parser(
+        "workflow-restitution-v2", help="Recover a committed V2 restitution"
+    )
+    recover.set_defaults(action="review_v2_workflow-restitution-v2")
+    recover.add_argument("--db", required=True)
+    recover.add_argument("--journal", required=True)
+    recover.add_argument("--review-id", type=UUID, required=True)
+    recover.add_argument("--attempt-sha256")
+    recover.add_argument("--expected-head")
+    scope_arguments(recover)
     for command in ("context-v2", "documentary-v2", "workflow-analyze-v2"):
         parser = actions.add_parser(command, help=f"Consultative V2: {command}")
         parser.set_defaults(action="review_v2_" + command)
@@ -163,6 +173,20 @@ def context_for(
 
 def execute_v2(args: argparse.Namespace) -> dict:
     action = args.action.removeprefix("review_v2_")
+    if action == "workflow-restitution-v2":
+        journal = private_path(args.journal)
+        saved = read_workflow(journal, args.review_id, expected_head=args.expected_head)
+        with ExitStack() as stack:
+            context = context_for(
+                args, UUID(saved["mission_id"]), stack, retrieve=False
+            )
+            return read_restitution(
+                journal,
+                args.review_id,
+                context,
+                attempt_sha256=args.attempt_sha256,
+                expected_head=args.expected_head,
+            )
     budget = Budget(args.window, args.reserve, args.max_context_bytes, args.max_items)
     with ExitStack() as stack:
         if action == "workflow-analyze-v2":

@@ -175,6 +175,8 @@ def execute(args: argparse.Namespace) -> int:
         if args.action.startswith("review_v2_"):
             result = execute_v2(args)
             emit(result, structured=True)
+            if args.action == "review_v2_workflow-restitution-v2":
+                return 1 if "error" in result else 0
             return 1 if result.get("state") in {"failed", "interrupted"} else 0
         if args.action.startswith("review_memory_"):
             emit(_memory(args), structured=True)
