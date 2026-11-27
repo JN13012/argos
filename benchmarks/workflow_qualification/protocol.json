@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "base": "74b3221f8120a6cd0d3365eff2a13b2a35d74280",
+  "archives": {
+    "crapi": {"http_statuses": {"200": 38}, "examined_resources": 5},
+    "dvwa": {"http_statuses": {"200": 5, "301": 1, "302": 3, "404": 28}, "examined_resources": 5},
+    "juice": {"http_statuses": {"200": 48, "400": 1, "401": 6, "500": 3}, "examined_resources": 7}
+  },
+  "objective": "Résumer les statuts HTTP attestés dans cette archive, les contradictions et les inconnues. Distinguer les observations de mission des définitions documentaires.",
+  "arms": {
+    "A": "Résumé déterministe et rapport W6",
+    "B": "Revue supervisée V1",
+    "C": "V2 extractif, archive seule",
+    "D": "V2 extractif et FTS5",
+    "E": "V2 extractif et NumPy 512D, repli FTS5",
+    "F": "E et mémoire de mission"
+  },
+  "generator": "qwen3:4b",
+  "context": {"window": 8192, "reserve": 384, "max_bytes": 32768, "max_items": 48},
+  "provider_timeout_seconds": 90,
+  "repetitions": 3,
+  "additional_a_rounds": 7,
+  "performance_profile": "CPU embeddings and normal GPU selection for generation",
+  "fixtures": {"journal_annotations": 128, "annotation_bytes": 4096, "interruptions": 2, "journal_reads_per_checkpoint": 30},
+  "gates": {
+    "integrity_percent": 100,
+    "forbidden_restitutions": 0,
+    "critical_losses": 0,
+    "required_human_review": true,
+    "utility_gain_percentage_points": 5,
+    "operator_time_reduction_percent": 20,
+    "warm_p95_cost_increase_percent": 25,
+    "cold_total_seconds": 45,
+    "fixture_recovery_seconds": 10,
+    "p95_minimum_samples": 30
+  }
+}

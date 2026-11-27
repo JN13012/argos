@@ -60,7 +60,8 @@ Sources du bilan. [Consolidation recon](RECON_CONSOLIDATION.md),
 
 ## Parcours et décisions
 
-Le protocole compare le résumé déterministe A, la revue V1 B, V2 sur archives
+Le [protocole reproductible](../../benchmarks/workflow_qualification/README.md)
+compare le résumé déterministe A, la revue V1 B, V2 sur archives
 C, V2 et FTS5 D, V2 et NumPy 512D E, puis E et mémoire F. Une exécution de
 référence et des contrôles documentaires séparent disponibilité, inclusion
 dans le contexte, sélection et restitution. Les références de notation et
