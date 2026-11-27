@@ -8,9 +8,10 @@ Les documents des lots portent leurs tâches et bilans détaillés.
 
 ## Objectif et prochaine tâche
 
-**Priorité active — [M3.5.9, qualification du workflow intégré](M359_WORKFLOW_QUALIFICATION.md).**
-Comparer les revues sur les mêmes archives, mesurer les reprises et qualifier les
-configurations avant de réexaminer le Skill Engine.
+**Priorité active — [M3.5.10, fiabilité du workflow intégré](M3510_WORKFLOW_RELIABILITY.md).**
+Consolider la qualification [M3.5.9](M359_WORKFLOW_QUALIFICATION.md) avec
+la récupération V2, le suivi des échecs et le diagnostic de sélection.
+Le Skill Engine reste en attente de validation de ces travaux.
 
 Première offre : **pentest web/API autonome, boîte noire externe depuis le CLI**.
 La mission commence avec une URL ou un domaine, sans compte ni documentation.
@@ -198,14 +199,15 @@ une certification de niveau senior ni une promesse commerciale déjà tenue.
 | M3.5.6.2 Appui par proposition | [Exécuté localement](M3562_PROPOSITION_VALIDATION.md), pilote génératif non qualifié | V2 déterministe résout 5 des 11 cas répondables, tous exacts. Les questions libres, la précision des citations et l’abstention restent à qualifier. |
 | M3.5.7 Maintenance documentaire | [Livrée et qualifiée localement](M357_KNOWLEDGE_MAINTENANCE.md) | Obsidian sur fixtures, lots transactionnels et synchronisation publique simulée. Fournisseurs réels reportés. |
 | M3.5.8 Consolidation | Consolidation intégrée dans main, [bilan local](M358_KNOWLEDGE_CONSOLIDATION.md) | Parcours extractif complet, reprise des schémas v1 à v6, non-régression V1 et contrôles de confidentialité. Le pilote génératif reste non qualifié. |
-| M3.5.9 Qualification intégrée | Priorité active, [bilan local à valider](M359_WORKFLOW_QUALIFICATION.md) | Intégrité sur les trois archives, comparaison A–F et reprise sur fixtures. L’utilité humaine et la récupération intégrale V2 restent ouvertes. |
+| M3.5.9 Qualification intégrée | [Bilan local](M359_WORKFLOW_QUALIFICATION.md) | Intégrité et comparaison A–F sur trois archives, reprise sur fixtures et anomalies de restitution. |
+| M3.5.10 Fiabilité intégrée | Priorité active, [bilan local à valider](M3510_WORKFLOW_RELIABILITY.md) | Persistance privée V2, cycle de tentative, comparaison avant/après et diagnostic de sélection. |
 
 ## Dépendances M3 et W0–W9
 
 | Priorité | Dépendance et livrable |
 | --- | --- |
 | P0 | M3.5.9 s'appuie sur W0–W4 livrés, les exports W6, et M3.1–M3.5.8. W1.2 et W8 fournissent la discipline de mesure indépendante. W4.3c reste hors du chemin critique de cette qualification. |
-| P1 | Corriger les ruptures d'intégrité, de restitution et de reprise mesurées dans leur lot propriétaire. Les compléments W0/P1.5 concernent les chemins effectivement mobilisés. |
+| P1 | M3.5.10 traite les ruptures de restitution et de suivi des échecs M3.5.9. Les compléments W0/P1.5 concernent les chemins effectivement mobilisés. |
 | P2 | Consolider les référentiels W1.2/W8 et la restitution W6. Les parcours authentifiés de W5.3 dépendent de W4.3c. W7 reste une cible dépendante de W5/W6 vérifiés et d'un protocole W8 gelé. |
-| P3 | Réexaminer le Skill Engine après M3.5.9 si la réutilisation de workflows consultatifs ou de restitution est démontrée. Avant un Evaluation Engine dédié, réutiliser les évaluateurs existants. |
+| P3 | Réexaminer le Skill Engine après validation de la consolidation M3.5.9 et M3.5.10 si la réutilisation de workflows consultatifs ou de restitution est démontrée. Avant un Evaluation Engine dédié, réutiliser les évaluateurs existants. |
 | P4 | Conditionner le Learning Engine à un historique comparatif, à l'évaluation indépendante et à une promotion humaine réversible. W9 dépend de W8 et de la qualification d'exploitation. |

@@ -22,8 +22,8 @@ de synthèse et sans garantie de pertinence des sélections.
 
 Le journal V1 conserve ses transitions. Les tentatives V2 ajoutent un contrat
 et des empreintes, dont les éditions documentaires et la tête mémoire.
-Les extraits restent transitoires pour réduire la duplication de données
-privées. Les contrôles à la restitution et à l’acceptation privilégient
+Dans le pilote initial, les extraits restaient transitoires pour réduire
+la duplication de données privées. Les contrôles à la restitution et à l’acceptation privilégient
 le refus en cas de changement concurrent, même si la modification concernait
 un document différent. Les validations entre SQLite indépendants ne sont
 pas atomiques.
@@ -54,3 +54,16 @@ pour la revue supervisée. Les questions libres peuvent recevoir des
 extraits utiles avec abstention partielle. Les résultats du pilote
 génératif et la contribution mémoire observée restent consignés dans le
 [bilan M3.5.8](../../product/M358_KNOWLEDGE_CONSOLIDATION.md).
+
+## Restitution durable à partir de M3.5.10
+
+Le journal SQLite privé contient le JSON complet de la restitution de
+revue V2. Une table additive lie le contenu à l’empreinte du terminal
+`ready` dans la même transaction. Le journal conserve un seul point
+de sauvegarde et une lecture historique V1 compatible. Le paquet et
+la réponse brute envoyée par Ollama restent transitoires. La récupération
+applique les permissions courantes et les points de contrôle des magasins.
+Les extraits enregistrés sont soumis à la rétention du journal. La perte
+d’une restitution historique sans contenu est signalée explicitement.
+Le [lot M3.5.10](../../product/M3510_WORKFLOW_RELIABILITY.md) détaille la
+qualification et le contrat CLI.

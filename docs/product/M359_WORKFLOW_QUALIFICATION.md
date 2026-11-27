@@ -5,6 +5,10 @@ Base d’audit `74b3221f8120a6cd0d3365eff2a13b2a35d74280`. Cette tranche
 fixtures locales bénignes. Les procédures réseau, capacités et autorisations
 de mission restent celles du produit au SHA de base.
 
+Le présent document conserve les résultats historiques de M3.5.9.
+Les corrections et le rejeu apparié figurent dans le
+[bilan M3.5.10](M3510_WORKFLOW_RELIABILITY.md).
+
 ## Audit stratégique post-M3.5
 
 Le CLI orchestre une reconnaissance déterministe en environnement qualifié,

@@ -105,3 +105,31 @@ ARGOS_TEST_NETWORK=1 ARGOS_TEST_ISOLATION=1 .venv/bin/python -m pytest -q -rs \
 Rejouer la sélection et le scénario de robustesse avec Python 3.12 et 3.14.
 Le drapeau `--development` sert aussi au contrôle de compatibilité Ollama
 sur une archive. Garder les résultats hors du jeu statistique principal.
+
+## Rejeu apparié M3.5.10
+
+Ajouter `--reliability` à la commande principale et choisir une nouvelle
+destination, par exemple `data/qualification/m3510/paired-314`. Ce mode
+garde une paire par archive et par bras, avec les mêmes régimes, les
+mêmes modèles et les mêmes budgets. Le temps de récupération et les
+contrôles de sélection D à chaud sont hors de la durée comparable.
+
+```bash
+.venv/bin/python -B -m benchmarks.workflow_qualification.report \
+  data/qualification/m3510/paired-314 \
+  --baseline data/qualification/m359/final \
+  > data/qualification/m3510/assessment.json
+```
+
+Le rapport sélectionne la première mesure M3.5.9 de chaque cellule
+archive/bras/régime et refuse une comparaison si le snapshot diffère.
+Les contrôles D produisent `selection-probes.json` dans chaque dossier
+chaud. Ils modifient un aspect du paquet à la fois et mesurent la
+sélection, sans changer le workflow de production. Le scénario
+`robustness` de cette version interrompt avant puis pendant la sélection
+et récupère la réponse dans un nouveau processus CLI.
+
+Pour reproduire les résultats historiques M3.5.9 avec leurs propres
+contrats de restitution, utiliser le code du commit de campagne mentionné
+dans le bilan M3.5.9. Conserver les sorties historiques pour le calcul
+apparié.

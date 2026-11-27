@@ -815,8 +815,11 @@ décision de conception est décrite dans l’[ADR du contexte V2](../architectu
 - La revue V2 épingle avant la sélection les références, révisions, digests,
   budget et empreinte du contexte transmis dans la chaîne existante.
   Le journal conserve les identifiants sélectionnés, compteurs et états, ainsi
-  qu’une empreinte de réponse. Le prompt, les extraits et la sortie brute de
-  l’analyste V2 sont transitoires. L’acceptation exige le même périmètre et
+  qu’une empreinte de réponse dans le pilote initial. Depuis
+  [M3.5.10](M3510_WORKFLOW_RELIABILITY.md), les nouvelles revues d’archive
+  conservent leur restitution complète dans le journal privé. Le prompt et
+  la sortie brute de l’analyste restent transitoires. L’acceptation exige le
+  même périmètre et
   revalide les données au moment de la décision. L’interruption rejette une
   sortie tardive par vérification de la tête du journal.
 

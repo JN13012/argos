@@ -89,13 +89,17 @@ les projections et les reçus. Le journal de revue fixe la vue examinée et la
 décision de l’opérateur. V2 combine les unités vérifiées du snapshot avec une
 mémoire facultative et des passages documentaires explicitement autorisés. La
 mémoire est cloisonnée par UID et mission. Les collections ont leurs propres
-révisions. Ces magasins sont relus indépendamment. Le journal V2 conserve une
-empreinte de la restitution, dont le contenu complet est transitoire.
+révisions. Ces magasins sont relus indépendamment. M3.5.10 ajoute une
+table privée au journal de revue. La restitution V2 complète, l’événement
+`ready` et sa tête sont écrits dans une transaction SQLite. À la lecture,
+le journal lie le contenu et sa tentative aux références et permissions
+courantes. Les anciennes tentatives V2 gardent leur contrat historique.
 
 Ollama local peut sélectionner des références dans un contexte borné. Le
 workflow de revue demeure consultatif. L’API de résultats expose les archives
 configurées en lecture seule. Le [lot M3.5.9](../product/M359_WORKFLOW_QUALIFICATION.md)
-documente les garanties et les limites vérifiées.
+documente la mesure initiale. Les corrections de restitution et de reprise
+figurent dans le [lot M3.5.10](../product/M3510_WORKFLOW_RELIABILITY.md).
 
 ## Cible autonome
 
