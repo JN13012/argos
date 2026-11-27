@@ -1,12 +1,16 @@
 # Argos — Roadmap de référence
 
-État du dépôt vérifié le 26 novembre 2026. Cette page porte les statuts et la
+État du dépôt vérifié le 27 novembre 2026. Cette page porte les statuts et la
 priorité active. Le [scope](SCOPE.md) décrit le périmètre produit ; le
 [plan web](WEB_PENTEST_PLAN.md) organise la réalisation ; le
 [catalogue](WEB_CAPABILITIES.md) définit les capacités et preuves à construire.
 Les documents des lots portent leurs tâches et bilans détaillés.
 
 ## Objectif et prochaine tâche
+
+**Priorité active — [M3.5.9, qualification du workflow intégré](M359_WORKFLOW_QUALIFICATION.md).**
+Comparer les revues sur les mêmes archives, mesurer les reprises et qualifier les
+configurations avant de réexaminer le Skill Engine.
 
 Première offre : **pentest web/API autonome, boîte noire externe depuis le CLI**.
 La mission commence avec une URL ou un domaine, sans compte ni documentation.
@@ -65,10 +69,10 @@ implémentent le catalogue de sources et le stockage documentaire versionné et
 cloisonné. M3.5.2 ajoute l'ingestion normalisée et trois découpages citables,
 avec mesures sur le corpus MDN local. M3.5.3 ajoute les index SQL et FTS5
 transactionnels et la recherche documentaire locale. M3.5.4 ajoute le cache
-Float32, la recherche NumPy exacte et le routeur. La pertinence sur un
-corpus indépendant, le contexte v2 et le pilote RAG restent à qualifier.
+Float32, la recherche NumPy exacte et le routeur. V2 extractif et la maintenance documentaire ont été consolidés sur main en
+M3.5.8. Le pilote génératif reste non qualifié.
 
-**Prochaine étape côté navigateur : W4.3c, actions de formulaire et sessions.**
+**Dépendance des futurs parcours de session — W4.3c, formulaires et sessions.**
 W4.3b apporte les redirections navigateur sous configuration v5 signée :
 interception CDP de chaque saut, preuve avant remise, URL finale réelle et
 plafonds. Le [lot W4.3](WEB_INTERACTIONS.md) et
@@ -183,14 +187,26 @@ une certification de niveau senior ni une promesse commerciale déjà tenue.
 
 | Étape | Statut | Porte d'acceptation |
 | --- | --- | --- |
-| M3.5.1 Fondations | Implémentées sur `feat/m35-knowledge-engine`, qualification locale | Identité et permissions, cycle de vie, intégrité et reprise transactionnelle sous Python 3.12 et 3.14. |
-| M3.5.2 Ingestion et fragments | Implémentés sur `feat/m35-knowledge-engine`, qualification locale | Migration SQLite v2, trois formats et stratégies, repères de citation, transactions et mesures sur corpus local. |
-| M3.5.3 SQL exact et FTS5 | Implémentés sur `feat/m35-knowledge-engine`, qualification locale | Migration v3, retraits transactionnels, cloisonnement, citations, corpus historique MDN et charge de 100 000 fragments. |
-| M3.5.4 Embeddings et NumPy | Implémentés sur `feat/m35-knowledge-engine`, qualification locale | Migration v4, cache par collection et espace, reprise, MDN historique, abstention calibrée, repli lexical et 100 000 vecteurs synthétiques. |
-| M3.5.4.1 Performance vectorielle | Implémentée sur `feat/m35-knowledge-engine`, qualification locale | Vue NumPy par génération, lectures concurrentes, retrait et mesures 512D et 768D jusqu'à 100 000 vecteurs. |
-| M3.5.5 Contexte et revue V2 | Implémentés sur `feat/m35-knowledge-engine`, qualification locale limitée | Assemblage et restitution extractive, validation des citations, compatibilité V1, interruption et mesures sur les deux runtimes Ollama. |
+| M3.5.1 Fondations | Implémentées dans main, qualification locale | Identité et permissions, cycle de vie, intégrité et reprise transactionnelle sous Python 3.12 et 3.14. |
+| M3.5.2 Ingestion et fragments | Implémentés dans main, qualification locale | Migration SQLite v2, trois formats et stratégies, repères de citation, transactions et mesures sur corpus local. |
+| M3.5.3 SQL exact et FTS5 | Implémentés dans main, qualification locale | Migration v3, retraits transactionnels, cloisonnement, citations, corpus historique MDN et charge de 100 000 fragments. |
+| M3.5.4 Embeddings et NumPy | Implémentés dans main, qualification locale | Migration v4, cache par collection et espace, reprise, MDN historique, abstention calibrée, repli lexical et 100 000 vecteurs synthétiques. |
+| M3.5.4.1 Performance vectorielle | Implémentée dans main, qualification locale | Vue NumPy par génération, lectures concurrentes, retrait et mesures 512D et 768D jusqu'à 100 000 vecteurs. |
+| M3.5.5 Contexte et revue V2 | Implémentés dans main, qualification locale limitée | Assemblage et restitution extractive, validation des citations, compatibilité V1, interruption et mesures sur les deux runtimes Ollama. |
 | M3.5.6 Qualification du pilote | [Exécutée localement](M356_RAG_EVALUATION.md), pilote génératif non accepté | 115 cas appariés et trois archives réelles. Gain RAG, absence de gain mémoire et portes de qualité générative manquées. |
 | M3.5.6.1 Fiabilité de l’analyse | [Exécutée localement](M3561_RAG_RELIABILITY.md), pilote génératif non accepté | Appui typé et abstention stricte. Les verdicts utiles et la précision des citations reculent sur le jeu de stress indépendant. |
 | M3.5.6.2 Appui par proposition | [Exécuté localement](M3562_PROPOSITION_VALIDATION.md), pilote génératif non qualifié | V2 déterministe résout 5 des 11 cas répondables, tous exacts. Les questions libres, la précision des citations et l’abstention restent à qualifier. |
 | M3.5.7 Maintenance documentaire | [Livrée et qualifiée localement](M357_KNOWLEDGE_MAINTENANCE.md) | Obsidian sur fixtures, lots transactionnels et synchronisation publique simulée. Fournisseurs réels reportés. |
-| M3.5.8 Consolidation | [Audit et qualification finale locaux](M358_KNOWLEDGE_CONSOLIDATION.md), intégration en attente de validation | Parcours extractif complet, reprise des schémas v1 à v6, non-régression V1 et contrôles de confidentialité. Le pilote génératif reste non qualifié. |
+| M3.5.8 Consolidation | [Audit et qualification finale locaux](M358_KNOWLEDGE_CONSOLIDATION.md) intégrée dans main | Parcours extractif complet, reprise des schémas v1 à v6, non-régression V1 et contrôles de confidentialité. Le pilote génératif reste non qualifié. |
+
+| M3.5.9 Qualification intégrée | [Priorité active](M359_WORKFLOW_QUALIFICATION.md) | Comparaison A–F sur archives, intégrité, reprise sur fixtures et bilan par configuration. |
+
+## Dépendances M3 et W0–W9
+
+| Priorité | Dépendance et livrable |
+| --- | --- |
+| P0 | M3.5.9 s'appuie sur W0–W4 livrés, les exports W6, et M3.1–M3.5.8. W1.2 et W8 fournissent la discipline de mesure indépendante. W4.3c reste hors du chemin critique de cette qualification. |
+| P1 | Corriger les ruptures d'intégrité, de restitution et de reprise mesurées dans leur lot propriétaire. Les compléments W0/P1.5 concernent les chemins effectivement mobilisés. |
+| P2 | Consolider les référentiels W1.2/W8 et la restitution W6. Les parcours authentifiés de W5.3 dépendent de W4.3c. W7 reste une cible dépendante de W5/W6 vérifiés et d'un protocole W8 gelé. |
+| P3 | Réexaminer le Skill Engine après M3.5.9 si la réutilisation de workflows consultatifs ou de restitution est démontrée. Avant un Evaluation Engine dédié, réutiliser les évaluateurs existants. |
+| P4 | Conditionner le Learning Engine à un historique comparatif, à l'évaluation indépendante et à une promotion humaine réversible. W9 dépend de W8 et de la qualification d'exploitation. |

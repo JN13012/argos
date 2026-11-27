@@ -63,16 +63,19 @@ une adresse IP.
 
 ```text
 argos/
-├── __main__.py, cli.py       CLI OSINT, web et restitutions
+├── __main__.py, cli.py       CLI OSINT, web, revue et connaissances
 ├── backend/
-│   ├── api/                 FastAPI : santé HTTP et erreurs stables
+│   ├── api/                 Santé HTTP et résultats archivés en lecture seule
 │   ├── core/                Missions, scope, signatures, politiques et audit
 │   ├── intel/osint/         Modèles, SIRENE, découverte, SQLite et rapports
 │   ├── attack/pentest/      Plans, Nmap, jobs supervisés, preuves, orchestration
 │   ├── attack/recon/        Pipeline CLI Nmap, HTML, Gobuster et ffuf via relais contrôlé
-│   └── attack/web/          Runtime HTTP, CLI, frontière, oracle et découverte navigateur CLI
+│   ├── attack/web/          Runtime HTTP, navigateur, reçus et restitution W6
+│   ├── attack/review/       Snapshot, journal, revue V1/V2 et mémoire SQLite
+│   ├── knowledge/           Collections et passages versionnés, recherches SQL/FTS5/NumPy
+│   └── consultation/        Budgets V2, assemblage, validation et sélection extractive
 ├── osint/                   Réexportations de compatibilité des modèles
-└── frontend/                Accueil minimal connecté à la santé de l’API
+└── frontend/                Interface de consultation des résultats
 ```
 
 ATTACK P1 est une bibliothèque locale avec vérification des missions signées,
@@ -81,9 +84,18 @@ agent n’appelle encore ce moteur. Les runners synchrones historiques ne sont
 pas le point d’entrée à exposer au futur harness. Les
 [limites d’exécution](../product/PENTEST_P135_HARDENING.md) restent ouvertes.
 
-La page montée est `frontend/src/app/App.tsx`. Les anciens composants de dossier,
-chat local et scène 3D sont conservés comme travaux historiques, sans être
-montés par cette page. Une réponse positive de santé ne valide aucune mission.
+La restitution web et la revue lisent des archives privées. Le snapshot vérifie
+les projections et les reçus. Le journal de revue fixe la vue examinée et la
+décision de l’opérateur. V2 combine les unités vérifiées du snapshot avec une
+mémoire facultative et des passages documentaires explicitement autorisés. La
+mémoire est cloisonnée par UID et mission. Les collections ont leurs propres
+révisions. Ces magasins sont relus indépendamment. Le journal V2 conserve une
+empreinte de la restitution, dont le contenu complet est transitoire.
+
+Ollama local peut sélectionner des références dans un contexte borné. Le
+workflow de revue demeure consultatif. L’API de résultats expose les archives
+configurées en lecture seule. Le [lot M3.5.9](../product/M359_WORKFLOW_QUALIFICATION.md)
+documente les garanties et les limites vérifiées.
 
 ## Cible autonome
 
