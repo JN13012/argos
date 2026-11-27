@@ -34,7 +34,10 @@ from argos.backend.attack.review.workflow import (
     create_workflow,
     read_workflow,
 )
-from argos.backend.attack.review.workflow_v2 import analyze_workflow_v2
+from argos.backend.attack.review.workflow_v2 import (
+    analyze_workflow_v2,
+    read_restitution,
+)
 from argos.backend.attack.web.cli import verify_report
 from argos.backend.attack.web.evidence_index import evidence_index
 from argos.backend.attack.web.exploration import summary
@@ -54,6 +57,7 @@ from benchmarks.rag_eval.resources import stop_processes
 from benchmarks.rag_eval.run import DIGEST, save, store_notes
 from benchmarks.retrieval.consultation_probe import api, launch, wait, wait_empty
 
+from .diagnostic import probe
 from .measure import observe, summarize
 from .reference import EXPECTED_DOCS, NOTES, PROTOCOL, freeze, identifiers, score_facts
 
@@ -298,6 +302,7 @@ def trial(args, frozen, lab, arm, regime, output, collection, embedding, dense) 
         "critical_journal": critical,
         "product_can_recover_full_output": None,
     }
+    after_trial = None
     if arm != "A":
         created = timed(
             stages, "journal_create", create_workflow, database, journal, mission
@@ -368,7 +373,7 @@ def trial(args, frozen, lab, arm, regime, output, collection, embedding, dense) 
             assert reloaded["latest_analysis"]["response_sha256"] == fingerprint(
                 result["consultation"]
             )
-            row["product_can_recover_full_output"] = "consultation" in reloaded
+            after_trial = (rid, context, selector, result)
             row["retrieval"] = result["consultation"]["coverage"].get("retrieval", [])
         elif reloaded["latest_analysis"]:
             row["error"] = reloaded["latest_analysis"].get("error") or (
@@ -406,6 +411,32 @@ def trial(args, frozen, lab, arm, regime, output, collection, embedding, dense) 
     row["window"] = [started, perf_counter()]
     stages["total"] = (row["window"][1] - started) * 1000
     row["timings_ms"] = stages
+    if after_trial:
+        rid, context, selector, result = after_trial
+        started_recovery = perf_counter()
+        recovered = read_restitution(
+            journal,
+            rid,
+            context,
+            expected_head=result["head_sha256"],
+        )
+        row["recovery_ms"] = (perf_counter() - started_recovery) * 1000
+        row["product_can_recover_full_output"] = (
+            recovered.get("consultation") == result["consultation"]
+        )
+        attempt = next(e["data"] for e in result["events"] if "pins" in e["data"])
+        row["payload_sha256"] = attempt["payload_sha256"]
+        if args.reliability and arm == "D" and regime == "warm":
+            findings = asyncio.run(
+                probe(
+                    lab,
+                    selector.data,
+                    attempt["units"],
+                    selector.delegate,
+                    Budget(**protocol["context"]),
+                )
+            )
+            save(output / "selection-probes.json", findings)
     return row
 
 
@@ -495,6 +526,7 @@ def campaign(args) -> None:
             ).strip(),
             "frozen_sha256": frozen_hash,
             "development": args.development,
+            "reliability": args.reliability,
         },
     )
     if args.development:
@@ -503,6 +535,8 @@ def campaign(args) -> None:
             "repetitions": 1,
             "archives": {"crapi": protocol["archives"]["crapi"]},
         }
+    if args.reliability:
+        protocol = {**protocol, "repetitions": 1, "additional_a_rounds": 0}
     rows: list[dict] = []
     samples: list[dict] = []
     halted = Event()
@@ -635,7 +669,9 @@ def main() -> None:
         )
     parser.add_argument("--generator", type=int, default=11565)
     parser.add_argument("--embedding", type=int, default=11566)
-    parser.add_argument("--development", action="store_true")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--development", action="store_true")
+    modes.add_argument("--reliability", action="store_true")
     campaign(parser.parse_args())
 
 

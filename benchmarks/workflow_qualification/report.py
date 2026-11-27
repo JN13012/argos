@@ -16,6 +16,40 @@ def load(path: Path):
     return json.loads(path.read_text())
 
 
+def trials(directory: Path) -> list[dict]:
+    return [
+        json.loads(line)
+        for line in (directory / "trials.jsonl").read_text().splitlines()
+    ]
+
+
+def paired_comparison(before: list[dict], after: list[dict]) -> dict:
+    """Compare each retest with the first M3.5.9 row of the same cell."""
+    first = {}
+    for row in before:
+        first.setdefault((row["lab"], row["arm"], row["regime"]), row)
+    comparisons = {}
+    for row in after:
+        key = row["lab"], row["arm"], row["regime"]
+        old = first[key]
+        if old["snapshot_sha256"] != row["snapshot_sha256"]:
+            raise ValueError("Cannot compare different snapshots")
+        old_total = old["timings_ms"]["total"]
+        new_total = row["timings_ms"]["total"]
+        key_label = "/".join(key)
+        comparisons[key_label] = {
+            "total_before_ms": old_total,
+            "total_after_ms": new_total,
+            "total_difference_ms": new_total - old_total,
+            "recovery_ms": row.get("recovery_ms"),
+            "recovered": row["product_can_recover_full_output"],
+            "available": [old["available"], row["available"]],
+            "selected": [old["selected"], row["selected"]],
+            "restituted": [old["restituted"], row["restituted"]],
+        }
+    return comparisons
+
+
 def assess(directory: Path) -> dict:
     frozen = load(directory / "frozen.json")
     summary = load(directory / "summary.json")
@@ -24,14 +58,13 @@ def assess(directory: Path) -> dict:
         "frozen_sha256"
     ] != digest(directory / "frozen.json"):
         raise ValueError("Protocol or frozen inputs differ")
-    rows = [
-        json.loads(line)
-        for line in (directory / "trials.jsonl").read_text().splitlines()
-    ]
+    rows = trials(directory)
     resources = load(directory / "resources.json")
     protocol = frozen["protocol"]
     minimum = protocol["gates"]["p95_minimum_samples"]
     counts = Counter((r["lab"], r["arm"], r["regime"]) for r in rows)
+    if environment.get("reliability"):
+        protocol = {**protocol, "repetitions": 1, "additional_a_rounds": 0}
     expected = {
         (lab, arm, regime): protocol["repetitions"]
         + (protocol["additional_a_rounds"] if arm == "A" else 0)
@@ -172,8 +205,14 @@ def assess(directory: Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
+    parser.add_argument("--baseline", type=Path)
     args = parser.parse_args()
-    json.dump(assess(args.directory), sys.stdout, indent=2)
+    report = assess(args.directory)
+    if args.baseline:
+        report["paired"] = paired_comparison(
+            trials(args.baseline), trials(args.directory)
+        )
+    json.dump(report, sys.stdout, indent=2)
     print()
 
 
