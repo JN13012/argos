@@ -164,3 +164,22 @@ def test_obsolete_version_is_retained_but_removed_from_search(managed):
     assert len(store.versions(DocumentRef("public", "one"))) == 2
     search = SQLiteKnowledgeRetriever(collection, allowed_collections={collection})
     assert not search.retrieve("alpha", limit=5)
+
+
+def test_review_deadline_and_missing_requires_explicit_withdrawal(managed, monkeypatch):
+    _, store, maintenance = managed
+    monkeypatch.setattr(
+        "argos.backend.knowledge.maintenance.now", lambda: "2000-01-01T00:00:00+00:00"
+    )
+    first = {"one": b"alpha"}
+    apply(maintenance, snapshot("r1", first), first, review_days=1)
+    assert maintenance.report("public")["freshness"] == "review_due"
+    empty = snapshot("r2", {})
+    assert apply(maintenance, empty, {})["counts"] == {"missing": 1}
+    assert maintenance.report("public")["freshness"] == "incomplete"
+    assert store.current(DocumentRef("public", "one"))
+    assert apply(maintenance, empty, {}, remove_missing=True)["counts"] == {
+        "removed": 1
+    }
+    with pytest.raises(KeyError):
+        store.current(DocumentRef("public", "one"))

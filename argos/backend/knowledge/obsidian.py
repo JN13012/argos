@@ -137,6 +137,8 @@ class _Scan:
                 self.walk(child, path)
         elif stat.S_ISLNK(mode):
             raise ValueError("Symlinks are not allowed in the selected Obsidian tree")
+        elif path.suffix.lower() == ".md" and not stat.S_ISREG(mode):
+            raise ValueError("Expected a regular Obsidian Markdown file")
         elif stat.S_ISREG(mode) and path.suffix.lower() == ".md":
             key = sha256(str(path).encode()).hexdigest()
             if key in self.bodies:

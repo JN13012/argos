@@ -4,6 +4,7 @@ import argparse
 import json
 import sqlite3
 import sys
+from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
 from uuid import UUID
@@ -25,6 +26,8 @@ from .embeddings import (
     OllamaEmbeddingProvider,
 )
 from .loader import file_media_type
+from .maintenance import Maintenance
+from .obsidian import scan
 from .retrieval import (
     DEFAULT_RESULT_BYTES,
     LexicalWeights,
@@ -32,6 +35,7 @@ from .retrieval import (
     SQLiteKnowledgeRetriever,
 )
 from .router import RetrievalMode, RetrievalRouter
+from .synchronization import LocalManifestProvider, PublicSynchronization
 from .vector_retrieval import CosineCalibration, NumPyKnowledgeRetriever
 
 
@@ -103,6 +107,33 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
     source.add_argument("--official", action="store_true")
     command("source-approve", "Approve a registered source").add_argument("source")
     command("source-withdraw", "Withdraw a registered source").add_argument("source")
+    command("source-show", "Inspect a registered source").add_argument("source")
+    sources = command("source-list", "List sources and approval status")
+    sources.add_argument("--limit", type=int, default=100)
+    sources.add_argument("--after")
+    report = command("maintenance-report", "Inspect freshness and maintenance history")
+    report.add_argument("source")
+    report.add_argument("--limit", type=int, default=20)
+
+    obsidian = command(
+        "obsidian-import", "Review or apply an explicit private selection"
+    )
+    obsidian.add_argument("--root", required=True, type=Path)
+    obsidian.add_argument("--select", required=True, action="append")
+    obsidian.add_argument("--exclude", action="append", default=[])
+    public = command("sync-public", "Review or apply a simulated public release")
+    public.add_argument("--manifest", type=Path, required=True)
+    public.add_argument("--release", help="Explicitly pinned upstream release")
+    for parser in (obsidian, public):
+        parser.add_argument("source")
+        mode = parser.add_mutually_exclusive_group()
+        mode.add_argument("--dry-run", action="store_true", help="Preview, the default")
+        mode.add_argument(
+            "--apply", metavar="PLAN_SHA256", help="Apply a reviewed plan"
+        )
+        parser.add_argument("--review-days", type=int)
+        parser.add_argument("--remove-missing", action="store_true")
+        _embedding_arguments(parser, required=False)
 
     import_file = command("import", "Stage a local Markdown, TXT or JSON file")
     import_file.add_argument("path", type=Path)
@@ -193,6 +224,48 @@ def _provider(args: argparse.Namespace) -> OllamaEmbeddingProvider:
         timeout=args.timeout,
         keep_alive=args.keep_alive,
     )
+
+
+def _maintenance_action(
+    collection: Collection, action: str, args: argparse.Namespace
+) -> dict:
+    maintenance = Maintenance(collection)
+    if action == "maintenance-report":
+        return maintenance.report(args.source, limit=args.limit)
+    review = {"review_days": args.review_days, "remove_missing": args.remove_missing}
+    provider = _provider(args) if args.apply and args.model else None
+    if action == "obsidian-import":
+        if collection.kind is not CollectionKind.USER:
+            raise PermissionError("Obsidian requires the private user collection")
+        snapshot = scan(
+            args.root, args.source, tuple(args.select), exclusions=tuple(args.exclude)
+        )
+        manifest = snapshot.manifest
+        if args.apply:
+            with provider or nullcontext() as embedding:
+                return maintenance.apply(
+                    manifest, args.apply, snapshot.fetch, embedding=embedding, **review
+                )
+        plan = maintenance.preview(manifest, **review)
+    else:
+        if args.apply and not args.release:
+            raise ValueError("Applying a public release requires --release")
+        synchronization = PublicSynchronization(
+            collection, LocalManifestProvider(args.manifest)
+        )
+        if args.apply:
+            with provider or nullcontext() as embedding:
+                return synchronization.apply(
+                    args.source, args.release, args.apply, embedding=embedding, **review
+                )
+        manifest, plan = synchronization.preview(
+            args.source, release=args.release, **review
+        )
+    return {
+        "dry_run": True,
+        "plan": {**asdict(plan), "sha256": plan.identity},
+        "entries": [asdict(entry) for entry in manifest.entries],
+    }
 
 
 def _routed_action(collection: Collection, args: argparse.Namespace) -> dict:
@@ -360,6 +433,8 @@ def execute(args: argparse.Namespace) -> int:
             output = _vector_action(collection, action, args)
         elif action in ("search", "exact") or action.startswith("index-"):
             output = _search_action(collection, action, args)
+        elif action in ("maintenance-report", "obsidian-import", "sync-public"):
+            output = _maintenance_action(collection, action, args)
         else:
             store = KnowledgeStore(collection)
             match action:
@@ -382,6 +457,15 @@ def execute(args: argparse.Namespace) -> int:
                     output = asdict(store.sources.approve(args.source))
                 case "source-withdraw":
                     output = asdict(store.sources.withdraw(args.source))
+                case "source-show":
+                    output = asdict(store.sources.get(args.source))
+                case "source-list":
+                    output = [
+                        asdict(record)
+                        for record in store.sources.list(
+                            limit=args.limit, after=args.after
+                        )
+                    ]
                 case _:
                     output = _document_action(store, action, args)
         # Escape control characters from documentary data in terminal output.

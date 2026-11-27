@@ -7,6 +7,8 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+from ipaddress import ip_address
+from urllib.parse import unquote, urlsplit
 
 from . import projections, vector_index
 from .chunking import ChunkConfig
@@ -19,6 +21,7 @@ from .contracts import (
     DocumentRef,
     KnowledgeConflictError,
     KnowledgeIntegrityError,
+    Source,
     Tag,
     bounded_text,
     identifier,
@@ -31,6 +34,9 @@ from .storage import CollectionDatabase, now
 
 MAX_ENTRIES = 512
 MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024
+_MAX_PREPARED_BYTES = 128 * 1024 * 1024
+_MAX_PREPARED_SPANS = 100_000
+_MAX_TRACKED_PER_SOURCE = 4096
 _CHUNKS = ChunkConfig()
 _OBSOLETE = Tag("lifecycle", "obsolete")
 
@@ -93,6 +99,49 @@ class Manifest:
         return digest((self.kind, self.scope))
 
 
+def public_url(url: str) -> tuple[str, int, str]:
+    bounded_text(url, "public source URL", limit=2048)
+    parsed = urlsplit(url)
+    path = unquote(parsed.path, errors="strict")
+    host = parsed.hostname
+    if (
+        parsed.scheme != "https"
+        or not host
+        or "." not in host
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or "\\" in path
+        or "%" in path
+        or any(part in {".", ".."} for part in path.split("/"))
+        or any(ord(char) < 32 for char in path)
+        or parsed.netloc.endswith(".")
+        or parsed.port not in {None, 443}
+    ):
+        raise ValueError("Expected a canonical HTTPS public provenance URL")
+    if host.endswith(".localhost"):
+        raise ValueError("Local addresses are not public provenance")
+    try:
+        address = ip_address(host)
+    except ValueError:
+        pass
+    else:
+        if not address.is_global:
+            raise ValueError("Private addresses are not public provenance")
+    return host, parsed.port or 443, path.rstrip("/") or "/"
+
+
+def _verify_public(source: Source, manifest: Manifest) -> None:
+    host, port, base = public_url(source.origin)
+    for entry in manifest.entries:
+        entry_host, entry_port, path = public_url(entry.metadata.origin)
+        if (entry_host, entry_port) != (host, port) or not (
+            path == base or path.startswith(base.rstrip("/") + "/")
+        ):
+            raise ValueError("Document provenance is outside the approved source")
+
+
 @dataclass(frozen=True, slots=True)
 class Change:
     id: str
@@ -103,6 +152,7 @@ class Change:
 
 @dataclass(frozen=True, slots=True)
 class Plan:
+    collection_sha256: str
     source: str
     release: str
     manifest_sha256: str
@@ -127,6 +177,7 @@ def _plan(
     manifest: Manifest,
     review_days: int | None,
     remove_missing: bool,
+    collection_sha256: str,
 ) -> Plan:
     source = manifest.source_id
     registered = source_record(db, source)
@@ -139,7 +190,12 @@ def _plan(
         raise KnowledgeConflictError(
             "Source already belongs to another maintenance scope"
         )
+    if manifest.kind == "obsidian" and registered.source.origin != f"obsidian:{source}":
+        raise KnowledgeConflictError(
+            "Expected a source registered for this Obsidian selection"
+        )
     if manifest.kind == "public":
+        _verify_public(registered.source, manifest)
         if manifest.scope != digest(
             (registered.source.origin, registered.source.rights)
         ):
@@ -163,8 +219,8 @@ def _plan(
                JOIN document d ON (d.source_id, d.id) = (m.source_id, m.document_id)
                LEFT JOIN version v ON (v.source_id, v.document_id) = (d.source_id, d.id)
                    AND v.approved_at IS NOT NULL AND v.superseded_at IS NULL
-               WHERE m.source_id = ? ORDER BY m.document_id""",
-            (source,),
+               WHERE m.source_id = ? ORDER BY m.document_id LIMIT ?""",
+            (source, _MAX_TRACKED_PER_SOURCE + 1),
         )
     }
     for state in tracked.values():
@@ -173,6 +229,8 @@ def _plan(
                 "Managed document was changed outside maintenance"
             )
     selected = {entry.id: entry for entry in manifest.entries}
+    if len(tracked.keys() | selected.keys()) > _MAX_TRACKED_PER_SOURCE:
+        raise ValueError("Managed source exceeds its historical document limit")
     changes = []
     for key, entry in selected.items():
         prior = tracked.get(key)
@@ -209,6 +267,7 @@ def _plan(
         review_days if review_days is not None else feed["review_days"] if feed else 30
     )
     return Plan(
+        collection_sha256,
         source,
         manifest.release,
         manifest.identity,
@@ -223,6 +282,9 @@ class Maintenance:
     def __init__(self, collection: Collection):
         self.collection = collection
         self._database = CollectionDatabase(collection)
+        self._collection_sha256 = digest(
+            (self._database.identity, str(self._database.path))
+        )
 
     def preview(
         self,
@@ -237,7 +299,9 @@ class Maintenance:
         ):
             raise PermissionError("Obsidian requires the private user collection")
         with self._database.read() as db:
-            return _plan(db, manifest, review_days, remove_missing)
+            return _plan(
+                db, manifest, review_days, remove_missing, self._collection_sha256
+            )
 
     def apply(
         self,
@@ -259,6 +323,7 @@ class Maintenance:
         sequence = plan.base_sequence + 1
         entries = {entry.id: entry for entry in manifest.entries}
         prepared = {}
+        prepared_bytes = prepared_spans = 0
         for change in plan.changes:
             if change.action not in {"new", "modified", "obsolete"}:
                 continue
@@ -282,6 +347,13 @@ class Maintenance:
             projection = projections.prepare(
                 self._database, original, original_sha, metadata.media_type, _CHUNKS
             )
+            prepared_bytes += len((projection.encoded or "").encode())
+            prepared_spans += len(projection.spans or ())
+            if (
+                prepared_bytes > _MAX_PREPARED_BYTES
+                or prepared_spans > _MAX_PREPARED_SPANS
+            ):
+                raise ValueError("Maintenance preparation exceeds resource limits")
             prepared[change.id] = (
                 entry,
                 metadata,
@@ -294,7 +366,12 @@ class Maintenance:
         checked_at = now()
         published = []
         with self._database.write() as db:
-            if _plan(db, manifest, review_days, remove_missing) != plan:
+            if (
+                _plan(
+                    db, manifest, review_days, remove_missing, self._collection_sha256
+                )
+                != plan
+            ):
                 raise KnowledgeConflictError(
                     "Maintenance state changed during preparation"
                 )
