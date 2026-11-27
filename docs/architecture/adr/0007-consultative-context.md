@@ -42,3 +42,9 @@ exact. Le modèle sélectionne des références. L’attribution textuelle suit
 un contrôle déterministe, tandis que l’implication sémantique pour une
 question ouverte reste indéterminée. Le coût est mesuré sur le
 [jeu de stress M3.5.6.1](../../product/M3561_RAG_RELIABILITY.md).
+
+Depuis M3.5.6.2, l’attribution et le statut d’un reçu identifié se vérifient
+par proposition. Les passages contestés et les valeurs contradictoires
+conservent leurs références. L’analyse des résultats et le coût comparé
+des options sémantiques figurent dans le
+[bilan M3.5.6.2](../../product/M3562_PROPOSITION_VALIDATION.md).

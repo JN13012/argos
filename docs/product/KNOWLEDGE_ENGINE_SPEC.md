@@ -948,6 +948,21 @@ Aucun des deux embeddings ne permet d’atteindre les portes du pilote sur
 ce jeu. Les prochains essais doivent mesurer un appui par proposition, la
 pertinence des extraits et la résolution des conflits propres à l’objectif.
 
+### M3.5.6.2 — Appui par proposition
+
+La réponse V2 peut ajouter une liste de propositions vérifiées par un
+contrat déterministe. Une attribution complète est liée au passage
+admissible transmis. Un statut HTTP est lié au reçu précis de l’archive
+vérifiée. Le périmètre de chaque proposition décide de son appui et des
+contradictions qui la concernent. Les résultats résolus restent disponibles
+avec les incertitudes des autres propositions. Les inférences et
+hypothèses restent annotées dans la restitution extractive.
+
+Le [bilan M3.5.6.2](M3562_PROPOSITION_VALIDATION.md) documente le diagnostic,
+les contrôles appariés, les budgets et la comparaison des modèles Qwen3
+4B et 8B. Les verdicts sémantiques sur questions libres restent
+expérimentaux. La seconde passe n’a pas montré de gain sur développement.
+
 ## H — Maintenance conçue
 
 L'actualisation compare contenu brut, normalisation et versions de parsers,

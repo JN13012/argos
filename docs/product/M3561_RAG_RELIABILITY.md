@@ -1,5 +1,8 @@
 # M3.5.6.1 — Appui des affirmations et fiabilité du RAG
 
+Le [bilan M3.5.6.2](M3562_PROPOSITION_VALIDATION.md) rejoue les treize
+abstentions injustifiées et qualifie séparément l’appui par proposition.
+
 Le contrat V2 améliore la distinction entre preuve, extrait et réponse au
 niveau de l’objectif. Le pilote génératif reste non accepté. La restitution
 extractive reste disponible pour la revue, avec l’état d’appui explicite.
