@@ -17,6 +17,7 @@ from argos.backend.consultation.context import (
     UnitKind,
     assemble,
 )
+from argos.backend.consultation.propositions import Attribution, RecordedHTTPStatus
 
 
 class Selector:
@@ -136,7 +137,9 @@ def test_epistemic_status_never_promotes_reference_to_an_answer():
 
 
 @pytest.mark.parametrize("conflict", [False, True])
-def test_literal_attribution_requires_complete_exact_nonconflicted_passage(conflict):
+def test_literal_attribution_preserves_unrelated_conflicts_without_global_veto(
+    conflict,
+):
     selector = Selector()
     exact = Unit(UnitKind.PASSAGE, Component.KNOWLEDGE, "The flag is off.", "{}")
     units = [exact, CONFLICT] if conflict else [exact]
@@ -151,9 +154,9 @@ def test_literal_attribution_requires_complete_exact_nonconflicted_passage(confl
     reply = asyncio.run(analyze(envelope, selector, PIN, lambda: None))
     assert selector.calls == 0
     assert reply["claims"][0]["support_scope"] == "verbatim_attribution_only"
-    assert reply["grounding"]["objective_status"] == (
-        "unknown" if conflict else "supported_documentary_statement"
-    )
+    assert reply["grounding"]["objective_status"] == "supported_documentary_statement"
+    assert len(reply["contradictions"]) == int(conflict)
+    assert reply["propositions"][0]["status"] == "supported"
 
 
 def test_literal_attribution_refuses_clipped_or_case_changed_text():
@@ -171,4 +174,44 @@ def test_literal_attribution_refuses_clipped_or_case_changed_text():
         )
         reply = asyncio.run(analyze(envelope, selector, PIN, lambda: None))
         assert reply["abstention"] == "total" and not reply["claims"]
+    assert selector.calls == 0
+
+
+def test_propositions_do_not_erase_independently_supported_material():
+    selector = Selector()
+    phrase = "The archive document is only an informational note."
+    doc = Unit(UnitKind.PASSAGE, Component.KNOWLEDGE, phrase, '{"id":"doc"}')
+    evidence = Unit(
+        UnitKind.OBSERVATION,
+        Component.ARCHIVE,
+        '{"state":"fact","kind":"archived_http_response","status":503}',
+        '{"observation":{"kind":"http_receipt","id":"a"}}',
+    )
+    # Identical-looking document JSON cannot become mission evidence.
+    false_evidence = Unit(
+        UnitKind.PASSAGE, Component.KNOWLEDGE, evidence.text, evidence.pin
+    )
+    disputed = Unit(UnitKind.CONTRADICTION, Component.KNOWLEDGE, "Disputed note.", "{}")
+    env = packet(selector, doc, evidence, false_evidence, disputed, budget=Budget())
+    requests = (
+        Attribution(phrase),
+        RecordedHTTPStatus("a", 200),
+        RecordedHTTPStatus("b", 503),
+        Attribution(disputed.text),
+    )
+    answer = asyncio.run(
+        analyze(env, selector, PIN, lambda: None, propositions=requests)
+    )
+    assert answer["abstention"] == "partial"
+    positive, opposed, absent, conflict = answer["propositions"]
+    assert [p["status"] for p in answer["propositions"]] == [
+        "supported",
+        "contradicted",
+        "insufficient",
+        "undetermined",
+    ]
+    assert positive["references"][0]["citation"] == {"id": "doc"}
+    assert opposed["references"][0]["citation"]["observation"]["id"] == "a"
+    assert absent["references"] == []
+    assert conflict["references"][0]["id"] == answer["contradictions"][0]["id"]
     assert selector.calls == 0

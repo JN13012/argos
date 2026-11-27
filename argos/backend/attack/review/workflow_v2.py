@@ -13,6 +13,7 @@ from argos.backend.consultation.analyst import (
     analyze,
 )
 from argos.backend.consultation.context import Budget, fingerprint
+from argos.backend.consultation.propositions import Proposition
 from argos.backend.knowledge.contracts import KnowledgeIntegrityError
 from argos.backend.knowledge.router import RetrievalMode
 
@@ -30,6 +31,8 @@ async def analyze_workflow_v2(
     mode: RetrievalMode,
     budget: Budget,
     selector: Selector,
+    *,
+    propositions: tuple[Proposition, ...] = (),
 ) -> dict:
     saved = read_workflow(journal, review_id)
     if str(context.mission_id) != saved["mission_id"]:
@@ -54,6 +57,11 @@ async def analyze_workflow_v2(
         {
             "contract": "consultative-analyst-v2",
             "grounding_policy": GROUNDING_POLICY,
+            "propositions_sha256": (
+                fingerprint([asdict(proposition) for proposition in propositions])
+                if propositions
+                else None
+            ),
             "configuration": {"model": asdict(model), "budget": asdict(budget)},
             "pins": prepared.pins,
             "units": [
@@ -74,7 +82,11 @@ async def analyze_workflow_v2(
     reply = None
     try:
         reply = await analyze(
-            envelope, selector, model, lambda: context.validate(prepared.pins)
+            envelope,
+            selector,
+            model,
+            lambda: context.validate(prepared.pins),
+            propositions=propositions,
         )
         reply["timings_ms"].update(prepared.timings_ms)
     except (asyncio.CancelledError, KeyboardInterrupt):
@@ -134,11 +146,19 @@ async def analyze_workflow_v2(
 
 
 async def analyze_documentary(
-    prepared: PreparedReview, context: ReviewContextV2, selector: Selector
+    prepared: PreparedReview,
+    context: ReviewContextV2,
+    selector: Selector,
+    *,
+    propositions: tuple[Proposition, ...] = (),
 ) -> dict:
     model = await selector.identify()
     response = await analyze(
-        prepared.envelope, selector, model, lambda: context.validate(prepared.pins)
+        prepared.envelope,
+        selector,
+        model,
+        lambda: context.validate(prepared.pins),
+        propositions=propositions,
     )
     response["timings_ms"].update(prepared.timings_ms)
     response["model"] = asdict(model)

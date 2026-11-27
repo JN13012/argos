@@ -8,6 +8,7 @@ from time import perf_counter
 from typing import Protocol
 
 from .context import Budget, Envelope, Unit, UnitKind, encode, fingerprint
+from .propositions import Attribution, Proposition, PropositionStatus, evaluate
 
 _INSTRUCTIONS = (
     "Select at most 8 useful item IDs for the stated goal, or return an empty list. "
@@ -18,7 +19,7 @@ _INSTRUCTIONS = (
     "actions, claims, prose, or extra fields."
 )
 
-GROUNDING_POLICY = "extractive-grounding-v1"
+GROUNDING_POLICY = "extractive-grounding-v2"
 EXACT_QUOTE_PREFIX = "citation exacte: "
 
 
@@ -112,9 +113,7 @@ def literal_request(objective: str) -> str | None:
     return None
 
 
-def _restitute(
-    data: dict, units: tuple[Unit, ...], refs: list[int], literal: str | None
-) -> dict:
+def _restitute(data: dict, units: tuple[Unit, ...], refs: list[int]) -> dict:
     """Attribute exact transmitted text; never infer entailment from reference IDs."""
     claims, contradictions, uncertainties = [], [], []
     for index, (unit, transmitted) in enumerate(
@@ -153,25 +152,17 @@ def _restitute(
     archived = data["purpose"] == "archived_observations"
     expected = UnitKind.OBSERVATION if archived else UnitKind.PASSAGE
     supported = any(row["kind"] == expected for row in claims)
-    if not supported:
-        reasons.append(
-            "no_exact_passage" if literal is not None else "no_selected_support"
-        )
-    elif literal is None:
-        reasons.append("question_entailment_not_verified")
-    answered = supported and not reasons
+    reasons.append(
+        "question_entailment_not_verified" if supported else "no_selected_support"
+    )
     return {
         "claims": claims,
         "contradictions": contradictions,
         "uncertainties": uncertainties,
-        "abstention": "none" if answered else "partial" if supported else "total",
+        "abstention": "partial" if supported else "total",
         "grounding": {
             "policy": GROUNDING_POLICY,
-            "objective_status": (
-                ClaimStatus.SUPPORTED_DOCUMENTARY_STATEMENT
-                if answered
-                else ClaimStatus.UNKNOWN
-            ),
+            "objective_status": ClaimStatus.UNKNOWN,
             "reasons": reasons,
         },
     }
@@ -182,6 +173,8 @@ async def analyze(
     selector: Selector,
     model: ModelPin,
     validate: Callable[[], None],
+    *,
+    propositions: tuple[Proposition, ...] = (),
 ) -> dict:
     """Validate the pinned inputs before inference and again before restitution."""
     if envelope.budget.window > model.max_window:
@@ -207,19 +200,12 @@ async def analyze(
         if data["purpose"] == "documentary_question"
         else None
     )
-    started = perf_counter()
     if literal is not None:
-        refs = [
-            index
-            for index, (unit, row) in enumerate(
-                zip(envelope.units, data["items"], strict=True), 1
-            )
-            if unit.kind is UnitKind.PASSAGE
-            and not row["excerpt"]
-            and unit.text == literal
-        ][:8]
-        tokens = [0, 0]
-    elif envelope.units:
+        if propositions:
+            raise InvalidSelection("Specify either an exact objective or propositions")
+        propositions = (Attribution(literal),)
+    started = perf_counter()
+    if envelope.units and not propositions:
         result = await selector.select(envelope.data_json, envelope.budget, model)
         if (
             type(result.input_tokens) is not int
@@ -235,13 +221,26 @@ async def analyze(
     generated = (perf_counter() - started) * 1000
     started = perf_counter()
     validate()
-    grounded = _restitute(data, envelope.units, refs, literal)
+    if propositions:
+        outcomes = evaluate(envelope.units, propositions)
+        refs = list(
+            dict.fromkeys(
+                ref["id"] for result in outcomes for ref in result["references"]
+            )
+        )
+    else:
+        outcomes = []
+    grounded = _restitute(data, envelope.units, refs)
+    if propositions:
+        grounded.update(_proposition_grounding(grounded, outcomes))
     return {
         "version": "consultative-analyst-v2",
         "summary": {
             "total": "Appui insuffisant pour l’objectif.",
             "partial": "Restitution limitée aux extraits et observations cités.",
-            "none": "Extraits et observations sélectionnés.",
+            "none": "Vérification des propositions à partir des éléments cités."
+            if propositions
+            else "Extraits et observations sélectionnés.",
         }[grounded["abstention"]],
         **grounded,
         "coverage": data["coverage"],
@@ -258,6 +257,41 @@ async def analyze(
             "generation": generated,
             "validation": before + (perf_counter() - started) * 1000,
         },
+    }
+
+
+def _proposition_grounding(grounded: dict, outcomes: list[dict]) -> dict:
+    solved = [
+        result
+        for result in outcomes
+        if result["status"]
+        in {PropositionStatus.SUPPORTED, PropositionStatus.CONTRADICTED}
+    ]
+    abstention = (
+        "none" if len(solved) == len(outcomes) else "partial" if solved else "total"
+    )
+    status = ClaimStatus.UNKNOWN
+    if len(outcomes) == len(solved) == 1:
+        status = (
+            ClaimStatus.VERIFIED_FACT
+            if solved[0]["support_scope"] == "archived_record_only"
+            else ClaimStatus.SUPPORTED_DOCUMENTARY_STATEMENT
+        )
+    reasons = [
+        reason
+        for reason in grounded["grounding"]["reasons"]
+        if reason not in {"question_entailment_not_verified", "no_selected_support"}
+    ]
+    if abstention != "none":
+        reasons.append("unresolved_propositions")
+    return {
+        "abstention": abstention,
+        "grounding": {
+            "policy": GROUNDING_POLICY,
+            "objective_status": status,
+            "reasons": reasons,
+        },
+        "propositions": outcomes,
     }
 
 
