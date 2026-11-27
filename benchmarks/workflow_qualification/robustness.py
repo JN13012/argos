@@ -13,7 +13,6 @@ from time import perf_counter, sleep
 from uuid import UUID
 
 from argos.backend.attack.review.context_v2 import ReviewContextV2
-from argos.backend.attack.review.llm import LLMError
 from argos.backend.attack.review.ollama import OllamaProvider
 from argos.backend.attack.review.ollama_v2 import OllamaSelector
 from argos.backend.attack.review.snapshot import mission_snapshot
@@ -40,22 +39,27 @@ from .run import timed
 class FixtureSelector:
     size = staticmethod(OllamaSelector.size)
 
-    def __init__(self, marker: Path | None):
+    def __init__(self, marker: Path | None, stage: str | None):
         self.marker = marker
+        self.stage = stage
+
+    async def _block(self, stage: str) -> None:
+        if self.marker and self.stage == stage:
+            self.marker.write_text(stage + "\n")
+            await asyncio.sleep(60)
 
     async def identify(self):
+        await self._block("identify")
         return ModelPin("fixture", "deterministic", "0" * 64, "1", 8192)
 
     async def select(self, data, budget, model):
-        if self.marker:
-            self.marker.write_text("entered selector\n")
-            await asyncio.sleep(60)
+        await self._block("inference")
         packet = json.loads(data)
         refs = [row["id"] for row in packet["items"] if row["kind"] == "observation"]
         return Selection(json.dumps({"refs": refs[:2]}), 20, 5)
 
 
-async def fixture_review(database, journal, review_id, marker=None):
+async def fixture_review(database, journal, review_id, marker=None, stage=None):
     saved = read_workflow(journal, review_id)
     return await analyze_workflow_v2(
         journal,
@@ -64,11 +68,11 @@ async def fixture_review(database, journal, review_id, marker=None):
         "Review archived observations.",
         RetrievalMode.LEXICAL,
         Budget(),
-        FixtureSelector(marker),
+        FixtureSelector(marker, stage),
     )
 
 
-def kill_during_selection(database, journal, review_id, marker):
+def kill_attempt(database, journal, review_id, marker, stage):
     child = subprocess.Popen(
         [
             sys.executable,
@@ -80,6 +84,7 @@ def kill_during_selection(database, journal, review_id, marker):
             str(journal),
             str(review_id),
             str(marker),
+            stage,
         ]
     )
     try:
@@ -120,30 +125,26 @@ def unavailable_provider(database, out, mission):
             journal = out / f"unavailable-{version}.sqlite"
             rid = UUID(create_workflow(database, journal, mission)["review_id"])
             started = perf_counter()
-            error = None
-            try:
-                if version == "v1":
-                    result = asyncio.run(
-                        analyze_workflow(database, journal, rid, provider)
+            if version == "v1":
+                result = asyncio.run(analyze_workflow(database, journal, rid, provider))
+                error = result["latest_analysis"]["analysis"]["error"]
+            else:
+                result = asyncio.run(
+                    analyze_workflow_v2(
+                        journal,
+                        rid,
+                        ReviewContextV2(database=database, mission_id=mission),
+                        "Review archived observations.",
+                        RetrievalMode.LEXICAL,
+                        Budget(),
+                        OllamaSelector(provider, DIGEST),
                     )
-                    error = result["latest_analysis"]["analysis"]["error"]
-                else:
-                    asyncio.run(
-                        analyze_workflow_v2(
-                            journal,
-                            rid,
-                            ReviewContextV2(database=database, mission_id=mission),
-                            "Review archived observations.",
-                            RetrievalMode.LEXICAL,
-                            Budget(),
-                            OllamaSelector(provider, DIGEST),
-                        )
-                    )
-            except LLMError as exc:
-                error = exc.code.value
+                )
+                error = result["latest_analysis"]["error"]
+                assert result["latest_analysis"]["stage"] == "identify"
             saved = read_workflow(journal, rid)
             assert error == "provider_unavailable" and not saved["execution_authorized"]
-            assert saved["state"] == ("failed" if version == "v1" else "created")
+            assert saved["state"] == "failed" and saved["attempt_count"] == 1
             measurements[version] = {
                 "state": saved["state"],
                 "attempts": saved["attempt_count"],
@@ -187,15 +188,17 @@ def run(frozen: Path, archive: Path, out: Path) -> None:
     measurements["journal_checkpoints"] = checkpoints
     measurements["interruption"] = []
     for index in range(fixtures["interruptions"]):
-        marker = out / f"selection-{index}.marker"
+        stage = "identify" if index == 0 else "inference"
+        marker = out / f"{stage}-{index}.marker"
         timed(
             timings,
             f"enter_and_kill_{index}",
-            kill_during_selection,
+            kill_attempt,
             database,
             journal,
             rid,
             marker,
+            stage,
         )
         orphan = read_workflow(journal, rid)
         assert orphan["state"] == "analyzing" and orphan["attempt_count"] == index + 1
@@ -212,6 +215,7 @@ def run(frozen: Path, archive: Path, out: Path) -> None:
         assert recovered["attempt_count"] == orphan["attempt_count"]
         measurements["interruption"].append(
             {
+                "stage": stage,
                 "orphan": orphan["state"],
                 "recovered": recovered["state"],
                 "attempt_count": recovered["attempt_count"],
@@ -231,10 +235,33 @@ def run(frozen: Path, archive: Path, out: Path) -> None:
     assert reloaded["latest_analysis"]["response_sha256"] == fingerprint(
         recovered["consultation"]
     )
+    after_restart = timed(
+        timings,
+        "restitution_after_restart",
+        subprocess.check_output,
+        [
+            sys.executable,
+            "-B",
+            "-m",
+            "argos",
+            "review",
+            "workflow-restitution-v2",
+            "--db",
+            str(database),
+            "--journal",
+            str(journal),
+            "--review-id",
+            str(rid),
+            "--expected-head",
+            reloaded["head_sha256"],
+        ],
+        timeout=20,
+    )
+    assert json.loads(after_restart)["consultation"] == recovered["consultation"]
     measurements["lost_restitution"] = {
         "state": reloaded["state"],
         "receipt_preserved": True,
-        "recoverable_from_journal": "consultation" in reloaded,
+        "recoverable_from_journal": True,
     }
     measurements["unavailable_provider"] = unavailable_provider(database, out, mission)
     intact = timed(timings, "snapshot", mission_snapshot, database, mission)
@@ -258,9 +285,11 @@ def run(frozen: Path, archive: Path, out: Path) -> None:
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "--child":
-        database, journal, review, marker = sys.argv[2:]
+        database, journal, review, marker, stage = sys.argv[2:]
         asyncio.run(
-            fixture_review(Path(database), Path(journal), UUID(review), Path(marker))
+            fixture_review(
+                Path(database), Path(journal), UUID(review), Path(marker), stage
+            )
         )
         return
     parser = argparse.ArgumentParser(description=__doc__)

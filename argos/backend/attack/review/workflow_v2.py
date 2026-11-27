@@ -7,6 +7,7 @@ from dataclasses import asdict
 from pathlib import Path
 from uuid import UUID
 
+from argos.backend.attack.web.receipts import WebIntegrityError
 from argos.backend.attack.web.report_files import decode_json_object
 from argos.backend.consultation.analyst import (
     GROUNDING_POLICY,
@@ -17,6 +18,10 @@ from argos.backend.consultation.analyst import (
 from argos.backend.consultation.context import Budget, fingerprint
 from argos.backend.consultation.propositions import Proposition
 from argos.backend.knowledge.contracts import KnowledgeIntegrityError
+from argos.backend.knowledge.embeddings import (
+    EmbeddingProviderError,
+    EmbeddingUnavailable,
+)
 from argos.backend.knowledge.router import RetrievalMode
 
 from .context_v2 import PreparedReview, Purpose, ReviewContextV2
@@ -25,6 +30,7 @@ from .llm import LLMError
 from .workflow import (
     MAX_RESTITUTION_BYTES,
     _append,
+    _attempt_context,
     _checked_history,
     _private_review_file,
     read_workflow,
@@ -49,84 +55,90 @@ async def analyze_workflow_v2(
     if str(context.mission_id) != saved["mission_id"] or context.database is None:
         raise PermissionError("Context is outside the supervised review mission")
     _private_review_file(context.database)
-    model = await selector.identify()
-    if budget.window > model.max_window:
-        raise InvalidSelection("Context window exceeds the installed model limit")
-    prepared = context.prepare(
-        objective,
-        Purpose.ARCHIVE,
-        mode,
-        budget,
-        selector.size,
-        expected_snapshot=saved["snapshot_sha256"],
-    )
-    envelope = prepared.envelope
     started = _append(
         journal,
         str(review_id),
         "analyzing",
         "analyzing",
-        {
-            "contract": CONTRACT,
-            "grounding_policy": GROUNDING_POLICY,
-            "propositions_sha256": (
-                fingerprint([asdict(proposition) for proposition in propositions])
-                if propositions
-                else None
-            ),
-            "configuration": {"model": asdict(model), "budget": asdict(budget)},
-            "pins": prepared.pins,
-            "units": [
-                {
-                    "kind": unit.kind,
-                    "component": unit.component,
-                    "pin": unit.pin,
-                    "text_sha256": fingerprint(unit.text),
-                }
-                for unit in envelope.units
-            ],
-            "payload_sha256": fingerprint(envelope.data_json),
-            "input_token_bound": envelope.input_bound,
-            "prompt_bytes": envelope.prompt_bytes,
-        },
+        {"contract": CONTRACT, "stage": "identify"},
         saved["review_head_sha256"],
     )
+    checkpoint = started["sha256"]
+    phase = "identify"
     reply = None
     try:
-        reply = await analyze(
-            envelope,
-            selector,
-            model,
-            lambda: context.validate(prepared.pins),
-            propositions=propositions,
+        model = await selector.identify()
+        phase = "prepare_context"
+        if budget.window > model.max_window:
+            raise InvalidSelection("Context window exceeds the installed model limit")
+        prepared = context.prepare(
+            objective,
+            Purpose.ARCHIVE,
+            mode,
+            budget,
+            selector.size,
+            expected_snapshot=saved["snapshot_sha256"],
         )
-        reply["timings_ms"].update(prepared.timings_ms)
     except (asyncio.CancelledError, KeyboardInterrupt):
-        current = read_workflow(journal, review_id)
-        if current["review_head_sha256"] == started["sha256"]:
-            _append(
-                journal,
-                str(review_id),
-                "interrupted",
-                "interrupted",
-                {"reason": "inference_interrupted"},
-                started["sha256"],
-            )
+        _record_interruption(journal, review_id, started["sha256"], checkpoint, phase)
         raise
-    except LLMError as error:
-        failure = error.code.value
-    except InvalidSelection:
-        failure = "invalid_selection"
-    except (KnowledgeIntegrityError, JournalIntegrityError, PermissionError, KeyError):
-        failure = "stale_or_inadmissible_context"
-    except (sqlite3.Error, OSError):
-        failure = "context_storage_failed"
-    except Exception:
-        failure = "unexpected_consultation_error"
+    except Exception as error:
+        failure = _failure_code(error)
+    else:
+        envelope = prepared.envelope
+        pinned = _append(
+            journal,
+            str(review_id),
+            "prepared",
+            "analyzing",
+            {
+                "contract": CONTRACT,
+                "attempt_sha256": started["sha256"],
+                "grounding_policy": GROUNDING_POLICY,
+                "propositions_sha256": (
+                    fingerprint([asdict(proposition) for proposition in propositions])
+                    if propositions
+                    else None
+                ),
+                "configuration": {"model": asdict(model), "budget": asdict(budget)},
+                "pins": prepared.pins,
+                "units": [
+                    {
+                        "kind": unit.kind,
+                        "component": unit.component,
+                        "pin": unit.pin,
+                        "text_sha256": fingerprint(unit.text),
+                    }
+                    for unit in envelope.units
+                ],
+                "payload_sha256": fingerprint(envelope.data_json),
+                "input_token_bound": envelope.input_bound,
+                "prompt_bytes": envelope.prompt_bytes,
+            },
+            checkpoint,
+        )
+        checkpoint = pinned["sha256"]
+        phase = "inference"
+        try:
+            reply = await analyze(
+                envelope,
+                selector,
+                model,
+                lambda: context.validate(prepared.pins),
+                propositions=propositions,
+            )
+            reply["timings_ms"].update(prepared.timings_ms)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            _record_interruption(
+                journal, review_id, started["sha256"], checkpoint, phase
+            )
+            raise
+        except Exception as error:
+            failure = _failure_code(error)
 
     if reply is None:
         state = "failed"
-        outcome = {"error": failure}
+        outcome = {"error": failure, "stage": phase}
     else:
         state = "ready"
         outcome = {
@@ -139,6 +151,7 @@ async def analyze_workflow_v2(
             "uncertainty_ids": [item["id"] for item in reply["uncertainties"]],
             "response_sha256": fingerprint(reply),
             "restitution_version": 1,
+            "context_sha256": checkpoint,
         }
     _append(
         journal,
@@ -150,13 +163,57 @@ async def analyze_workflow_v2(
             "attempt_sha256": started["sha256"],
             **outcome,
         },
-        started["sha256"],
+        checkpoint,
         restitution=reply,
     )
     result = read_workflow(journal, review_id)
     if reply is not None:
         result["consultation"] = reply
     return result
+
+
+def _failure_code(error: Exception) -> str:
+    if isinstance(error, LLMError):
+        return error.code.value
+    if isinstance(error, EmbeddingUnavailable):
+        return "embedding_unavailable"
+    if isinstance(error, EmbeddingProviderError):
+        return "embedding_provider_failed"
+    if isinstance(error, InvalidSelection):
+        return "invalid_selection"
+    if isinstance(
+        error,
+        (
+            KnowledgeIntegrityError,
+            JournalIntegrityError,
+            WebIntegrityError,
+            PermissionError,
+            KeyError,
+        ),
+    ):
+        return "stale_or_inadmissible_context"
+    if isinstance(error, (sqlite3.Error, OSError)):
+        return "context_storage_failed"
+    if isinstance(error, (ValueError, TypeError)):
+        return "invalid_context"
+    return "unexpected_consultation_error"
+
+
+def _record_interruption(journal, review_id, attempt, checkpoint, phase) -> None:
+    current = read_workflow(journal, review_id)
+    if current["review_head_sha256"] == checkpoint:
+        _append(
+            journal,
+            str(review_id),
+            "interrupted",
+            "interrupted",
+            {
+                "reason": "inference_interrupted",
+                "stage": phase,
+                "attempt_sha256": attempt,
+            },
+            checkpoint,
+        )
 
 
 def read_restitution(
@@ -211,20 +268,9 @@ def read_restitution(
             raise JournalIntegrityError("Invalid private restitution") from error
         if fingerprint(reply) != outcome["response_sha256"]:
             raise JournalIntegrityError("Restitution fingerprint differs")
-        attempt = next(
-            (
-                entry
-                for entry in history
-                if entry["sequence"] < event["sequence"]
-                and entry["kind"] == "analyzing"
-                and entry["sha256"] == outcome["attempt_sha256"]
-                and entry["data"].get("contract") == CONTRACT
-            ),
-            None,
-        )
+        attempt = _attempt_context(history, outcome, event["sequence"])
         if (
-            attempt is None
-            or attempt["data"]["pins"]["snapshot"] != created["snapshot"]["sha256"]
+            attempt["data"]["pins"]["snapshot"] != created["snapshot"]["sha256"]
             or reply.get("payload_sha256") != attempt["data"]["payload_sha256"]
         ):
             raise JournalIntegrityError("Restitution is outside the recorded attempt")

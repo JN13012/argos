@@ -140,7 +140,7 @@ def scoring_v2(
     result: dict, selector: RecordedSelector, router: RecordedRouter | None
 ) -> dict:
     sent = result["consultation"]
-    attempt = next(e["data"] for e in result["events"] if e["kind"] == "analyzing")
+    attempt = next(e["data"] for e in result["events"] if "pins" in e["data"])
     pins = [json.loads(row["pin"]) for row in attempt["units"]]
     available = {}
     for packet, pin in zip(selector.data["items"], pins, strict=True):

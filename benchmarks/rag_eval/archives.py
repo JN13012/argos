@@ -126,7 +126,7 @@ async def replay(args) -> None:
                     raise ValueError("Supervised V2 replay failed")
                 response = result["consultation"]
                 outputs.append(response)
-                attempt = [e for e in result["events"] if e["kind"] == "analyzing"][-1]
+                attempt = [e for e in result["events"] if "pins" in e["data"]][-1]
                 envelopes.append(attempt["data"])
             after = inventory(archive, memory)
             if before != after:

@@ -155,6 +155,16 @@ def _append(journal, rid, kind, state, data, expected=None, *, restitution=None)
                     )
                 if state != previous:
                     raise ValueError("Annotation cannot change state")
+            elif kind == "prepared":
+                if (
+                    previous != "analyzing"
+                    or state != previous
+                    or history[-1]["kind"] != "analyzing"
+                    or data["attempt_sha256"] != expected
+                ):
+                    raise ValueError(
+                        "Prepared context must belong to its active attempt"
+                    )
             elif state not in _TRANSITIONS[previous]:
                 raise ValueError("Invalid review state transition")
         event = {
@@ -231,6 +241,43 @@ def _checked_history(connection, review_id: UUID, expected_head: str | None):
     if not history:
         raise ValueError("Unknown review")
     return history, head
+
+
+def _attempt_context(history: list[dict], outcome: dict, before: int) -> dict:
+    attempt_sha = outcome["attempt_sha256"]
+    context_sha = outcome.get("context_sha256", attempt_sha)
+    attempt = next(
+        (
+            event
+            for event in history
+            if event["sequence"] < before and event["sha256"] == attempt_sha
+        ),
+        None,
+    )
+    if (
+        attempt is None
+        or attempt["kind"] != "analyzing"
+        or attempt["data"].get("contract") != outcome["contract"]
+    ):
+        raise JournalIntegrityError("Missing V2 attempt")
+    if context_sha == attempt_sha:
+        context = attempt
+    else:
+        context = next(
+            (
+                event
+                for event in history
+                if attempt["sequence"] < event["sequence"] < before
+                and event["sha256"] == context_sha
+                and event["kind"] == "prepared"
+                and event["data"].get("attempt_sha256") == attempt_sha
+                and event["data"].get("contract") == outcome["contract"]
+            ),
+            None,
+        )
+    if context is None or "pins" not in context["data"]:
+        raise JournalIntegrityError("Missing context for V2 attempt")
+    return context
 
 
 def create_workflow(
@@ -419,11 +466,10 @@ def accept_workflow(
     if latest and latest.get("contract") == "consultative-analyst-v2":
         if context_v2 is None:
             raise ValueError("V2 acceptance requires the original consultation scope")
-        attempt = next(
-            event
-            for event in saved["events"]
-            if event["sha256"] == latest["attempt_sha256"]
+        ready = next(
+            event for event in reversed(saved["events"]) if event["kind"] == "ready"
         )
+        attempt = _attempt_context(saved["events"], latest, ready["sequence"])
         if (
             context_v2.mission_id != UUID(saved["mission_id"])
             or context_v2.database is None

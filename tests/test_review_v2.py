@@ -11,6 +11,7 @@ from argos.backend.attack.review.context_v2 import (
     ReviewContextV2,
 )
 from argos.backend.attack.review.journal import JournalIntegrityError
+from argos.backend.attack.review.llm import LLMError, LLMErrorCode
 from argos.backend.attack.review.workflow import (
     _append,
     accept_workflow,
@@ -200,13 +201,9 @@ def test_supervised_v2_freezes_references_with_current_memory(captured, document
     )
     with pytest.raises(PermissionError):
         read_restitution(journal, rid, ReviewContextV2(database=db, mission_id=uuid4()))
-    assert (
-        historical["events"][1]["data"]["pins"]["memory_head"]
-        == memory.info()["head_sha256"]
-    )
-    assert (
-        historical["events"][1]["data"]["configuration"]["model"]["digest"] == "a" * 64
-    )
+    prepared = next(e["data"] for e in historical["events"] if e["kind"] == "prepared")
+    assert prepared["pins"]["memory_head"] == memory.info()["head_sha256"]
+    assert prepared["configuration"]["model"]["digest"] == "a" * 64
     decision = operator_input(saved["events"][0]["data"]["snapshot"])
     with pytest.raises(ValueError, match="scope"):
         accept_workflow(db, journal, rid, decision)
@@ -235,6 +232,9 @@ def test_interruption_refuses_late_response(archived, tmp_path):
             )
         )
     assert read_workflow(journal, rid)["state"] == "interrupted"
+    assert read_restitution(journal, rid, context) == {
+        "error": "no_completed_v2_attempt"
+    }
     with pytest.raises(ValueError):
         asyncio.run(
             analyze_workflow_v2(
@@ -247,6 +247,54 @@ def test_interruption_refuses_late_response(archived, tmp_path):
                 selector,
             )
         )
+
+
+def test_v2_provider_failures_and_explicit_retry(archived, tmp_path):
+    class Unavailable(Selector):
+        def __init__(self, phase):
+            super().__init__()
+            self.phase = phase
+
+        async def identify(self):
+            if self.phase == "identify":
+                raise LLMError(LLMErrorCode.PROVIDER_UNAVAILABLE)
+            return await super().identify()
+
+        async def select(self, data, budget, model):
+            raise LLMError(LLMErrorCode.PROVIDER_UNAVAILABLE)
+
+    db, mid, _, _ = archived
+    journal = tmp_path / "review.sqlite"
+    rid = UUID(create_workflow(db, journal, mid)["review_id"])
+    context = ReviewContextV2(database=db, mission_id=mid)
+
+    def run(selector):
+        return asyncio.run(
+            analyze_workflow_v2(
+                journal,
+                rid,
+                context,
+                "Review evidence",
+                RetrievalMode.AUTO,
+                Budget(),
+                selector,
+            )
+        )
+
+    for number, stage in enumerate(("identify", "inference"), 1):
+        result = run(Unavailable(stage))
+        assert result["state"] == "failed" and result["attempt_count"] == number
+        assert result["latest_analysis"]["stage"] == stage
+        assert result["latest_analysis"]["error"] == "provider_unavailable"
+        assert result["latest_analysis"]["attempt_sha256"] == next(
+            e["sha256"] for e in reversed(result["events"]) if e["kind"] == "analyzing"
+        )
+    result = run(Selector())
+    assert result["state"] == "ready" and result["attempt_count"] == 3
+    assert (
+        read_restitution(journal, rid, context)["consultation"]
+        == result["consultation"]
+    )
 
 
 def test_cli_inspects_local_documentary_context(documents, capsys):
