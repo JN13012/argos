@@ -46,3 +46,18 @@ même transaction SQLite que les citations. La révision reflète les
 changements de membres et la marque force la revalidation des vecteurs
 dès qu'une donnée d'intégrité change. Le stockage privé reste le seul
 support durable du moteur.
+
+## Maintenance et publications révisées
+
+SQLite v6 mémorise les périmètres de maintenance, le dernier contrôle
+des manifestes et les publications passées. Une transaction applique le
+plan validé, les retraits, les projections et les liens d’index. Le
+fournisseur de fichiers reste séparé du stockage. Une vue dense dépend
+uniquement de la génération SQLite et de ses membres courants.
+
+Le rafraîchissement vectoriel synchrone est optionnel et borné. Il évite
+de commettre une publication dont le calcul explicitement demandé a
+échoué, au prix d’un verrou d’écriture maintenu pendant le lot. La
+construction asynchrone existante reste le parcours des gros volumes.
+Les mesures et limites figurent dans le
+[bilan M3.5.7](../../product/M357_KNOWLEDGE_MAINTENANCE.md).

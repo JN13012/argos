@@ -4,17 +4,18 @@ Le Knowledge Engine fournit des connaissances documentaires locales aux
 différentes spécialisations d'Argos. Les connaissances documentaires, les
 observations mémorisées et les preuves de mission ont des identités et des
 cycles de vie distincts. Le composant se trouve sous `argos/backend/knowledge/`
-et dépend uniquement de la bibliothèque standard et du résolveur de données.
+et réutilise le résolveur de données. SQLite et NumPy portent les index,
+PyYAML lit le frontmatter borné des imports Obsidian.
 
 ## Décisions et statut
 
 | Lots | Décisions consolidées | Statut |
 | --- | --- | --- |
-| M3.5-A à C | Dix domaines extensibles et tags multidimensionnels. Collections globale, organisation, utilisateur, mission et connaissances acquises. Sources officielles prioritaires après validation, acquisition locale progressive et import Obsidian privé sur sélection explicite. | Taxonomie, catalogues locaux et frontières de stockage implémentés en M3.5.1. Priorité de recherche, Obsidian et acquisition publique conçus. |
+| M3.5-A à C | Dix domaines extensibles et tags multidimensionnels. Collections globale, organisation, utilisateur, mission et connaissances acquises. Sources officielles prioritaires après validation, acquisition locale progressive et import Obsidian privé sur sélection explicite. | Taxonomie, catalogues locaux et frontières de stockage implémentés en M3.5.1. Obsidian privé et synchronisation par fournisseur simulé qualifiés en M3.5.7. |
 | M3.5-C.1 | Données privées sous `ARGOS_DATA_HOME/knowledge/`. Ressources redistribuables validées sous `resources/`. | Résolution et stockage privé qualifiés localement. Voir le [lot stockage](M351_DATA_ARCHITECTURE.md). |
 | M3.5-D | Version par contenu et provenance, approbation explicite, base SQLite par frontière d'accès. Normalisation et index FTS5 comme projections dérivées. Index vectoriel interchangeable. | Sources, originaux et versions implémentés en M3.5.1. Normalisation et fragments qualifiés en M3.5.2, SQL exact et FTS5 en M3.5.3. Cache et recherche NumPy exacts qualifiés localement en M3.5.4. |
 | M3.5-E | NumPy exact, EmbeddingGemma 768 sous conditions Gemma et Qwen3 512 en alternative. Dense prioritaire et FTS5 en secours pour le futur pilote. Recherche exacte SQL qualifiée sur fixtures en M3.5.3. Lots de 16 à revalider, cache versionné, indexation incrémentale et préfiltrage obligatoire. RRF et reranker reportés. | Mesures de banc consolidées, moteur NumPy qualifié en M3.5.4, choix du pilote provisoires. Voir le [rapport M3.5-E](M35_RETRIEVAL_BENCHMARK.md). |
-| M3.5-F à H | Contexte consultatif versionné et borné, benchmark comparatif indépendant, maintenance avec retrait et reconstruction. | Conception ci-dessous. Les contrats de lecture bornent l'accès des futurs consommateurs aux documents publiés. |
+| M3.5-F à H | Contexte consultatif versionné et borné, benchmark comparatif indépendant, maintenance avec retrait et reconstruction. | Revue extractive et maintenance implémentées. Le pilote génératif reste non qualifié. |
 
 ## Fondations M3.5.1
 
@@ -963,26 +964,21 @@ les contrôles appariés, les budgets et la comparaison des modèles Qwen3
 4B et 8B. Les verdicts sémantiques sur questions libres restent
 expérimentaux. La seconde passe n’a pas montré de gain sur développement.
 
-## H — Maintenance conçue
+## H / M3.5.7 — Maintenance et synchronisation
 
-L'actualisation compare contenu brut, normalisation et versions de parsers,
-découpage et modèles. Recalculer les passages modifiés et publier une
-génération cohérente par collection. Une vue NumPy dérivée peut être
-reconstruite depuis les vecteurs stockés et versionnés. La rétention des
-originaux rend possible une nouvelle normalisation. Le retrait devra
-invalider passages, index et caches dans le même périmètre.
+La maintenance compare les empreintes et les métadonnées d’un manifeste
+lié à une source approuvée. Le plan lie la collection, le point de départ,
+la version épinglée et les options de retrait et de révision. SQLite v6
+conserve les entrées gérées, l’échéance de revue et le journal des lots.
+Les versions, index SQL/FTS5 et retraits sont publiés dans la même
+transaction. Les liens vectoriels retirés et les vues NumPy suivent la
+génération SQLite. Une option atomique recalcule les vecteurs modifiés
+pour un espace explicite, sinon le moteur dense attend sa reconstruction
+incrémentale et le repli lexical reste disponible.
 
-Distinguer publication par l'éditeur, import et échéance de revue. Présenter
-les sources contradictoires avec leur contexte et leur date. Une version
-plus récente peut être inapplicable à la version concernée. La purge
-physique, la sauvegarde et la conservation des citations ont leur propre
-politique.
-
-L'import Obsidian restera volontaire et privé. Traiter les transclusions,
-liens, plugins et pièces jointes comme des données inertes. Une future
-synchronisation publique fonctionnera dans une étape d'acquisition et
-d'approbation séparée. Une acquisition échouée ne remplace pas la version
-publiée.
+La sélection Obsidian exige une racine autorisée et une source privée.
+Le fournisseur public qualifié utilise des fichiers synthétiques locaux.
+Voir le [bilan et les commandes M3.5.7](M357_KNOWLEDGE_MAINTENANCE.md).
 
 ## Dépendances et choix à valider
 
