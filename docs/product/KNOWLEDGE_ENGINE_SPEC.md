@@ -980,11 +980,23 @@ La sélection Obsidian exige une racine autorisée et une source privée.
 Le fournisseur public qualifié utilise des fichiers synthétiques locaux.
 Voir le [bilan et les commandes M3.5.7](M357_KNOWLEDGE_MAINTENANCE.md).
 
+## M3.5.8 — Périmètre consolidé
+
+La configuration de référence reste Qwen3 4B pour la sélection de
+références, Qwen3-Embedding 512 pour la recherche dense et V2 extractif
+avec validation déterministe de propositions typées. SQL exact précède
+la recherche dense pour les identifiants reconnus. FTS5 prend le relais
+si le fournisseur dense est indisponible ou si l’index n’est pas prêt.
+EmbeddingGemma 768 reste une alternative sous les conditions applicables.
+Les parcours qualifiés, les résultats historiques et les limites de
+l’intégration figurent dans le [bilan M3.5.8](M358_KNOWLEDGE_CONSOLIDATION.md).
+
 ## Dépendances et choix à valider
 
 La poursuite du pilote exige des jugements indépendants de support sur
-des documents à plusieurs passages, puis une nouvelle mesure des verdicts. Les résultats M3.5-E ne
-qualifient ni les ACL multi-utilisateur, ni les mises à jour concurrentes,
-ni les pics de mémoire à la reconstruction. Les lots de 16 et le choix
-d'embeddings restent des hypothèses de pilote. Le plan d'implémentation et
-l'ordre des qualifications figurent dans la [roadmap](ROADMAP.md#m35--connaissances-et-rag).
+des documents à plusieurs passages, puis une nouvelle mesure des verdicts.
+Le partage organisationnel, les mises à jour concurrentes de plusieurs
+collections et les pointes de mémoire à la reconstruction en exploitation
+élargie restent à qualifier. Les lots de 16 et le choix d’embeddings
+restent des hypothèses de pilote. L’ordre des qualifications figure dans
+la [roadmap](ROADMAP.md#m35--connaissances-et-rag).

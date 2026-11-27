@@ -61,3 +61,10 @@ de commettre une publication dont le calcul explicitement demandé a
 construction asynchrone existante reste le parcours des gros volumes.
 Les mesures et limites figurent dans le
 [bilan M3.5.7](../../product/M357_KNOWLEDGE_MAINTENANCE.md).
+
+L’initialisation explicite applique les migrations dans une transaction
+par collection. Une version antérieure à v2 peut conserver des originaux
+approuvés sans projection normalisée. Leur recherche nécessite
+l’ingestion explicite avant construction des index. La matrice issue des
+versions historiques figure dans le
+[bilan M3.5.8](../../product/M358_KNOWLEDGE_CONSOLIDATION.md).

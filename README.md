@@ -50,7 +50,8 @@ The product target is **complete mission autonomy**: plan, execute authorized
 tools, verify observations, adapt and report without repeated approval of
 preauthorized steps. The operator defines the mandate, scope, budgets and stop
 conditions; deterministic code enforces them independently of the model.
-Core capabilities keep working without an LLM. No agent is connected today.
+Core capabilities keep working without an LLM. Local LLM integration is
+limited to supervised, consultative review.
 
 <p align="center">
   <img src="docs/presentation/slides/03.jpg" alt="Slide: the need, key figures on SME cyber readiness" width="49%">
@@ -86,6 +87,16 @@ Safety is enforced by code, not by prompts:
   see [P1 progress](docs/product/EXECUTION_P1.md).
 
 This first increment does no exploitation, credential attacks or intrusive scripts. The engine is a backend library for now: it is not yet exposed through the API or the web interface. Its [known limitations](docs/product/PENTEST_P135_HARDENING.md#security-limitations-not-production-ready) are documented, and it is not production-ready.
+
+### Local knowledge and supervised review
+
+The Knowledge Engine imports approved local documents into private SQLite
+collections. It retrieves passages through SQL, FTS5 and exact vector search.
+Supervised review combines archived observations and document citations in a
+bounded context, with extractive responses and deterministic proposition
+checks. The generative pilot remains unqualified. Archived replays showed
+no additional context from memory after deduplication.
+[Specification](docs/product/KNOWLEDGE_ENGINE_SPEC.md) · [M3.5 audit](docs/product/M358_KNOWLEDGE_CONSOLIDATION.md)
 
 ### Engineering
 

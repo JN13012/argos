@@ -48,3 +48,9 @@ par proposition. Les passages contestés et les valeurs contradictoires
 conservent leurs références. L’analyse des résultats et le coût comparé
 des options sémantiques figurent dans le
 [bilan M3.5.6.2](../../product/M3562_PROPOSITION_VALIDATION.md).
+
+La consolidation retient V2 extractif avec propositions déterministes
+pour la revue supervisée. Les questions libres peuvent recevoir des
+extraits utiles avec abstention partielle. Les résultats du pilote
+génératif et la contribution mémoire observée restent consignés dans le
+[bilan M3.5.8](../../product/M358_KNOWLEDGE_CONSOLIDATION.md).
