@@ -23,10 +23,15 @@ from argos.backend.consultation.context import Budget
 from argos.backend.knowledge import (
     Collection,
     CollectionKind,
+    DocumentRef,
     KnowledgeIntegrityError,
+    KnowledgeStore,
+    Source,
     SQLiteKnowledgeRetriever,
     Tag,
 )
+from argos.backend.knowledge.maintenance import Maintenance
+from argos.backend.knowledge.obsidian import scan
 from argos.backend.knowledge.router import RetrievalMode, RetrievalRouter
 from argos.backend.knowledge.vector_retrieval import NumPyKnowledgeRetriever
 
@@ -64,8 +69,6 @@ class Selector:
 
 @pytest.fixture
 def documents(tmp_path, monkeypatch):
-    from argos.backend.knowledge import KnowledgeStore, Source
-
     monkeypatch.setenv("ARGOS_DATA_HOME", str(tmp_path / "knowledge-data"))
     collection = Collection(CollectionKind.USER)
     store = KnowledgeStore(collection)
@@ -293,3 +296,84 @@ def test_documentary_literal_request_through_lexical_retrieval(documents):
     assert reply["abstention"] == "none"
     assert reply["claims"][0]["text"] == phrase
     assert reply["usage"]["output_tokens"] == 0
+
+
+def test_private_note_maintenance_through_extractive_review(documents, tmp_path):
+    store, collection = documents
+    store.sources.register(Source("notes", "Local", "obsidian:notes", "Private"))
+    store.sources.approve("notes")
+    maintenance = Maintenance(collection)
+    vault = tmp_path / "synthetic-vault"
+    vault.mkdir()
+    note = vault / "Guide.md"
+    phrase = "The restoration checksum must be checked."
+    original = (
+        f"---\ntitle: Recovery guide\n---\n# Recovery\n\n{phrase}\n\n![[other]]\n"
+    )
+    note.write_bytes(original.replace("\n", "\r\n").encode())
+    (vault / "other.md").write_text("Excluded linked content")
+
+    def publish():
+        capture = scan(vault, "notes", ("Guide.md",))
+        plan = maintenance.preview(capture.manifest)
+        result = maintenance.apply(capture.manifest, plan.identity, capture.fetch)
+        return capture.manifest.entries[0], result["counts"]
+
+    entry, counts = publish()
+    assert counts == {"new": 1}
+    document = DocumentRef("notes", entry.id)
+    first = store.current(document)
+    assert store.read_original(document, first.id) == note.read_bytes()
+
+    private = SQLiteKnowledgeRetriever(collection, allowed_collections={collection})
+    global_scope = Collection(CollectionKind.GLOBAL)
+    KnowledgeStore(global_scope).initialize()
+    shared = SQLiteKnowledgeRetriever(global_scope, allowed_collections={global_scope})
+    assert not shared.retrieve("checksum", limit=5)
+    assert not private.retrieve("Excluded linked content", limit=5)
+    (hit,) = private.retrieve("checksum", limit=5)
+    assert hit.reference and hit.provenance
+    assert hit.version and hit.version.metadata.origin == "obsidian:notes/Guide.md"
+    assert any(
+        citation.line_start == 6 and citation.headings == ("Recovery",)
+        for citation in hit.citations
+    )
+    with pytest.raises(PermissionError):
+        shared.resolve(hit.reference)
+    assert private.resolve(hit.reference).text == hit.text
+
+    dense = NumPyKnowledgeRetriever(
+        collection, allowed_collections={collection}, provider=DummyProvider()
+    )
+    assert dense.build_vectors().status.ready
+    assert dense.retrieve("checksum", limit=5)
+    selector = Selector()
+    context = session(collection, dense=dense)
+    prepared = context.prepare(
+        "restoration checksum",
+        Purpose.DOCUMENTARY,
+        RetrievalMode.LEXICAL,
+        Budget(),
+        selector.size,
+    )
+    reply = asyncio.run(analyze_documentary(prepared, context, selector))
+    assert reply["abstention"] == "partial" and phrase in reply["claims"][0]["text"]
+    assert reply["claims"][0]["citation"]["reference"]["version_id"] == first.id
+
+    note.write_text(original.replace(phrase, "The archive signature must be checked."))
+    assert publish()[1] == {"modified": 1}
+    assert not private.retrieve("checksum", limit=5)
+    with pytest.raises(KeyError):
+        private.resolve(hit.reference)
+    with pytest.raises(KnowledgeIntegrityError, match="no longer current"):
+        asyncio.run(analyze_documentary(prepared, context, selector))
+    refreshed = context.prepare(
+        "archive signature",
+        Purpose.DOCUMENTARY,
+        RetrievalMode.AUTO,
+        Budget(),
+        selector.size,
+    )
+    reply = asyncio.run(analyze_documentary(refreshed, context, selector))
+    assert reply["coverage"]["retrieval"][0]["fallback"] == "index_not_ready"
+    assert reply["claims"][0]["citation"]["reference"]["version_id"] != first.id
