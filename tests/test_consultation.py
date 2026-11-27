@@ -215,3 +215,31 @@ def test_propositions_do_not_erase_independently_supported_material():
     assert absent["references"] == []
     assert conflict["references"][0]["id"] == answer["contradictions"][0]["id"]
     assert selector.calls == 0
+
+
+def test_disagreeing_receipts_are_undetermined_even_if_neither_matches():
+    selector = Selector()
+    units = [
+        Unit(
+            UnitKind.OBSERVATION,
+            Component.ARCHIVE,
+            json.dumps(
+                {"state": "fact", "kind": "archived_http_response", "status": value}
+            ),
+            '{"observation":{"kind":"http_receipt","id":"a"}}',
+        )
+        for value in (503, 504)
+    ]
+    envelope = packet(selector, *units, budget=Budget())
+    reply = asyncio.run(
+        analyze(
+            envelope,
+            selector,
+            PIN,
+            lambda: None,
+            propositions=(RecordedHTTPStatus("a", 200),),
+        )
+    )
+    outcome = reply["propositions"][0]
+    assert outcome["status"] == "undetermined"
+    assert [item["id"] for item in outcome["references"]] == [1, 2]

@@ -73,7 +73,7 @@ def _literal(units: tuple[Unit, ...], text: str) -> tuple[PropositionStatus, lis
 def _http_record(
     units: tuple[Unit, ...], proposition: RecordedHTTPStatus
 ) -> tuple[PropositionStatus, list[int]]:
-    matching, opposing = [], []
+    readings: dict[int, list[int]] = {}
     for index, unit in enumerate(units, 1):
         if (
             unit.component not in {Component.ARCHIVE, Component.MEMORY}
@@ -96,14 +96,20 @@ def _http_record(
             or not 100 <= status <= 599
         ):
             continue
-        (matching if status == proposition.status else opposing).append(index)
-    if matching and opposing:
-        return PropositionStatus.UNDETERMINED, matching[:4] + opposing[:4]
-    if matching:
-        return PropositionStatus.SUPPORTED, matching[:8]
-    if opposing:
-        return PropositionStatus.CONTRADICTED, opposing[:8]
-    return PropositionStatus.INSUFFICIENT, []
+        readings.setdefault(status, []).append(index)
+    if not readings:
+        return PropositionStatus.INSUFFICIENT, []
+    if len(readings) > 1:
+        return PropositionStatus.UNDETERMINED, [refs[0] for refs in readings.values()][
+            :8
+        ]
+    status, refs = next(iter(readings.items()))
+    result = (
+        PropositionStatus.SUPPORTED
+        if status == proposition.status
+        else PropositionStatus.CONTRADICTED
+    )
+    return result, refs[:8]
 
 
 def evaluate(
