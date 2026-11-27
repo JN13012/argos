@@ -1,6 +1,6 @@
 # Argos — Architecture
 
-État des sources au 17 novembre 2026. Monolithe modulaire, package Python unique,
+État des sources revu le 27 novembre 2026. Monolithe modulaire, package Python unique,
 frontend React/TypeScript/Vite séparé pour son outillage.
 
 Priorité de réalisation : [pentest web autonome depuis le CLI](../product/WEB_PENTEST_PLAN.md).

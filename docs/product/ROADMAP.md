@@ -197,9 +197,8 @@ une certification de niveau senior ni une promesse commerciale déjà tenue.
 | M3.5.6.1 Fiabilité de l’analyse | [Exécutée localement](M3561_RAG_RELIABILITY.md), pilote génératif non accepté | Appui typé et abstention stricte. Les verdicts utiles et la précision des citations reculent sur le jeu de stress indépendant. |
 | M3.5.6.2 Appui par proposition | [Exécuté localement](M3562_PROPOSITION_VALIDATION.md), pilote génératif non qualifié | V2 déterministe résout 5 des 11 cas répondables, tous exacts. Les questions libres, la précision des citations et l’abstention restent à qualifier. |
 | M3.5.7 Maintenance documentaire | [Livrée et qualifiée localement](M357_KNOWLEDGE_MAINTENANCE.md) | Obsidian sur fixtures, lots transactionnels et synchronisation publique simulée. Fournisseurs réels reportés. |
-| M3.5.8 Consolidation | [Audit et qualification finale locaux](M358_KNOWLEDGE_CONSOLIDATION.md) intégrée dans main | Parcours extractif complet, reprise des schémas v1 à v6, non-régression V1 et contrôles de confidentialité. Le pilote génératif reste non qualifié. |
-
-| M3.5.9 Qualification intégrée | [Priorité active](M359_WORKFLOW_QUALIFICATION.md) | Comparaison A–F sur archives, intégrité, reprise sur fixtures et bilan par configuration. |
+| M3.5.8 Consolidation | Consolidation intégrée dans main, [bilan local](M358_KNOWLEDGE_CONSOLIDATION.md) | Parcours extractif complet, reprise des schémas v1 à v6, non-régression V1 et contrôles de confidentialité. Le pilote génératif reste non qualifié. |
+| M3.5.9 Qualification intégrée | Priorité active, [bilan local à valider](M359_WORKFLOW_QUALIFICATION.md) | Intégrité sur les trois archives, comparaison A–F et reprise sur fixtures. L’utilité humaine et la récupération intégrale V2 restent ouvertes. |
 
 ## Dépendances M3 et W0–W9
 

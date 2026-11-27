@@ -1,9 +1,10 @@
 # M3.5.8 — Consolidation du Knowledge Engine
 
-La branche `feat/m35-knowledge-engine` peut être intégrée par
-fast-forward après validation. La revue part de `037c203` et correspond
-à la qualification locale du moteur documentaire et de la restitution
-extractive. Le pilote génératif reste non qualifié.
+La consolidation M3.5.8 est présente sur main au SHA
+`74b3221f8120a6cd0d3365eff2a13b2a35d74280`. Le bilan historique de la
+branche part de `037c203` et porte sur le moteur documentaire et la
+restitution extractive. Le pilote génératif reste non qualifié. La suite
+figure dans le [lot M3.5.9](M359_WORKFLOW_QUALIFICATION.md).
 
 ## Responsabilités et interfaces
 
@@ -118,7 +119,7 @@ modification avec un retrait, sans embeddings. Ces mesures n’ont pas été
 refaites pour M3.5.8. Voir la [spécification](KNOWLEDGE_ENGINE_SPEC.md)
 et le [bilan de maintenance](M357_KNOWLEDGE_MAINTENANCE.md).
 
-## Risques résiduels et intégration
+## Risques résiduels et historique d’intégration
 
 - Les collections partagent le domaine de confiance de leur UID Unix. Il
   n’existe pas de transaction entre le snapshot de mission, la mémoire et
@@ -135,12 +136,12 @@ et le [bilan de maintenance](M357_KNOWLEDGE_MAINTENANCE.md).
   les appuis par des évaluateurs indépendants et conserver la mesure
   d’abstention sur les questions répondables.
 - Le `main` local et `origin/main` enregistré pointaient tous deux sur
-  `eed15b19` au début de l’audit. Après validation, vérifier à nouveau la
-  référence distante et l’ascendance, intégrer uniquement par fast-forward
-  et suivre la CI du SHA publié. Avant la première ouverture de collections
-  pré-v6 après intégration, sauvegarder puis lancer explicitement
+  `eed15b19` au début de l’audit. Les consignes de clôture demandaient une
+  intégration par fast-forward et le suivi de la CI du SHA publié. Avant
+  la première ouverture de collections pré-v6 après intégration, sauvegarder
+  puis lancer explicitement
   `python -m argos knowledge init` pour chaque collection et contrôler les
   index avec `knowledge index-verify` et, si la collection utilise des
   vecteurs, `knowledge vector-verify` pour l’espace d’embeddings utilisé.
   Une restauration vers un ancien runtime applicatif nécessite une copie
-  compatible du schéma. Aucun merge ni push n’a été effectué pour M3.5.8.
+  compatible du schéma. La campagne historique s’est terminée avant l’intégration.

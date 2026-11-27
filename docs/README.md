@@ -14,7 +14,7 @@ réelles, les travaux à réaliser et les documents historiques.
 | Comment passer du socle au pentest autonome ? | [Plan web](product/WEB_PENTEST_PLAN.md) : démarche, dépendances et qualification |
 | Quels tests web faut-il construire ? | [Catalogue de capacités](product/WEB_CAPABILITIES.md) : familles, preuves et critères de livraison |
 | Comment produire et relire le premier rapport client ? | [Export W6](product/WEB_CLIENT_REPORT.md), [guide](development/WEB_REPORT_GUIDE.md) et [exemple](development/examples/web-client-report.md) |
-| Quel lot vient d’être livré et quelle est la suite ? | [W4.3](product/WEB_INTERACTIONS.md) : requêtes structurées W4.3a et redirections navigateur W4.3b ; actions/sessions W4.3c à détailler |
+| Quelle est la dépendance des parcours de session ? | [W4.3](product/WEB_INTERACTIONS.md) : requêtes structurées W4.3a et redirections navigateur W4.3b ; actions/sessions W4.3c à détailler |
 | Comment est construit le logiciel actuel ? | [Architecture](architecture/ARCHITECTURE.md) |
 | Comment fonctionnera l’agent autonome ? | [Architecture agent cible](architecture/AGENTIC_CORE.md), conception distincte de l’implémentation |
 | Pourquoi une décision d’architecture ? | [Monolithe](architecture/adr/0001-modular-monolith.md) et [interception navigateur](architecture/adr/0002-browser-redirect-interception.md) |

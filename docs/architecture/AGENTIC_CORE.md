@@ -3,7 +3,10 @@
 **This is a target design, not proof of an implemented agent.** Consult the
 [roadmap](../product/ROADMAP.md) for delivered capabilities and the
 [current architecture](ARCHITECTURE.md) for actual module boundaries.
-The existing deterministic services are foundations for the future mission loop.
+The implemented foundation includes deterministic execution services,
+verified mission snapshots, evidence exports, local document retrieval and
+supervised consultative review. The [integrated workflow qualification](../product/M359_WORKFLOW_QUALIFICATION.md)
+covers that workflow. The subsystem table describes the larger target design.
 
 The product target is complete mission autonomy within a previously authorized
 scope: planning, action selection, execution, verification, replanning and

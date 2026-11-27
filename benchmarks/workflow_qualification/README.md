@@ -75,3 +75,33 @@ adaptateurs vers un port local réservé sans écoute. Les altérations sont
 injectées dans une copie. Les essais hôte complémentaires emploient les
 fixtures HTTP bénignes déjà présentes. Ils restent distincts du rejeu et
 des métriques de performance, et sont lancés séquentiellement.
+
+## Contrôles ciblés
+
+Activer les flags hôte uniquement pour cette sélection explicite. Utiliser
+les chemins des helpers contrôlés déjà installés selon le lot de
+[transport HTTP](../../docs/product/WEB_HTTP_TRANSPORT.md). Les suites
+régulières n’activent pas ces flags.
+
+```bash
+ARGOS_TEST_NETWORK=1 ARGOS_TEST_ISOLATION=1 .venv/bin/python -m pytest -q -rs \
+  -o faulthandler_timeout=30 \
+  tests/test_isolated_worker.py::test_private_filesystem_environment_and_network \
+  tests/test_isolated_worker.py::test_runtime_death_removes_detached_descendants \
+  tests/test_web_runtime.py::test_real_runtime_private_receipt \
+  tests/test_web_runtime.py::test_real_runtime_revocation_during_request \
+  tests/test_web_runtime.py::test_real_runtime_rollback_never_resends \
+  tests/test_web_runtime.py::test_actual_process_crash_recovers_without_resend \
+  tests/test_review_v2.py::test_withdrawal_or_revocation_after_inference_is_rejected \
+  tests/test_review_v2.py::test_documentary_abstention_obsolete_and_flagged_contradiction \
+  tests/test_review_v2.py::test_dense_fallback_and_inaccessible_mission \
+  tests/test_review_v2.py::test_interruption_refuses_late_response \
+  tests/test_review_v2.py::test_supervised_v2_revalidates_document_at_acceptance \
+  tests/test_review_memory.py::test_isolation_rejects_other_mission_and_identity \
+  tests/test_review_memory.py::test_permission_symlink_and_hardlink_guards \
+  tests/test_web_client_report.py::test_verify_report_checks_all_saved_exports_without_writing
+```
+
+Rejouer la sélection et le scénario de robustesse avec Python 3.12 et 3.14.
+Le drapeau `--development` sert aussi au contrôle de compatibilité Ollama
+sur une archive. Garder les résultats hors du jeu statistique principal.
