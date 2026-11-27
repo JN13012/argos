@@ -54,6 +54,12 @@ Le temps du banc inclut le snapshot, W6, les journaux et l’écriture privée.
 L'attente avant le démarrage du banc et la construction de l’index ont
 leurs propres périmètres.
 
+L’agrégateur relit les traces locales et contrôle le protocole gelé.
+
+```bash
+.venv/bin/python -B -m benchmarks.workflow_qualification.report   data/qualification/m359/final > data/qualification/m359/assessment.json
+```
+
 Après le gel, le scénario de robustesse réutilise le fichier figé :
 
 ```bash
