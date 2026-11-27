@@ -178,8 +178,14 @@ class _Input:
 
 
 def _missing(
-    db: sqlite3.Connection, provider: EmbeddingProvider, after: int, batch: int
+    db: sqlite3.Connection,
+    provider: EmbeddingProvider,
+    after: int,
+    batch: int,
+    version: str | None = None,
 ) -> tuple[_Input, ...]:
+    version_filter = " AND sf.version_id = ?" if version is not None else ""
+    version_params = (version,) if version is not None else ()
     rows = db.execute(
         "SELECT "
         + _INPUT_FIELDS
@@ -187,8 +193,9 @@ def _missing(
         + _JOIN
         + " WHERE sf.id > ? AND l.fragment_id IS NULL "
         + search_index.LIVE
+        + version_filter
         + " ORDER BY sf.id LIMIT ?",
-        (provider.space.identity, after, batch),
+        (provider.space.identity, after, *version_params, batch),
     )
     result = []
     total = 0
@@ -227,6 +234,69 @@ def _cache_get(
     blob = checked_payload(row[0], row[1], space.dimensions)
     check_units(np.frombuffer(blob, dtype="<f4").reshape(1, -1))
     return blob
+
+
+def _encode_batch(
+    provider: EmbeddingProvider, pending: dict[str, str]
+) -> dict[str, bytes]:
+    values = unit(
+        provider.embed(tuple(pending.values())), len(pending), provider.space.dimensions
+    )
+    return {key: row.tobytes() for key, row in zip(pending, values, strict=True)}
+
+
+def _attach(
+    db: sqlite3.Connection, space: EmbeddingSpace, item: _Input, blob: bytes | None
+) -> int:
+    inserted = 0
+    if blob is not None:
+        inserted = db.execute(
+            "INSERT INTO vector_cache VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
+            (space.identity, item.key, blob, sha256(blob).hexdigest()),
+        ).rowcount
+    if not inserted and _cache_get(db, space, item.key) is None:
+        return 0
+    return db.execute(
+        "INSERT INTO vector_link VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+        (space.identity, item.fragment_id, item.key),
+    ).rowcount
+
+
+def refresh_versions(
+    db: sqlite3.Connection, provider: EmbeddingProvider, versions: tuple[str, ...]
+) -> int:
+    """Refresh a bounded set of changed versions in the publication transaction."""
+    if not versions:
+        return 0
+    batch = provider.batch_size
+    if type(batch) is not int or not 1 <= batch <= MAX_BATCH:
+        raise ValueError("Invalid embedding batch length")
+    if (
+        sum(
+            db.execute(
+                "SELECT count(*) FROM search_fragment WHERE version_id = ?", (version,)
+            ).fetchone()[0]
+            for version in versions
+        )
+        > 1024
+    ):
+        raise ValueError("Atomic vector refresh exceeds 1024 changed fragments")
+    space = provider.space
+    _check_space(db, space, create=True)
+    attached = 0
+    for version in versions:
+        after = 0
+        while items := _missing(db, provider, after, batch, version):
+            pending = {
+                item.key: item.text
+                for item in items
+                if _cache_get(db, space, item.key) is None
+            }
+            encoded = _encode_batch(provider, pending) if pending else {}
+            for item in items:
+                attached += _attach(db, space, item, encoded.get(item.key))
+            after = items[-1].fragment_id
+    return attached
 
 
 def status(db: sqlite3.Connection, space: EmbeddingSpace) -> VectorStatus:
@@ -275,10 +345,7 @@ def build(
         new = {}
         if pending:
             authorize()
-            values = unit(
-                provider.embed(tuple(pending.values())), len(pending), space.dimensions
-            )
-            new = {key: row.tobytes() for key, row in zip(pending, values, strict=True)}
+            new = _encode_batch(provider, pending)
         embedded += len(new)
         reused += len(items) - len(new)
         authorize()
@@ -287,22 +354,7 @@ def build(
                 row = _current_input(db, item)
                 if row is None or prepared_key(provider, row)[0] != item.key:
                     continue
-                blob = new.get(item.key)
-                inserted = 0
-                if blob is not None:
-                    inserted = db.execute(
-                        "INSERT INTO vector_cache VALUES (?, ?, ?, ?) "
-                        "ON CONFLICT DO NOTHING",
-                        (space.identity, item.key, blob, sha256(blob).hexdigest()),
-                    ).rowcount
-                # Another builder may have persisted or discarded a cache entry.
-                if not inserted and _cache_get(db, space, item.key) is None:
-                    continue
-                saved = db.execute(
-                    "INSERT INTO vector_link VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
-                    (space.identity, item.fragment_id, item.key),
-                )
-                attached += saved.rowcount
+                attached += _attach(db, space, item, new.get(item.key))
         after = items[-1].fragment_id
 
 

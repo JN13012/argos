@@ -161,6 +161,9 @@ def test_v3_migration_keeps_published_lexical_rows(local):
             "AND name LIKE 'vector_generation_%'"
         ).fetchall():
             connection.execute(f"DROP TRIGGER {trigger}")
+        connection.execute("DROP TABLE maintenance_run")
+        connection.execute("DROP TABLE maintenance_item")
+        connection.execute("DROP TABLE maintenance_feed")
         connection.execute("DROP TABLE vector_generation")
         connection.execute("DROP TABLE vector_member_identity")
         for table in ("vector_link", "vector_cache", "vector_space"):
@@ -169,7 +172,7 @@ def test_v3_migration_keeps_published_lexical_rows(local):
     store.initialize()
     with db.read() as connection:
         assert status(connection, provider.space).published_fragments == 3
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 6
 
 
 def test_exact_cosine_passages_filters_and_calibration(local):

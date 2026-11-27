@@ -151,6 +151,9 @@ def test_migration_preserves_v1_and_is_atomic(local):
             "AND name LIKE 'vector_generation_%'"
         ).fetchall():
             db.execute(f"DROP TRIGGER {trigger}")
+        db.execute("DROP TABLE maintenance_run")
+        db.execute("DROP TABLE maintenance_item")
+        db.execute("DROP TABLE maintenance_feed")
         db.execute("DROP TABLE vector_generation")
         db.execute("DROP TABLE vector_member_identity")
         for table in (

@@ -187,6 +187,44 @@ def _published(
     )
 
 
+def _approve(
+    db: sqlite3.Connection, document: DocumentRef, version_id: str
+) -> DocumentVersion:
+    key = _document_params(document)
+    version = _inspect(db, document, version_id)
+    if source_record(db, document.source_id).status is not Approval.APPROVED:
+        raise KnowledgeConflictError("Source is not approved")
+    if version.status not in (Approval.PENDING, Approval.APPROVED):
+        raise KnowledgeConflictError("Version cannot be published in its current state")
+    _original(db, version.original_sha256)
+    if version.status is Approval.APPROVED:
+        return version
+    timestamp = now()
+    db.execute(
+        "UPDATE version SET superseded_at = ? "
+        "WHERE source_id = ? AND document_id = ? AND approved_at IS NOT NULL "
+        "AND superseded_at IS NULL",
+        (timestamp, *key),
+    )
+    db.execute(
+        "UPDATE version SET approved_at = ? WHERE id = ?",
+        (timestamp, version_id),
+    )
+    search_index.sync(db, document)
+    return _inspect(db, document, version_id)
+
+
+def _withdraw(db: sqlite3.Connection, document: DocumentRef) -> None:
+    affected = db.execute(
+        "UPDATE document SET withdrawn_at = COALESCE(withdrawn_at, ?) "
+        "WHERE source_id = ? AND id = ?",
+        (now(), *_document_params(document)),
+    )
+    if affected.rowcount != 1:
+        raise KeyError(document)
+    search_index.remove(db, document.source_id, document.document_id)
+
+
 class KnowledgeStore:
     """Manage one local collection. Model-facing callers use DocumentReader."""
 
@@ -337,42 +375,12 @@ class KnowledgeStore:
     def approve_version(
         self, document: DocumentRef, version_id: str
     ) -> DocumentVersion:
-        key = _document_params(document)
         with self._database.write() as db:
-            version = _inspect(db, document, version_id)
-            if source_record(db, document.source_id).status is not Approval.APPROVED:
-                raise KnowledgeConflictError("Source is not approved")
-            if version.status not in (Approval.PENDING, Approval.APPROVED):
-                raise KnowledgeConflictError(
-                    "Version cannot be published in its current state"
-                )
-            _original(db, version.original_sha256)
-            if version.status is Approval.APPROVED:
-                return version
-            timestamp = now()
-            db.execute(
-                "UPDATE version SET superseded_at = ? "
-                "WHERE source_id = ? AND document_id = ? AND approved_at IS NOT NULL "
-                "AND superseded_at IS NULL",
-                (timestamp, *key),
-            )
-            db.execute(
-                "UPDATE version SET approved_at = ? WHERE id = ?",
-                (timestamp, version_id),
-            )
-            search_index.sync(db, document)
-            return _inspect(db, document, version_id)
+            return _approve(db, document, version_id)
 
     def withdraw_document(self, document: DocumentRef) -> None:
         with self._database.write() as db:
-            affected = db.execute(
-                "UPDATE document SET withdrawn_at = COALESCE(withdrawn_at, ?) "
-                "WHERE source_id = ? AND id = ?",
-                (now(), *_document_params(document)),
-            )
-            if affected.rowcount != 1:
-                raise KeyError(document)
-            search_index.remove(db, document.source_id, document.document_id)
+            _withdraw(db, document)
 
     def current(self, document: DocumentRef) -> DocumentVersion:
         with self._database.read() as db:

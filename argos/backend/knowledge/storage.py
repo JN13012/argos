@@ -19,7 +19,7 @@ from .contracts import (
     identifier,
 )
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 APPLICATION_ID = 0x4152474B  # ARGK
 _SCHEMA_V1 = (
     """CREATE TABLE collection (
@@ -85,6 +85,29 @@ _SCHEMA_V2 = (
         chunk_set_id TEXT NOT NULL REFERENCES chunk_set(id),
         PRIMARY KEY (version_id, chunk_set_id)
     ) WITHOUT ROWID""",
+)
+
+_SCHEMA_V6 = (
+    """CREATE TABLE maintenance_feed (
+        source_id TEXT PRIMARY KEY REFERENCES source(id), binding TEXT NOT NULL,
+        manifest_sha256 TEXT NOT NULL, release TEXT NOT NULL, sequence INTEGER NOT NULL,
+        checked_at TEXT NOT NULL, review_days INTEGER NOT NULL
+    ) WITHOUT ROWID""",
+    """CREATE TABLE maintenance_item (
+        source_id TEXT NOT NULL REFERENCES maintenance_feed(source_id),
+        document_id TEXT NOT NULL, entry_sha256 TEXT NOT NULL,
+        version_id TEXT NOT NULL REFERENCES version(id),
+        state TEXT NOT NULL CHECK(state IN ('current', 'removed', 'obsolete')),
+        PRIMARY KEY (source_id, document_id),
+        FOREIGN KEY (source_id, document_id) REFERENCES document(source_id, id)
+    ) WITHOUT ROWID""",
+    """CREATE TABLE maintenance_run (
+        source_id TEXT NOT NULL REFERENCES maintenance_feed(source_id),
+        sequence INTEGER NOT NULL, release TEXT NOT NULL, manifest_sha256 TEXT NOT NULL,
+        checked_at TEXT NOT NULL, counts_json TEXT NOT NULL,
+        PRIMARY KEY (source_id, sequence)
+    ) WITHOUT ROWID""",
+    """CREATE INDEX maintenance_run_release ON maintenance_run(source_id, release)""",
 )
 
 
@@ -222,6 +245,10 @@ class CollectionDatabase:
             from .vector_generation import SCHEMA_V5
 
             for statement in SCHEMA_V5:
+                db.execute(statement)
+            version = 5
+        if version == 5:
+            for statement in _SCHEMA_V6:
                 db.execute(statement)
             db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
