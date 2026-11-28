@@ -361,3 +361,110 @@ donnent **1 466 réussites, 121 ignorés et un échec attendu** sous Python
 Les deux rejeux archivés conservent les empreintes, les 17 chemins examinés,
 les 16 omissions et le périmètre historique de W6. Ruff, formatage, Pyright
 sur le dépôt et le banc, liens locaux et `git diff --check` passent.
+
+## M4.2d — Délimitation lexicale et consolidation
+
+Base `9490819`. Le tokenizer garde ses règles d'extraction. La couche de
+lecture traite comme ambigu un délimiteur de chaîne laissé hors des tokens,
+un saut de ligne non échappé dans une chaîne simple, un commentaire de bloc
+non clos ou un flux UTF-8 invalide. Dans ces cas, le script marque
+`parser_limited` et aucune de ses références ne peut être programmée.
+La collecte garde le reçu source, sa classification et l'état partiel.
+
+Un token bien délimité qui dépasse la limite existante est ignoré avec
+`parser_limited`. Les autres tokens valides du script restent exploitables
+selon les mêmes règles qu'avant. Un reçu tronqué garde
+`response_incomplete`. Les références JavaScript retenues sur son préfixe
+restent des observations statiques et le front ne s'étend pas. Les tests
+vérifient les cas malformés avec et sans guillemet final, les commentaires
+incomplets, l'UTF-8 invalide, une continuation CRLF correctement échappée
+et un template multiligne simple.
+
+La lecture reste une analyse lexicale limitée. Elle ne valide pas la
+grammaire complète de JavaScript ni les expressions régulières et templates
+arbitraires. Une construction que le tokenizer ne sait pas délimiter peut
+réduire la couverture. Aucun seuil ni budget signé ne change.
+
+### Comparaison avant et après
+
+Le [banc lexical](../../benchmarks/recon_v2/lexical.py) relit les trois
+bundles archivés après vérification du manifeste, et cinq cas synthétiques
+identiques de part et d'autre de la correction. Chaque cellule contient
+15 mesures de temps écoulé et de CPU, avec médiane et plage dans le rapport
+privé. Le banc ne réexécute aucune mission. Il vérifie la stabilité des
+sorties entre répétitions et enregistre des empreintes plutôt que des URL.
+Les huit empreintes d'entrée concordent sous chaque Python. Aucune nouvelle
+référence vérifiable n'apparaît dans ce corpus.
+
+```bash
+umask 077
+sortie=$(mktemp -d data/qualification/m42d.XXXXXX)
+.venv/bin/python -B -m benchmarks.recon_v2.lexical \
+  --archives .argos/qualifications > "$sortie/lexical.json"
+```
+
+| Entrée | Références vérifiables avant → après | Temps écoulé médian Python 3.12 | Temps écoulé médian Python 3.14 |
+| --- | ---: | ---: | ---: |
+| Synthétique ordinaire | 1 → 1 | 0,038 → 0,032 ms | 0,063 → 0,076 ms |
+| Synthétique long, près de 2 Mio | 1 → 1, analyse limitée des deux côtés | 513,63 → 497,27 ms | 482,75 → 491,45 ms |
+| Chaîne malformée | 1 → 0 | 0,057 → 0,008 ms | 0,050 → 0,013 ms |
+| Chaîne tronquée après un appel | 1 → 0 | 0,035 → 0,023 ms | 0,026 → 0,047 ms |
+| Octet UTF-8 invalide | 1 → 0 | 0,040 → 0,003 ms | 0,022 → 0,005 ms |
+| Juice Shop, bundle principal | 25 → 25 | 196,41 → 211,26 ms | 190,97 → 200,79 ms |
+| Juice Shop, bundle vendor | 0 → 0 | 279,80 → 288,08 ms | 295,61 → 303,15 ms |
+| crAPI, bundle vendor | 0 → 0 | 174,19 → 178,45 ms | 185,85 → 180,45 ms |
+
+Les trois cas ambigus passent de `parser_limited=false` à
+`parser_limited=true`. Les trois bundles gardent respectivement 107, 5 et
+1 références totales. Les écarts de temps sont descriptifs. La médiane du
+bundle principal augmente d'environ 5 à 8 % selon l'interpréteur. Ces mesures
+ne permettent pas d'estimer un p95 ni le coût d'une mission.
+
+Les deux manifestes historiques (135 et 176 entrées) restent valides.
+La comparaison des projections hors ligne confirme les 17 chemins
+examinés, les 16 omissions, les 54 liens contextuels et l'index W6 de
+31 reçus de découverte, avec les 102 reçus d'énumération hors index.
+Le rejeu lexical conserve les deux omissions historiques liées au token
+trop long. Les rapports privés sont rangés sous
+`data/qualification/m42d.*`.
+
+### Bilan consolidé et intégration future
+
+| Lot | Résultat consolidé |
+| --- | --- |
+| M4.1 | Corpus de trois laboratoires historiques et trois fixtures bénignes, images et références indépendantes figées. |
+| M4.2a | Localisation des 16 omissions et des 54 divergences entre ledger et carte. Rejeu reproductible des preuves. |
+| M4.2b | Qualification partielle. Fixtures HTTP, worker DOM/API et contrôles d'isolation exercés. Trois échecs CLI par Python consignés. |
+| M4.2c | Trois essais CLI réussis par Python avec état partiel conservé. Arrêts de sécurité maintenus. Vue de carte avec contexte, limites W6 et mesures des lecteurs hors ligne. |
+| M4.2d | Anomalie de délimitation reproduite puis corrigée. Cas ambigu limité sans référence vérifiable. Comparaison du même corpus avant et après, preuves et baselines intactes. |
+
+Les campagnes actives sur les trois laboratoires historiques, leur état
+initial et leur remise à zéro, l'inventaire TCP actif et les mesures natives
+par adaptateur ou par paquet restent non qualifiés. Un résultat partiel
+reste partiel dans les rapports et dans la roadmap.
+
+La branche de livraison est `feat/m4-recon-v2`. Le `main` local et
+la référence distante locale `origin/main` pointent encore sur
+`32b418d38f881405a0fbaf2ed46e5e0a9711ff41` au contrôle de préparation.
+L'ascendance autorise une avance rapide sur cet état local. Après
+validation, vérifier de nouveau les références et l'arbre de travail,
+inspecter le diff de la branche et confirmer la stratégie d'intégration
+sur l'état de `main` alors observé. Si une publication est autorisée,
+vérifier ensuite la CI du SHA publié. Aucun merge ni push dans cette
+tranche. Les archives privées et rapports de mesure restent hors Git.
+
+### Validation M4.2d
+
+Les suites régulières `python -m pytest -q -o faulthandler_timeout=30`
+passent avec **1 475 réussites et 121 ignorés** sous Python 3.14.6
+(127,58 s) et 3.12.15 (121,82 s). L'échec initial 3.12 sur le test de
+reprise après crash est conservé. Le processus enfant s'est arrêté avant
+`running` et son stderr n'a pas été remonté par le test. Une tentative de
+rejeu a ensuite révélé une installation `pluggy` incomplète dans
+l'environnement sous `/tmp`. Le test isolé et la suite complète passent
+après reconstruction d'un environnement privé à partir des distributions
+locales aux versions verrouillées, sans accès réseau.
+
+Ruff, formatage, Pyright sur le dépôt et le banc, liens locaux et
+`git diff --check` passent. Les essais hôte optionnels n'ont pas été
+réexécutés dans cette tranche.

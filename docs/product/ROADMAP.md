@@ -12,9 +12,10 @@ Les documents des lots portent leurs tâches et bilans détaillés.
 M4.1 a préparé le corpus et M4.2a a reproduit le diagnostic sur archives.
 M4.2b reste une qualification partielle sur fixtures bénignes et archives.
 M4.2c a vérifié le parcours CLI SPA avec son état partiel et ajouté une vue
-de restitution de l'incertitude. La campagne active des trois laboratoires
-historiques et les coûts natifs par adaptateur restent non qualifiés.
-Le Skill Engine est reporté.
+de restitution de l'incertitude. M4.2d consolide ces résultats et traite les
+délimitations JavaScript ambiguës. L'intégration à main attend validation.
+La campagne active des trois laboratoires historiques et les coûts natifs
+par adaptateur restent non qualifiés. Le Skill Engine est reporté.
 
 Première offre : **pentest web/API autonome, boîte noire externe depuis le CLI**.
 La mission commence avec une URL ou un domaine, sans compte ni documentation.
