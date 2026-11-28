@@ -431,3 +431,51 @@ def test_static_frontier_quota_preserves_capture_and_room_for_reads(setup):
             capture = frontier.capture(UUID(source["request_id"]))
             assert capture and len(capture["references"]) == 41
             assert frontier.run(run_id)["limits"]["static_reference_limit"] == 38
+
+
+def test_long_javascript_token_is_omitted_and_signal_remains_limited():
+    capture = inspect_response(
+        "http://target/app.js", resource('const s="' + "x" * 8200 + '"; fetch("/ok");')
+    )
+    assert capture["public"]["parser_limited"]
+    assert capture["links"] == ["http://target/ok"]
+
+
+@pytest.mark.parametrize(
+    "body", [b'fetch("/truncated', b'/* fetch("/comment");', b'fetch("/broken\xff");']
+)
+def test_incomplete_tokens_do_not_become_references(body):
+    from argos.backend.attack.web.static_discovery import javascript_references
+
+    assert javascript_references("http://target/app.js", body)[0] == []
+
+
+def test_truncated_script_receipt_does_not_expand_the_frontier(setup):
+    runtime, mid, worker, _, _ = setup()
+    truncated = HTTPExchange(
+        "completed",
+        None,
+        200,
+        (("Content-Type", "application/javascript"),),
+        b'fetch("/never-added"); const rest = "',
+        False,
+    )
+    site(worker, {"/": html('<script src="/app.js"></script>'), "/app.js": truncated})
+    rid, value = result(runtime, mid)
+    assert value["status"] == "partial"
+    with WebStore(runtime.database) as store:
+        routes = Frontier(store.db).routes(rid)
+        assert any(row["reason"] == "response_incomplete" for row in routes)
+        assert not any(row["url"].endswith("/never-added") for row in routes)
+
+
+@pytest.mark.xfail(
+    strict=True, reason="Current tokenizer can recover inside a malformed string"
+)
+def test_malformed_string_cannot_attest_an_embedded_call():
+    from argos.backend.attack.web.static_discovery import javascript_references
+
+    refs, _ = javascript_references(
+        "http://target/app.js", b"const label=\"broken\nfetch('/inside');"
+    )
+    assert not any(r["verify"] for r in refs)
