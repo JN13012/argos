@@ -234,6 +234,9 @@ def inspect_response(url: str, exchange: HTTPExchange) -> dict:
     if not exchange.body_complete:
         reason, limited = "response_incomplete", True
         fingerprint = content_fingerprint = None
+        for reference in references:
+            if reference["provenance"] == "javascript":
+                reference["verify"] = False
     capture = {
         "version": 1,
         "analysis": {

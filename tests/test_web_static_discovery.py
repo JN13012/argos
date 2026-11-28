@@ -9,7 +9,10 @@ from argos.backend.attack.web.discovery import inspect_response
 from argos.backend.attack.web.exploration import Exploration
 from argos.backend.attack.web.frontier import Frontier
 from argos.backend.attack.web.receipts import canonical, digest
-from argos.backend.attack.web.static_discovery import STATIC_BYTES
+from argos.backend.attack.web.static_discovery import (
+    STATIC_BYTES,
+    javascript_references,
+)
 from argos.backend.attack.web.store import WebStore
 from argos.backend.attack.web.transport import HTTPExchange
 from argos.backend.core.config import ResultSource
@@ -352,8 +355,6 @@ def test_fetch_options_are_local_and_dynamic_methods_stay_static():
     assert refs["/read"]["verify"] and refs["/explicit"]["verify"]
     assert not refs["/write"]["verify"] and not refs["/dynamic"]["verify"]
     assert not refs["/comment"]["verify"]
-    from argos.backend.attack.web.static_discovery import javascript_references
-
     extra, _ = javascript_references(
         "http://target/app.js",
         b'fetch("/spread",{...options});fetch("/duplicate",{method:"GET",method:"POST"})',
@@ -445,9 +446,7 @@ def test_long_javascript_token_is_omitted_and_signal_remains_limited():
     "body", [b'fetch("/truncated', b'/* fetch("/comment");', b'fetch("/broken\xff");']
 )
 def test_incomplete_tokens_do_not_become_references(body):
-    from argos.backend.attack.web.static_discovery import javascript_references
-
-    assert javascript_references("http://target/app.js", body)[0] == []
+    assert javascript_references("http://target/app.js", body) == ([], True)
 
 
 def test_truncated_script_receipt_does_not_expand_the_frontier(setup):
@@ -457,7 +456,7 @@ def test_truncated_script_receipt_does_not_expand_the_frontier(setup):
         None,
         200,
         (("Content-Type", "application/javascript"),),
-        b'fetch("/never-added"); const rest = "',
+        b'fetch("/never-added");',
         False,
     )
     site(worker, {"/": html('<script src="/app.js"></script>'), "/app.js": truncated})
@@ -465,17 +464,60 @@ def test_truncated_script_receipt_does_not_expand_the_frontier(setup):
     assert value["status"] == "partial"
     with WebStore(runtime.database) as store:
         routes = Frontier(store.db).routes(rid)
-        assert any(row["reason"] == "response_incomplete" for row in routes)
+        script = next(row for row in routes if row["url"].endswith("/app.js"))
+        assert script["reason"] == "response_incomplete"
+        capture = Frontier(store.db).capture(UUID(script["request_id"]))
+        assert capture is not None and capture["public"]["parser_limited"]
+        assert capture["references"][0]["url"] == "http://target/never-added"
+        assert not capture["references"][0]["verify"]
         assert not any(row["url"].endswith("/never-added") for row in routes)
 
 
-@pytest.mark.xfail(
-    strict=True, reason="Current tokenizer can recover inside a malformed string"
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"""const label="broken\nfetch('/inside');""",
+        b"""const label="broken\nfetch('/inside');";""",
+        b"""fetch('/before'); const label="broken""",
+        b"""fetch('/before'); /*""",
+        b"""fetch('/before'); /*/""",
+        b"""fetch('/before');\xff""",
+        b"""const label=`truncated""",
+    ],
 )
-def test_malformed_string_cannot_attest_an_embedded_call():
-    from argos.backend.attack.web.static_discovery import javascript_references
+def test_malformed_script_cannot_attest_references(body):
+    assert javascript_references("http://target/app.js", body) == ([], True)
 
-    refs, _ = javascript_references(
-        "http://target/app.js", b"const label=\"broken\nfetch('/inside');"
+
+def test_escaped_crlf_and_ordinary_multiline_template_are_not_malformed():
+    refs, limited = javascript_references(
+        "http://target/app.js",
+        b'const a="line'
+        + bytes([92, 13, 10])
+        + b'break"; const b=`line\nbreak`;fetch("/ok");',
     )
-    assert not any(r["verify"] for r in refs)
+    assert not limited
+    assert [(r["url"], r["verify"]) for r in refs] == [("http://target/ok", True)]
+
+
+def test_malformed_javascript_preserves_receipt_and_marks_discovery_partial(setup):
+    runtime, mid, worker, _, _ = setup()
+    body = """const label="broken\nfetch('/inside');"""
+    site(
+        worker,
+        {"/": html('<script src="/app.js"></script>'), "/app.js": resource(body)},
+    )
+    rid, value = result(runtime, mid)
+    assert value["status"] == "partial"
+    assert value["limits"]["parser_limit"] == 1
+    with WebStore(runtime.database) as store:
+        frontier = Frontier(store.db)
+        routes = frontier.routes(rid)
+        script = next(row for row in routes if row["url"].endswith("/app.js"))
+        request_id = UUID(script["request_id"])
+        assert store.ticket(request_id)
+        assert store.evidence(request_id)
+        capture = frontier.capture(request_id)
+        assert capture is not None and capture["public"]["parser_limited"]
+        assert capture["references"] == []
+        assert not any(row["url"].endswith("/inside") for row in routes)

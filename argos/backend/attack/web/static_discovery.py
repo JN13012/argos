@@ -13,6 +13,8 @@ _TOKEN = re.compile(
     r"""(?P<string>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)""",
     re.DOTALL,
 )
+_UNMATCHED_QUOTE = re.compile("""["'`]""")
+_STRING_LINE_BREAK = re.compile(r"\\(?:\r\n|.)|(?P<unescaped>[\r\n])", re.DOTALL)
 _ESCAPE = re.compile(r"\\(?:u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[\\/\"'`])")
 _PATH = re.compile(r"/[A-Za-z0-9_.~:@!$&()*+,=/?%{}-]*\Z")
 _CALL = re.compile(
@@ -49,14 +51,34 @@ def javascript_references(url: str, body: bytes) -> tuple[list[dict], bool]:
     References are candidates, not proof of an endpoint or supported method.
     Parameters, dynamic suffixes and declared non-GET calls stay static-only.
     """
-    text = body.decode("utf-8", errors="replace")
+    try:
+        text = body.decode("utf-8")
+    except UnicodeDecodeError:
+        return [], True
     references: dict[str, dict] = {}
     limited = False
     worst = None
+    previous_end = 0
     for token in _TOKEN.finditer(text):
+        # A quote skipped by the matcher can leave the next match inside a
+        # broken string. Discard the script's references rather than resyncing.
+        if _UNMATCHED_QUOTE.search(text, previous_end, token.start()):
+            return [], True
+        previous_end = token.end()
         if token.lastgroup != "string":
+            if text.startswith("/*", token.start()) and (
+                token.end() - token.start() < 4
+                or not text.endswith("*/", token.start(), token.end())
+            ):
+                return [], True
             continue
         raw = token.group()[1:-1]
+        if (
+            text[token.start()] != "`"
+            and ("\r" in raw or "\n" in raw)
+            and any(match.lastgroup for match in _STRING_LINE_BREAK.finditer(raw))
+        ):
+            return [], True
         if len(raw) > 8192:
             limited = True
             continue
@@ -182,6 +204,8 @@ def javascript_references(url: str, body: bytes) -> tuple[list[dict], bool]:
         references[key] = reference
         if key == worst:
             worst = None
+    if _UNMATCHED_QUOTE.search(text, previous_end):
+        return [], True
     return sorted(references.values(), key=lambda r: _priority(url, r)), limited
 
 
