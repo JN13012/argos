@@ -240,7 +240,13 @@ def audit_trial(root: Path, lab: str, suffix: str, expected: set[str]) -> dict:
             collection_reference_responses=collection_responses,
             stages=stages,
         ),
-        w6=dict(coverage_export_generated=True, indexed_receipts=len(w6_ids)),
+        w6=dict(
+            coverage_export_generated=True,
+            indexed_receipts=len(w6_ids),
+            enumeration_receipts=len(enum_ids),
+            enumeration_in_index=len(enum_ids & w6_ids),
+            mission_receipts_outside_index=len(by_id.keys() - w6_ids),
+        ),
         fingerprinting=fingerprint["identifications"],
         dom=dict(navigations=nav_count, coverage=None),
         api=dict(
