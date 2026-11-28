@@ -8,8 +8,9 @@ import json
 import sqlite3
 from collections import Counter
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
-from time import perf_counter
+from time import perf_counter, process_time
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -17,6 +18,7 @@ from argos.backend.attack.recon.application_mapping import application_report
 from argos.backend.attack.recon.context_execution import context_report
 from argos.backend.attack.recon.context_plan import plan_report
 from argos.backend.attack.recon.fingerprint import fingerprint_report
+from argos.backend.attack.recon.mapping_context import application_context_report
 from argos.backend.attack.recon.network import network_report
 from argos.backend.attack.web.evidence_index import evidence_index
 from argos.backend.attack.web.exploration import summary
@@ -90,11 +92,13 @@ def audit_trial(root: Path, lab: str, suffix: str, expected: set[str]) -> dict:
     phases = trial["phases"]
     database = directory / "missions.sqlite"
     timings = {}
+    cpu_timings = {}
 
     def timed(label, reader, *args):
-        started = perf_counter()
+        started, cpu_started = perf_counter(), process_time()
         result = reader(*args)
         timings[label] = round(perf_counter() - started, 6)
+        cpu_timings[label] = round(process_time() - cpu_started, 6)
         return result
 
     def report(phase, reader):
@@ -116,6 +120,26 @@ def audit_trial(root: Path, lab: str, suffix: str, expected: set[str]) -> dict:
         )
     ):
         raise ValueError(f"Trial differs from product reports: {directory}")
+
+    combined = timed(
+        "map_with_context",
+        application_context_report,
+        database,
+        UUID(mapping["id"]),
+        UUID(enumeration["id"]),
+    )
+    context = combined.pop("contextual_observations")
+    ledger = [
+        {key: value for key, value in entry.items() if key != "map_links"}
+        for entry in context["ledger"]
+    ]
+    if combined != mapping or ledger != enumeration["ledger"]:
+        raise ValueError("Combined view changed a historical projection")
+    generic_links = [
+        dict(candidate_id=entry["candidate_id"], links=entry["map_links"])
+        for entry in context["ledger"]
+        if entry["outcome"] == "generic_response_suspected"
+    ]
 
     with closing(
         sqlite3.connect(database.resolve().as_uri() + "?mode=ro&immutable=1", uri=True)
@@ -185,7 +209,17 @@ def audit_trial(root: Path, lab: str, suffix: str, expected: set[str]) -> dict:
     seen = reference_responses(row for row in rows if row["id"] not in enum_ids)
     collection_responses = len(seen)
     stages = []
+    previous = enumeration["created_at"]
     for stage in enumeration["stages"]:
+        finished = stage.get("finished_at")
+        window = None
+        if previous and finished:
+            elapsed = (
+                datetime.fromisoformat(finished) - datetime.fromisoformat(previous)
+            ).total_seconds()
+            if elapsed >= 0:
+                window = round(elapsed, 6)
+        previous = finished
         requests = [by_id[r["request_id"]] for r in stage["requests"]]
         paths = reference_responses(requests)
         stages.append(
@@ -194,6 +228,7 @@ def audit_trial(root: Path, lab: str, suffix: str, expected: set[str]) -> dict:
                 state=stage["state"],
                 reason=stage.get("reason"),
                 duration_seconds=None,
+                elapsed_since_previous_marker_seconds=window,
                 tickets=sum(r["ticket"] for r in requests),
                 first_reference_responses=sorted(paths - seen),
             )
@@ -222,6 +257,10 @@ def audit_trial(root: Path, lab: str, suffix: str, expected: set[str]) -> dict:
             ],
         ),
         offline_reader_seconds=timings,
+        offline_reader_cpu_seconds=cpu_timings,
+        contextual_projection=dict(
+            ledger_entries=len(ledger), generic_links=generic_links
+        ),
         network=dict(
             coverage=network["coverage"],
             nmap_packet_count=trial["nmap_packet_count"],
