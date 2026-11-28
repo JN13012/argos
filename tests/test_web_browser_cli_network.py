@@ -51,8 +51,9 @@ def application(context=None, *, hold=False):
                     b"document.body.innerHTML='<a href=\"'+v.link+'\">next</a>'})"
                 )
             elif path == "/api/data":
-                entered.set()
-                if hold:
+                # Static collection also reads this route. Hold only the browser read.
+                if hold and seen.count(self.path) > 1:
+                    entered.set()
                     release.wait(15)
                 media = "application/json"
                 body = b'{"link":"/dynamic?token=private-dom"}'
@@ -123,9 +124,9 @@ def mission(tmp_path, url):
     return database, draft.id, public_file(tmp_path, verifier)
 
 
-def invoke(args):
+def invoke(args, *, exit_code=0):
     result = subprocess.run(args, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert result.returncode == exit_code, (result.stdout, result.stderr)
     return json.loads(result.stdout), result
 
 
@@ -151,18 +152,22 @@ def test_actual_cli_dynamic_page_report_and_no_replay(tmp_path, tls):
     with application(context if tls else None) as (url, seen, entered, release):
         db, mid, public = mission(tmp_path, url)
         discovery, _ = invoke(
-            run_args(db, public, "run", "--mission-id", mid, "--ca-bundle", ca)
+            run_args(db, public, "run", "--mission-id", mid, "--ca-bundle", ca),
+            exit_code=3,
         )
+        assert discovery["status"] == "partial"
+        assert discovery["reason"] == "coverage_partial"
+        assert discovery["reasons"]["non_html"] == 1
         rid = UUID(discovery["run_id"])
         assert discovery["browser"]["navigations"] == 0
-        value, process = invoke(browse_args(db, public, rid, ca))
+        value, process = invoke(browse_args(db, public, rid, ca), exit_code=3)
         assert value["browser"]["navigations"] == 2
         assert value["browser"]["api_observations"] == 1
         assert value["browser"]["observed_links"][0]["state"] == "visited"
         assert (
             seen.count("/dynamic?token=private-dom") == 2
         )  # HTTP verification then browser.
-        assert seen.count("/api/data?token=private-api") == 1
+        assert seen.count("/api/data?token=private-api") == 2
         assert all(
             s not in process.stdout + process.stderr
             for s in (
@@ -175,7 +180,7 @@ def test_actual_cli_dynamic_page_report_and_no_replay(tmp_path, tls):
         )
         with WebStore(db, readonly=True) as store:
             requests = store.db.execute("SELECT id FROM web_http_requests").fetchall()
-            assert len(requests) == len(seen) == 7
+            assert len(requests) == len(seen) == 9
             assert all(
                 store.ticket(UUID(r[0])) and store.evidence(UUID(r[0]))
                 for r in requests
@@ -191,7 +196,7 @@ def test_actual_cli_dynamic_page_report_and_no_replay(tmp_path, tls):
         assert status["browser"]["api_observations"] == 1
         assert before == db.read_bytes()
         count = len(seen)
-        invoke(browse_args(db, public, rid, ca))
+        invoke(browse_args(db, public, rid, ca), exit_code=3)
         assert len(seen) == count
 
 
@@ -200,8 +205,12 @@ def test_actual_cli_stop_and_explicit_resume_no_replay(tmp_path):
     with application(hold=True) as (url, seen, entered, release):
         db, mid, public = mission(tmp_path, url)
         discovery, _ = invoke(
-            run_args(db, public, "run", "--mission-id", mid, "--ca-bundle", ca)
+            run_args(db, public, "run", "--mission-id", mid, "--ca-bundle", ca),
+            exit_code=3,
         )
+        assert discovery["status"] == "partial"
+        assert discovery["reason"] == "coverage_partial"
+        assert discovery["reasons"]["non_html"] == 1
         rid = discovery["run_id"]
         process = subprocess.Popen(
             browse_args(db, public, rid, ca),

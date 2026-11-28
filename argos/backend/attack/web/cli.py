@@ -32,7 +32,7 @@ from .browser_redirects import WebRedirectConfig
 from .config import WebMissionConfig
 from .execution_config import WebExecutionConfig
 from .exploration import Exploration, summary
-from .frontier import Frontier
+from .frontier import DISCOVERY_SAFETY_STOPS, Frontier
 from .interaction import (
     StructuredWebRequest,
     WebInteractionConfig,
@@ -624,12 +624,7 @@ def dispatch(args: argparse.Namespace) -> int:
                 if (
                     "http.check_redirect" in config.capabilities
                     and value["status"] in ("completed", "partial")
-                    and value["reason"]
-                    not in (
-                        "isolation_unavailable",
-                        "profile_changed",
-                        "evidence_failed",
-                    )
+                    and value["reason"] not in DISCOVERY_SAFETY_STOPS
                     and not stopped.is_set()
                 ):
                     value = RedirectVerification(runtime).run(run_id)
@@ -644,12 +639,10 @@ def dispatch(args: argparse.Namespace) -> int:
             ):
                 return 1
             return 0 if value["state"] == "completed" else 3
-        if value["reason"] in (
-            "isolation_unavailable",
-            "profile_changed",
-            "evidence_failed",
-        ):
+        if value["reason"] in DISCOVERY_SAFETY_STOPS:
             return 1
+        if value["status"] == "partial" and action in {"run", "resume", "browse"}:
+            print("Partial discovery. See the report for reasons.", file=sys.stderr)
         return 0 if value["status"] == "completed" else 3
     finally:
         for signum, handler in previous.items():

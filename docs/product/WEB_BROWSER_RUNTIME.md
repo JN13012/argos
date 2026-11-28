@@ -150,6 +150,15 @@ les chemins `/opt/argos` ci-dessus sont des exemples, pas une installation
 embarquée. Les options `--slirp`, `--slirp-library` et `--ca-bundle` restent
 disponibles pour les outils et autorités provisionnés.
 
+Une collecte `partial/coverage_partial` conserve le code de sortie 3 et ses
+raisons. Une réponse JSON `non_html` peut rester un écart de la collecte
+HTML. Une invocation explicite de `browse` peut alors examiner les pages
+HTML éligibles dans le même run signé. Le rapport conserve cet écart même
+si le navigateur obtient un DOM et des échanges API. Les arrêts persistés
+`isolation_unavailable`, `profile_changed` et `evidence_failed` sont
+conservés par `browse`, même avec `--resume`, et renvoient le code 1 sans
+rejouer une requête ni lancer de navigation.
+
 Après arrêt ou récupération : reprendre explicitement avec les mêmes options
 et `browse --resume`. Cette action adopte uniquement les navigations `pending`
 jamais réservées et les routes HTTP jamais envoyées. Elle ne rejoue aucune

@@ -13,7 +13,7 @@ from .browser import BrowserWorker
 from .browser_config import WebBrowserConfig
 from .browser_runtime import BrowserNavigation
 from .contracts import WebErrorCode
-from .frontier import GAPS, Frontier
+from .frontier import DISCOVERY_SAFETY_STOPS, GAPS, Frontier
 from .navigation_evidence import NavigationEvidence
 from .navigation_store import NavigationStore
 from .policy import WebPolicyError
@@ -221,6 +221,8 @@ class BrowserDiscovery:
                 raise WebPolicyError(WebErrorCode.EFFECT_DENIED)
             if digest(json.loads(config.to_json())) != run["configuration_sha256"]:
                 raise WebIntegrityError("Browser discovery configuration differs")
+            if run["reason"] in DISCOVERY_SAFETY_STOPS:
+                return summary(store, run_id, details=True)
             values = navigations(store, run_id)
             projections(store, run_id)
             if not resume and (

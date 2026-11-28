@@ -28,6 +28,9 @@ GAPS = frozenset(
         "static_reference_limit",
     }
 )
+DISCOVERY_SAFETY_STOPS = frozenset(
+    {"isolation_unavailable", "profile_changed", "evidence_failed"}
+)
 BLOCKED = frozenset(
     {
         "authentication_required",

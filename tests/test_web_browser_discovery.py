@@ -374,3 +374,17 @@ def test_browser_installation_failure_finishes_run_without_network(
     assert value["browser"]["states"] == {"cancelled": 1}
     assert len(m.http.calls) == before and m.browser.calls == 0
     assert "private installation" not in canonical(value)
+
+
+@pytest.mark.parametrize(
+    "reason", ["isolation_unavailable", "profile_changed", "evidence_failed"]
+)
+def test_browser_does_not_replace_persisted_safety_stop(mission, reason):
+    m = mission()
+    engine = site(m)
+    with WebStore(m.runtime.database) as store:
+        Frontier(store.db).set_status(m.run_id, "partial", reason)
+    for resume in (False, True):
+        report = engine.run(m.run_id, resume=resume)
+        assert (report["status"], report["reason"]) == ("partial", reason)
+    assert m.browser.calls == 0 and not m.http.calls
