@@ -9,8 +9,9 @@ Les documents des lots portent leurs tâches et bilans détaillés.
 ## Objectif et prochaine tâche
 
 **Priorité active — [Recon V2](RECON_V2.md).**
-M4.1 prépare le corpus. M4.2a fixe le diagnostic et les critères avant
-qualification à comportement constant en M4.2b. Le Skill Engine est reporté.
+M4.1 a préparé le corpus et M4.2a a reproduit le diagnostic sur archives.
+Le protocole M4.2b attend validation avant la qualification à comportement
+constant. Le Skill Engine est reporté.
 
 Première offre : **pentest web/API autonome, boîte noire externe depuis le CLI**.
 La mission commence avec une URL ou un domaine, sans compte ni documentation.
@@ -208,5 +209,5 @@ une certification de niveau senior ni une promesse commerciale déjà tenue.
 | P0 | M3.5.9 s'appuie sur W0–W4 livrés, les exports W6, et M3.1–M3.5.8. W1.2 et W8 fournissent la discipline de mesure indépendante. W4.3c reste hors du chemin critique de cette qualification. |
 | P1 | M3.5.10 traite les ruptures de restitution et de suivi des échecs M3.5.9. Les compléments W0/P1.5 concernent les chemins effectivement mobilisés. |
 | P2 | Consolider les référentiels W1.2/W8 et la restitution W6. Les parcours authentifiés de W5.3 dépendent de W4.3c. W7 reste une cible dépendante de W5/W6 vérifiés et d'un protocole W8 gelé. |
-| P3 | Réexaminer le Skill Engine après validation de la consolidation M3.5.9 et M3.5.10 si la réutilisation de workflows consultatifs ou de restitution est démontrée. Avant un Evaluation Engine dédié, réutiliser les évaluateurs existants. |
+| P3 | Skill Engine reporté pendant Recon V2. Réexamen après qualification de la reconnaissance et si la réutilisation des workflows consultatifs ou de restitution est démontrée. Réutiliser les évaluateurs existants. |
 | P4 | Conditionner le Learning Engine à un historique comparatif, à l'évaluation indépendante et à une promotion humaine réversible. W9 dépend de W8 et de la qualification d'exploitation. |

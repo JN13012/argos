@@ -1,0 +1,59 @@
+{
+  "juice": {
+    "examined": [
+      "/",
+      "/assets/public/favicon_js.ico",
+      "/main.js",
+      "/polyfills.js",
+      "/runtime.js",
+      "/styles.css",
+      "/vendor.js"
+    ],
+    "omissions": {
+      "/api/Products": "oversized_js_token",
+      "/rest/products/search": "oversized_js_token",
+      "/robots.txt": "candidate_budget",
+      "/rest/admin/application-version": "reference_only_visibility_unknown"
+    },
+    "generic_observed_map": 27,
+    "generic_in_w6_index": 0
+  },
+  "crapi": {
+    "examined": [
+      "/",
+      "/favicon.ico",
+      "/manifest.json",
+      "/static/js/2.e7093047.chunk.js",
+      "/static/js/main.cc11fcb4.chunk.js"
+    ],
+    "omissions": {
+      "/robots.txt": "candidate_budget",
+      "/asset-manifest.json": "asset_visibility_unknown",
+      "/static/js/runtime-main.52793a9c.js": "asset_visibility_unknown",
+      "/community/home": "proxy_prefix_leaf_unverified",
+      "/identity/health_check": "proxy_prefix_leaf_unverified",
+      "/workshop/health_check/": "proxy_prefix_leaf_unverified"
+    },
+    "generic_observed_map": 27,
+    "generic_in_w6_index": 0
+  },
+  "dvwa": {
+    "examined": [
+      "/",
+      "/dvwa/css/login.css",
+      "/favicon.ico",
+      "/login.php",
+      "/robots.txt"
+    ],
+    "omissions": {
+      "/about.php": "login_boundary_visibility_unknown",
+      "/instructions.php": "login_boundary_visibility_unknown",
+      "/security.php": "login_boundary_visibility_unknown",
+      "/setup.php": "login_boundary_visibility_unknown",
+      "/dvwa/css/main.css": "asset_visibility_unknown",
+      "/dvwa/js/dvwaPage.js": "asset_visibility_unknown"
+    },
+    "generic_observed_map": 0,
+    "generic_in_w6_index": 0
+  }
+}

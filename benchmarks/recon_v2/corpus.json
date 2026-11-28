@@ -86,8 +86,8 @@
         {
           "path": "/styles.css",
           "method": "GET",
-          "installed": "unknown",
-          "exposure": "unknown",
+          "installed": "attested",
+          "exposure": "configured",
           "visibility": "unknown",
           "authentication": "unknown",
           "sources": [
@@ -110,8 +110,8 @@
         {
           "path": "/robots.txt",
           "method": "GET",
-          "installed": "unknown",
-          "exposure": "unknown",
+          "installed": "attested",
+          "exposure": "configured",
           "visibility": "unknown",
           "authentication": "unknown",
           "sources": [
@@ -122,7 +122,7 @@
         {
           "path": "/rest/products/search",
           "method": "GET",
-          "installed": "unknown",
+          "installed": "attested",
           "exposure": "configured",
           "visibility": "unknown",
           "authentication": "unknown",
@@ -147,13 +147,14 @@
           "path": "/api/Products",
           "method": "GET",
           "installed": "unknown",
-          "exposure": "configured",
+          "exposure": "unknown",
           "visibility": "unknown",
           "authentication": "unknown",
           "sources": [
             "m271/juice-reference.json",
             "m27/juice-source-reference.json"
-          ]
+          ],
+          "note": "GET is the historical sampling method. The archived excerpt attests POST only, with an authorization guard. GET installation and access remain unknown."
         }
       ],
       "absent_controls": [
@@ -415,7 +416,7 @@
         {
           "path": "/dvwa/css/login.css",
           "method": "GET",
-          "installed": "unknown",
+          "installed": "attested",
           "exposure": "unknown",
           "visibility": "unknown",
           "authentication": "unknown",
