@@ -284,3 +284,80 @@ stratégies, outils et budgets restent ceux de la base.
 - Ruff, formatage, Pyright sur le dépôt et le banc, liens locaux et
   `git diff --check` passent. Aucun scan externe, lancement de scanner
   ou changement de stratégie, d'outil ou de budget.
+
+## M4.2c — Fiabilité et restitution
+
+Base `e2493de`. L'exécution active des trois laboratoires historiques reste
+non qualifiée. Les changements portent sur le passage HTTP/navigateur dans
+le CLI et la restitution des preuves locales. La stratégie, les outils, les
+quotas, la configuration signée et les baselines historiques restent
+identiques.
+
+| Contrôle | Avant M4.2c | Après M4.2c |
+| --- | --- | --- |
+| Collecte CLI sur la fixture SPA | L'essai attendait le code 0. La collecte statique atteignait le JSON et terminait partielle avec quatre tickets, ce qui empêchait le test de poursuivre vers Chromium. | Le code 3 conserve `partial/coverage_partial` et le motif `non_html`. L'essai interprète l'état puis appelle explicitement le navigateur. Sur HTTP et TLS, deux navigations et une observation API sont restituées. Neuf tickets et neuf reçus sont vérifiés. Le rapport reste partiel. |
+| Arrêt et reprise | La fixture retenait la réponse JSON dès la collecte statique. Le scénario d'arrêt ne s'exécutait pas au bon stade. | La fixture retient maintenant la lecture du navigateur. Arrêt, refus de reprise implicite et reprise explicite sans rejeu sont vérifiés. |
+| Arrêts de sécurité | `browse` pouvait remplacer un motif d'arrêt de sécurité par `browser_discovery`. | Les trois motifs persistés sont rendus tels quels avant toute nouvelle navigation ou requête, avec ou sans `--resume`. |
+| Projection de l'incertitude | 54 cas génériques dans les ledgers M2.7.1. La carte seule expose des ressources `observed`. | `map-report --context-run-id` relie les 54 cas à la carte, à la source et au reçu exact. Les états sans lien restent dans le ledger. La carte historique demeure inchangée. |
+| Périmètre W6 | 31 reçus de découverte et zéro des 102 reçus d'énumération. | Mêmes dénominateurs. Les preuves de la vue contexte/carte restent dans une restitution explicite avec leurs liens. |
+| Lexique JavaScript | Deux omissions liées au token long du bundle historique. | Les omissions historiques restent reproductibles. Les tests synthétiques vérifient limite de token, commentaire ou chaîne incomplets, octet UTF-8 invalide et absence d'expansion du front sur un reçu tronqué. Une chaîne malformée peut encore produire une référence vérifiable. Ce cas connu fait l'objet d'un `xfail(strict=True)`. |
+
+Les trois essais CLI passent sous chaque Python (81,69 s en 3.14 et
+72,28 s en 3.12). Le journal 3.14 conserve une trace de diagnostic
+`faulthandler` à 30 s pendant le test hôte, lequel finit avec succès.
+L'enveloppe signée n'a pas été relevée. L'explication du statut partiel est
+émise sur stderr et le JSON conserve son contrat. Le passage au navigateur
+reste une action explicite. Voir le
+[contrat navigateur](WEB_BROWSER_RUNTIME.md) et l'[index W6](WEB_CLIENT_REPORT.md).
+
+La vue contextuelle vérifie les deux rapports et exige une même mission et
+un ledger terminal. L'association à un nœud requiert le même identifiant
+de reçu, la même empreinte et une source portée par le nœud. Les cartes
+existantes sont vérifiées selon leur projection d'origine. Le nouveau champ
+de restitution reste optionnel. Le rejeu des 135 et 176 fichiers des
+baselines produit les mêmes composantes sémantiques qu'en M4.2b, avec les
+54 liens supplémentaires dans la vue contextuelle.
+
+### Coûts observables
+
+Le banc relève le temps écoulé et le temps CPU de chaque lecteur hors ligne,
+y compris Network, Context, plan, Fingerprint, carte, reçus et exports W6.
+La vue combinée prend 1,299–1,308 s pour Juice Shop, 0,526–0,531 s pour
+crAPI et 0,376–0,393 s pour DVWA sur les deux rejeux locaux. Ce temps inclut
+les deux vérifications. Il ne mesure pas le seul coût du rapprochement.
+
+Pour les étapes natives, les archives fournissent des marqueurs de fin
+mais pas les heures de début de chaque adaptateur. Le banc expose les
+intervalles entre marqueurs en tant que tels. Exemple M2.7.1 sur Juice
+Shop : 112,855 s de la création du run à la fin de la première étape puis
+7,563 s jusqu'à la fin de la suivante. Ces intervalles peuvent contenir
+l'attente et les coûts du runtime. La durée native et le coût CPU/RAM par
+adaptateur pendant une mission restent non mesurés.
+
+### Limites et recommandations
+
+- Maintenir l'état `partial` et ses raisons dans les intégrations qui
+  enchaînent explicitement collecte et navigateur. Le retour 3 exige une
+  interprétation du rapport. Les arrêts de sécurité conservent leur
+  terminalité et le budget reste celui du mandat.
+- Étudier séparément un traitement prudent des chaînes malformées et du
+  signal `parser_limited`. Les tests ajoutés reproduisent le défaut sans
+  changer la sélection des références.
+- Conserver la séparation entre les preuves W6 et celles de l'énumération.
+  Étendre un rendu uniquement avec des liens d'intégrité explicites.
+- Les essais actifs sur les laboratoires historiques, leur reset et leur
+  nettoyage, l'inventaire TCP actif, le coût des adaptateurs et le trafic
+  physique restent hors de la qualification de cette tranche.
+
+Les résultats détaillés et journaux sont privés sous
+`data/qualification/m42c.*`.
+
+### Validation M4.2c
+
+Les suites régulières `python -m pytest -q -o faulthandler_timeout=30`
+donnent **1 466 réussites, 121 ignorés et un échec attendu** sous Python
+3.12.15 et 3.14.6 (125,14 s et 128,76 s). La sélection hôte
+`tests/test_web_browser_cli_network.py` donne trois réussites par Python.
+Les deux rejeux archivés conservent les empreintes, les 17 chemins examinés,
+les 16 omissions et le périmètre historique de W6. Ruff, formatage, Pyright
+sur le dépôt et le banc, liens locaux et `git diff --check` passent.
