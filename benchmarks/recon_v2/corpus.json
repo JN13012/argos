@@ -1,0 +1,593 @@
+{
+  "schema": 1,
+  "archives": {
+    "m27": "fb690c61ff47cf2bb132beddcbe7ac3c669e6d2d02a3daa4238816d16199cd3e",
+    "m271": "2a24a418a1cfddefaa86a83dd670139d2ca689e7e6a7a066fc4fadc0a4a5237d"
+  },
+  "historical_compose_sha256": "05596bb975a6fe279ba37a21ef80ca818dadbea185423d945c31c8b16655836f",
+  "images": {
+    "crapi-identity": "crapi/crapi-identity@sha256:88e651696bc1f3874573a1bbdbaaadafbeab2c46063e3a82e9031445b03dda78",
+    "crapi-community": "crapi/crapi-community@sha256:28e2c772a212baba15255e20ca35864d9515950139b4c05c209e3c9d2d0f2f14",
+    "crapi-workshop": "crapi/crapi-workshop@sha256:5ea8c29cd385cf126e2708f0a0ab045bd51af7a75b46cfc9bde1989f9195883f",
+    "crapi-web": "crapi/crapi-web@sha256:46f532e8c403c99beb914f5b5b8c070f6364f2713d4fec570dc6b74db0b69575",
+    "postgresdb": "postgres@sha256:c0e9c0e9bac7e4c1834b698217a03ee5c708de30d313c84a506972de0e24b059",
+    "mongodb": "mongo@sha256:4be76f674fc4b27859816811b8baa3c51830eb1dbf4ca81a51e26b79edd662ef",
+    "mailhog": "crapi/mailhog@sha256:015c23f79d40c9dc1800cd0a458503b89aeda3b585a12c37d53829d6c7d61fdd",
+    "juice": "bkimminich/juice-shop@sha256:2765a26de7647609099a338d5b7f61085d95903c8703bb70f03fcc4b12f0818d",
+    "dvwa": "ghcr.io/digininja/dvwa@sha256:61167ec23fbf861f7d96a7beb4be3612d043d48dbc6b239d4f90d7e8cdff8115",
+    "dvwa-db": "mariadb@sha256:e5fe75b2b9de0eb9f6f9a4d9c97272fb3a7480e389ccd487a786bab2a12cc0d7",
+    "relay-juice": "python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b",
+    "relay-crapi-web": "python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b",
+    "relay-dvwa": "python@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b"
+  },
+  "historical": {
+    "juice": {
+      "resources": [
+        {
+          "path": "/",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "configured",
+          "visibility": "entry",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/runtime.js",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/polyfills.js",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/vendor.js",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/main.js",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/styles.css",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/assets/public/favicon_js.ico",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/robots.txt",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/rest/products/search",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/rest/admin/application-version",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        },
+        {
+          "path": "/api/Products",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/juice-reference.json",
+            "m27/juice-source-reference.json"
+          ]
+        }
+      ],
+      "absent_controls": [
+        "/openapi.json",
+        "/swagger.json",
+        "/sitemap.xml",
+        "/index.php"
+      ]
+    },
+    "crapi": {
+      "resources": [
+        {
+          "path": "/",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "configured",
+          "visibility": "entry",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-asset-reference.json"
+          ]
+        },
+        {
+          "path": "/favicon.ico",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-asset-reference.json"
+          ]
+        },
+        {
+          "path": "/robots.txt",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-asset-reference.json"
+          ]
+        },
+        {
+          "path": "/manifest.json",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-asset-reference.json"
+          ]
+        },
+        {
+          "path": "/asset-manifest.json",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-asset-reference.json"
+          ]
+        },
+        {
+          "path": "/static/js/runtime-main.52793a9c.js",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-asset-reference.json"
+          ]
+        },
+        {
+          "path": "/static/js/main.cc11fcb4.chunk.js",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-asset-reference.json"
+          ]
+        },
+        {
+          "path": "/static/js/2.e7093047.chunk.js",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "configured",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-asset-reference.json"
+          ]
+        },
+        {
+          "path": "/identity/health_check",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "prefix_only",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-routing-reference.conf"
+          ]
+        },
+        {
+          "path": "/community/home",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "prefix_only",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-routing-reference.conf"
+          ]
+        },
+        {
+          "path": "/workshop/health_check/",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "prefix_only",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/crapi-reference.json",
+            "m27/crapi-routing-reference.conf"
+          ]
+        }
+      ],
+      "absent_controls": [
+        "/openapi.json",
+        "/swagger.json",
+        "/sitemap.xml",
+        "/.well-known/security.txt",
+        "/index.php"
+      ]
+    },
+    "dvwa": {
+      "resources": [
+        {
+          "path": "/",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "configured",
+          "visibility": "entry",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json",
+            "m27/dvwa-source-reference.txt"
+          ]
+        },
+        {
+          "path": "/login.php",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json",
+            "m27/dvwa-source-reference.txt"
+          ]
+        },
+        {
+          "path": "/setup.php",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json"
+          ]
+        },
+        {
+          "path": "/instructions.php",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json"
+          ]
+        },
+        {
+          "path": "/about.php",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json"
+          ]
+        },
+        {
+          "path": "/security.php",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json"
+          ]
+        },
+        {
+          "path": "/robots.txt",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json",
+            "m27/dvwa-source-reference.txt"
+          ]
+        },
+        {
+          "path": "/favicon.ico",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json",
+            "m27/dvwa-source-reference.txt"
+          ]
+        },
+        {
+          "path": "/dvwa/css/main.css",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json",
+            "m27/dvwa-source-reference.txt"
+          ]
+        },
+        {
+          "path": "/dvwa/css/login.css",
+          "method": "GET",
+          "installed": "unknown",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json",
+            "m27/dvwa-source-reference.txt"
+          ]
+        },
+        {
+          "path": "/dvwa/js/dvwaPage.js",
+          "method": "GET",
+          "installed": "attested",
+          "exposure": "unknown",
+          "visibility": "unknown",
+          "authentication": "unknown",
+          "sources": [
+            "m271/dvwa-reference.json",
+            "m27/dvwa-source-reference.txt"
+          ]
+        }
+      ],
+      "absent_controls": [
+        "/openapi.json",
+        "/swagger.json",
+        "/manifest.json",
+        "/site.webmanifest",
+        "/api",
+        "/api/v1"
+      ]
+    }
+  },
+  "fixtures": {
+    "portal": [
+      {
+        "path": "/",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "entry",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/guide/",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "html",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/guide/intro",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "html",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/members",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "explicit",
+        "authentication": "required",
+        "status": 401
+      },
+      {
+        "path": "/absent",
+        "method": "GET",
+        "installed": "absent",
+        "exposure": "absent",
+        "visibility": "negative",
+        "authentication": "not_required",
+        "status": 404
+      }
+    ],
+    "spa": [
+      {
+        "path": "/",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "entry",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/app.js",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "html",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/api/cards",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "browser_request",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/cards/blue",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "dom",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/absent",
+        "method": "GET",
+        "installed": "absent",
+        "exposure": "absent",
+        "visibility": "negative",
+        "authentication": "not_required",
+        "status": 200
+      }
+    ],
+    "api": [
+      {
+        "path": "/",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "entry",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/openapi.json",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "html",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/v1/books",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "openapi",
+        "authentication": "not_required",
+        "status": 200
+      },
+      {
+        "path": "/v1/profile",
+        "method": "GET",
+        "installed": "attested",
+        "exposure": "configured",
+        "visibility": "explicit",
+        "authentication": "required",
+        "status": 401
+      },
+      {
+        "path": "/absent",
+        "method": "GET",
+        "installed": "absent",
+        "exposure": "absent",
+        "visibility": "negative",
+        "authentication": "not_required",
+        "status": 404
+      }
+    ]
+  }
+}

@@ -8,10 +8,9 @@ Les documents des lots portent leurs tâches et bilans détaillés.
 
 ## Objectif et prochaine tâche
 
-**Priorité active — [M3.5.10, fiabilité du workflow intégré](M3510_WORKFLOW_RELIABILITY.md).**
-Consolider la qualification [M3.5.9](M359_WORKFLOW_QUALIFICATION.md) avec
-la récupération V2, le suivi des échecs et le diagnostic de sélection.
-Le Skill Engine reste en attente de validation de ces travaux.
+**Priorité active — [Recon V2](RECON_V2.md).**
+M4.1 prépare le corpus. M4.2a fixe le diagnostic et les critères avant
+qualification à comportement constant en M4.2b. Le Skill Engine est reporté.
 
 Première offre : **pentest web/API autonome, boîte noire externe depuis le CLI**.
 La mission commence avec une URL ou un domaine, sans compte ni documentation.
@@ -200,7 +199,7 @@ une certification de niveau senior ni une promesse commerciale déjà tenue.
 | M3.5.7 Maintenance documentaire | [Livrée et qualifiée localement](M357_KNOWLEDGE_MAINTENANCE.md) | Obsidian sur fixtures, lots transactionnels et synchronisation publique simulée. Fournisseurs réels reportés. |
 | M3.5.8 Consolidation | Consolidation intégrée dans main, [bilan local](M358_KNOWLEDGE_CONSOLIDATION.md) | Parcours extractif complet, reprise des schémas v1 à v6, non-régression V1 et contrôles de confidentialité. Le pilote génératif reste non qualifié. |
 | M3.5.9 Qualification intégrée | [Bilan local](M359_WORKFLOW_QUALIFICATION.md) | Intégrité et comparaison A–F sur trois archives, reprise sur fixtures et anomalies de restitution. |
-| M3.5.10 Fiabilité intégrée | Priorité active, [bilan local à valider](M3510_WORKFLOW_RELIABILITY.md) | Persistance privée V2, cycle de tentative, comparaison avant/après et diagnostic de sélection. |
+| M3.5.10 Fiabilité intégrée | Clôture technique sur main, [bilan local](M3510_WORKFLOW_RELIABILITY.md). Utilité consultative encore ouverte | Persistance privée V2, cycle de tentative, comparaison avant/après et diagnostic de sélection. |
 
 ## Dépendances M3 et W0–W9
 

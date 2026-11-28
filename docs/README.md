@@ -39,6 +39,7 @@ universelle sur des applications client.
 | HTTP | [Spécification W1.3](product/WEB_HTTP_EXECUTION.md), [politique W2.1](product/WEB_HTTP_POLICY.md), [transport W2.2](product/WEB_HTTP_TRANSPORT.md), [runtime W2.3](product/WEB_HTTP_RUNTIME.md) |
 | Découverte et premier test | [CLI W3.1](product/WEB_CLI_DISCOVERY.md), [redirection/recontrôle W3.2](product/WEB_OPEN_REDIRECT.md) |
 | Qualification de la reconnaissance | [M2.7 multi-laboratoires](product/RECON_QUALIFICATION.md) et [consolidation M2.7.1](product/RECON_CONSOLIDATION.md) : comparaison de missions complètes, résultats et limites avant M3 |
+| Recon V2 | [Corpus et qualification M4](product/RECON_V2.md) |
 | Revue de mission M3.1 | [Fondations, contexte et journal opérateur](product/M31_FOUNDATIONS.md) et [audit préalable](product/DECISION_ENGINE_AUDIT.md) |
 | Fiabilité intégrée M3.5.10 | [Restitution V2, reprises et bilan](product/M3510_WORKFLOW_RELIABILITY.md) |
 | Qualification intégrée M3.5.9 | [Audit stratégique, protocole et bilan](product/M359_WORKFLOW_QUALIFICATION.md) |
