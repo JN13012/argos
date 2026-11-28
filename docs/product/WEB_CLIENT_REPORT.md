@@ -199,6 +199,24 @@ La suite régulière `python -m pytest -q -o faulthandler_timeout=30` passe avec
 975 réussites sur Python 3.12 et 3.14. Les 86 essais hôte n’ont pas été activés.
 Ruff, le formatage Ruff et Pyright passent.
 
+La portée est celle du run de découverte : routes HTTP, navigations et
+contrôles de redirection qui y sont rattachés. L'index n'est pas l'inventaire
+des transactions de la mission. Les reçus d'énumération contextuelle qui
+n'ont aucun de ces rattachements restent hors de l'index. Pour rapprocher leurs
+observations de la carte, utiliser la vue en lecture seule :
+
+```bash
+python -m argos recon map-report --run-id UUID_CARTE --context-run-id UUID_CONTEXTE
+```
+
+La vue exige deux exécutions vérifiables de la même mission. Elle restitue
+l'état et la raison de chaque candidat, avec les reçus que lui attribue le
+ledger. Un lien vers la carte exige un reçu identique et un nœud portant sa
+preuve. Les candidats sans lien restent visibles. Un état cartographique
+`observed` atteste un échange, et la classification
+`generic_response_suspected` reste attachée à cet échange. Les cartes
+historiques et le format d'index W6 restent stables.
+
 ## Consulter un reçu
 
 L’index donne le `request_id` et l’empreinte nécessaires pour retrouver un

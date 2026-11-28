@@ -28,6 +28,7 @@ from .application_mapping import (
 from .context_execution import context_report, recover_context, run_context
 from .context_plan import create_plan, plan_report
 from .fingerprint import fingerprint, fingerprint_report
+from .mapping_context import application_context_report
 from .network import network_report, run_network
 from .pipeline import run_pipeline
 from .store import ReconStore
@@ -92,6 +93,12 @@ def add_parser(commands):
         item.add_argument("--db", help=DB_HELP)
         if name in {"map-report", "map-query"}:
             item.add_argument("--run-id", type=UUID, required=True)
+            if name == "map-report":
+                item.add_argument(
+                    "--context-run-id",
+                    type=UUID,
+                    help="Include a verified contextual ledger",
+                )
             if name == "map-query":
                 item.add_argument("--kind")
                 item.add_argument(
@@ -302,7 +309,12 @@ def dispatch(args):
         )
         return 0
     if action == "map-report":
-        emit(application_report(path, args.run_id), True)
+        value = (
+            application_context_report(path, args.run_id, args.context_run_id)
+            if args.context_run_id
+            else application_report(path, args.run_id)
+        )
+        emit(value, True)
         return 0
     if action == "map-query":
         emit(

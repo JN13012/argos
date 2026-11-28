@@ -389,3 +389,55 @@ def test_saved_selection_does_not_change_when_new_receipts_arrive(setup, monkeyp
     assert current["http_selection_limited"]
     assert "http_observation_limit" in current["limitations"]
     assert application_report(runtime.database, UUID(current["id"])) == current
+
+
+def test_context_view_links_uncertain_receipt_without_rewriting_graph(setup):
+    from argos.backend.attack.recon.mapping_context import application_context_report
+
+    r, mid, _ = collect_responses(setup, [("/shell", "text/html", b"<main/>", (), 200)])
+    value = map_application(r.database, mid)
+    source = next(s for s in value["sources"] if s["kind"] == "http")
+    entry = {
+        "state": "examined",
+        "outcome": "generic_response_suspected",
+        "evidence": [{"id": source["id"], "sha256": source["sha256"]}],
+    }
+    ctx = {
+        "id": source["id"],
+        "mission_id": str(mid),
+        "status": "partial",
+        "reason": "coverage_partial",
+        "ledger": [
+            entry,
+            {"state": "not_examined", "outcome": "unknown", "evidence": []},
+        ],
+    }
+    before = r.database.read_bytes()
+    with patch(
+        "argos.backend.attack.recon.mapping_context.context_report", return_value=ctx
+    ):
+        view = application_context_report(
+            r.database, UUID(value["id"]), UUID(ctx["id"])
+        )
+        projected = view.pop("contextual_observations")
+        assert view == value
+        assert projected["status"] == "partial"
+        assert projected["ledger"][0] == dict(
+            entry,
+            map_links=[
+                dict(
+                    node_id=node(value, "resource", "http://target/shell")["id"],
+                    source_id=source["source_id"],
+                    request_id=source["id"],
+                )
+            ],
+        )
+        assert projected["ledger"][1]["map_links"] == []
+        assert projected["ledger"][1]["outcome"] == "unknown"
+        entry["evidence"][0]["sha256"] = "0" * 64
+        with pytest.raises(WebIntegrityError, match="differs from map source"):
+            application_context_report(r.database, UUID(value["id"]), UUID(ctx["id"]))
+        ctx["mission_id"] = "other"
+        with pytest.raises(ValueError, match="same mission"):
+            application_context_report(r.database, UUID(value["id"]), UUID(ctx["id"]))
+    assert r.database.read_bytes() == before
