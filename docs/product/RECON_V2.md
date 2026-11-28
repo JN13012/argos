@@ -139,3 +139,148 @@ est interrompue après un blocage AnyIO. La relance hôte conserve les essais
 optionnels réseau, navigateur et isolation désactivés. La qualification de
 ces chemins, le reset des laboratoires et la mesure des durées propres aux
 adaptateurs pendant une mission restent à faire en M4.2b.
+
+## M4.2b — Qualification partielle
+
+Base `0d8d0bb`. Le [banc](../../benchmarks/recon_v2/qualify_baseline.py)
+vérifie l'empreinte SHA-256 du catalogue
+`f4e73d282a321671a842fc175cf70cdc9281d5448443e3968a03f20c97d66a5f`.
+Les dénominateurs restent 11 chemins historiques par application, et cinq
+contrats HTTP par fixture. Un 401 ou un shell générique HTTP 200 représente
+une réponse de référence. Le refus et la nature générique restent visibles
+dans la notation. Le banc exécute des requêtes fixes sur ses propres serveurs
+WSGI, bornés à la boucle locale. Son mode archives ne fait aucun trafic.
+
+```bash
+umask 077
+sortie=$(mktemp -d data/qualification/m42b.XXXXXX)
+.venv/bin/python -B -m benchmarks.recon_v2.qualify_baseline > "$sortie/fixtures.json"
+.venv/bin/python -B -m benchmarks.recon_v2.qualify_baseline \
+  --archives .argos/qualifications > "$sortie/archives.json"
+```
+
+| Environnement | HTTP | DOM et API | Réseau et cycle de vie |
+| --- | --- | --- | --- |
+| Juice Shop | 7/11 sur archives | DOM et API non mesurés | Archives et métadonnées Docker vérifiées. Campagne active non exécutée. |
+| crAPI | 5/11 sur archives | DOM et API non mesurés | Archives et métadonnées Docker vérifiées. Campagne active non exécutée. |
+| DVWA | 5/11 sur archives | DOM et API non mesurés | Archives et métadonnées Docker vérifiées. Campagne active non exécutée. |
+| Portail WSGI | 5/5 par répétition | Défi d'authentification HTTP simulé, sans session | Boucle locale et fermeture du listener vérifiées sur trois répétitions par Python. |
+| SPA WSGI | 5/5 par répétition. Le témoin absent retourne le même shell 200 que la racine. | Réponse JSON et route liées au contrat HTTP. Rendu contrôlé dans les essais Chromium séparés. | Même contrôle de cycle de vie que le portail. |
+| API WSGI | 5/5 par répétition | GET `/v1/books` déclaré dans OpenAPI et observé par HTTP. Défi d'authentification du profil observé séparément. | Même contrôle de cycle de vie que le portail. |
+
+Les trois fixtures sont sans état. Chaque répétition ouvre un listener neuf
+et vérifie les statuts et empreintes de corps, identiques sur les trois essais.
+Les neuf listeners ferment sous chaque Python. Cela vérifie la boucle locale
+et le nettoyage du banc. Les essais d'isolation du worker couvrent séparément
+la protection du fichier hôte, du réseau de l'hôte et la fin des descendants.
+Le moteur d'inventaire TCP et la mesure du trafic physique restent non qualifiés.
+
+Docker expose les 11 digests amd64 pour les 13 services historiques.
+L'inspection du projet historique trouve 13 conteneurs arrêtés, zéro liaison de
+port publiée par Docker et trois réseaux marqués internes. Les états initiaux,
+la santé, le trafic, le reset et le nettoyage d'une nouvelle campagne dans les
+trois piles historiques restent non mesurés.
+
+### Coût des archives et portée de W6
+
+| Application | Temps total M2.7 → M2.7.1 | Énumération | Tickets HTTP | CPU enfants | Pic RSS par processus enfant |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Juice Shop | 55,37 → 163,65 s | 7,15 → 121,10 s | 28 → 58 | 0,510 → 1,082 s | 70 484 → 70 536 Kio |
+| crAPI | 25,95 → 79,36 s | 7,67 → 38,73 s | 11 → 38 | 0,171 → 0,556 s | 66 052 → 67 032 Kio |
+| DVWA | 53,71 → 57,38 s | 35,74 → 38,73 s | 37 → 37 | 0,498 → 0,521 s | 57 852 → 56 956 Kio |
+
+Au total, 76 → 133 tickets pour les mêmes 17 chemins du référentiel examinés.
+Le temps passe de 135,03 à 300,39 s. L'énumération représente 147,98 s des
+165,36 s supplémentaires. Juice Shop et crAPI passent d'une énumération
+partielle à une exécution complète du plan. crAPI ajoute aussi 10,32 s
+de réseau et 7,36 s de collecte. DVWA conserve le même nombre de tickets
+et présente un écart de 2,98 s sur l'énumération. Ces différences localisent
+le coût par phase. Les traces historiques ne permettent pas de l'attribuer
+à un adaptateur, à une modification ou à la charge hôte de manière causale.
+Le pic par processus enfant n'est pas la RAM cumulée de la mission.
+
+Sur la qualification WSGI, la médiane de cinq requêtes par répétition est
+comprise entre 6,75 et 8,96 ms selon la cellule Python/application. La plage
+observée est 6,22–17,29 ms. Le CPU par répétition est de 8,13–22,25 ms, dont
+démarrage et arrêt du serveur dans le même processus. Le pic RSS du processus
+est de 30 708–37 088 Kio, cumulatif au cours du processus. Mesures
+descriptives avec charge concurrente de validation. Ces observations
+n'établissent aucun p95 et ne comparent pas les stratégies. Les appels HTTP
+directs du banc n'émettent aucun ticket Argos. Les durées de préparation,
+des échanges et de fermeture sont enregistrées séparément.
+
+Le rapprochement est fait par identifiant de reçu. En M2.7.1, W6 indexe 31
+reçus de découverte au total, soit 24, 4 et 3. Les 102 reçus
+d'énumération sont en dehors de cet index. M2.7 présente 45 reçus
+d'énumération hors index. Les 54 états génériques de M2.7.1 restent liés aux
+preuves dans le rapport contextuel et apparaissent comme `observed` dans
+la carte. La portée actuelle de W6 explique leur absence de l'index. Une vue
+qui englobe l'énumération devra restituer la classification et sa provenance.
+
+### Contrôles du worker Chromium et du runtime
+
+Le test de worker existant exerce une fixture SPA distincte des callables
+WSGI. Il vérifie, pour HTTP et TLS, trois reçus liés au document, au script
+et à l'appel JSON, puis un lien DOM. Les trois répétitions par couple
+Python/transport réussissent (12/12). Le temps du cas de test complet
+inclut démarrage, capture, preuves et fermeture.
+
+| Python | HTTP, médiane [min–max] | TLS, médiane [min–max] |
+| --- | ---: | ---: |
+| 3.12 | 11,02 [10,70–11,95] s | 11,56 [11,36–11,60] s |
+| 3.14 | 11,31 [11,20–14,82] s | 11,65 [10,94–12,48] s |
+
+Les essais séparés sur le worker
+confirment le refus d'un certificat hors confiance, l'annulation pendant
+un échange imbriqué et le nettoyage des processus après arrêt de leur
+propriétaire. Les quatre contrôles hôte d'isolation, révocation et rollback
+passent sous les deux Python. Les indicateurs de temps CPU et de pic mémoire
+des groupes de tests se trouvent dans les fichiers `*.cost`. Leurs valeurs
+agrègent pytest et ses enfants et ne sont pas des mesures par composant.
+
+### Anomalies confirmées et recommandations M4.2c
+
+- **CLI SPA**. Les trois essais CLI échouent sur les deux versions de
+  Python avant le lancement du navigateur. La collecte initiale termine
+  `partial/coverage_partial` et le CLI renvoie 3. Sur les bases de test
+  conservées, le script est visité et la réponse API JSON est classée
+  `non_html` sur HTTP et TLS. Le cas de réponse retenue expire pendant
+  cette collecte statique. Les trois cas enregistrent quatre tickets et
+  zéro navigation. Il faut trancher le contrat entre collecte partielle,
+  preuve API non HTML et passage explicite au navigateur. Préserver le
+  résultat partiel, les refus et la reprise sans rejeu dans les tests.
+- **Incertitude de présence**. Conserver la preuve de transport des 54
+  réponses génériques tout en faisant apparaître leur ambiguïté dans la
+  carte. L'index W6 garde un périmètre explicite. Toute extension exige
+  un dénominateur et des renvois de preuve vérifiables.
+- **Coûts natifs**. Les mesures historiques justifient de séparer
+  lancement, précontrôle, HTTP et finalisation dans les futures traces de
+  qualification. Préserver les états partiels. Éviter de faire passer le
+  surcoût observé pour une régression imputée à un seul composant.
+- **Omissions historiques**. Conserver les deux pertes lexicales et les
+  deux exclusions par plafond comme cas de référence. Pour les 12
+  absences de candidat, maintenir les préconditions inconnues.
+
+Les rapports et journaux sont conservés sous `data/qualification/m42b.*`,
+hors Git. La qualification à six environnements demeure partielle. Les
+stratégies, outils et budgets restent ceux de la base.
+
+### Validation M4.2b
+
+- Rejeu des deux manifestes d'archives, 135 et 176 fichiers, sous Python
+  3.12.15 et 3.14.6. Les projections sont identiques hors chronométrage.
+- Le banc HTTP ferme les neuf listeners sur chacun des deux Python.
+  Les tests existants du lecteur passent (5/5 par version).
+- Les suites régulières passent sous les deux versions avec 1 457 réussites
+  et 121 tests ignorés chacune (122,02 s en 3.12 et 131,80 s en 3.14).
+  Le premier essai 3.14 avait deux échecs liés à l'umask 077 hérité dans
+  les tests de permissions. L'essai 3.12 associé a été interrompu.
+  Les relances utilisent l'umask 022 dans le processus de test et
+  conservent les journaux dans un répertoire privé.
+- Les essais hôte restent séparés de la suite régulière. Le lot
+  CLI/isolation/runtime donne trois échecs et quatre réussites par Python.
+  Le lot worker Chromium donne cinq réussites par Python, puis quatre
+  réussites supplémentaires par Python sur les deux répétitions HTTP/TLS.
+- Ruff, formatage, Pyright sur le dépôt et le banc, liens locaux et
+  `git diff --check` passent. Aucun scan externe, lancement de scanner
+  ou changement de stratégie, d'outil ou de budget.

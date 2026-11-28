@@ -10,8 +10,10 @@ Les documents des lots portent leurs tâches et bilans détaillés.
 
 **Priorité active — [Recon V2](RECON_V2.md).**
 M4.1 a préparé le corpus et M4.2a a reproduit le diagnostic sur archives.
-Le protocole M4.2b attend validation avant la qualification à comportement
-constant. Le Skill Engine est reporté.
+M4.2b documente une qualification partielle sur fixtures bénignes et sur
+archives. Le parcours CLI SPA reste bloqué et la campagne active sur les
+trois laboratoires historiques n'a pas été exécutée. M4.2c est à décider
+après revue du bilan. Le Skill Engine est reporté.
 
 Première offre : **pentest web/API autonome, boîte noire externe depuis le CLI**.
 La mission commence avec une URL ou un domaine, sans compte ni documentation.
